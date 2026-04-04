@@ -60,6 +60,12 @@ class ExportService:
             error=None,
             execution_arn=None,
             cancel_requested_at=None,
+            source_size_bytes=None,
+            copy_strategy=None,
+            copy_export_key=None,
+            copy_upload_id=None,
+            copy_part_size_bytes=None,
+            copy_part_count=None,
             created_at=now,
             updated_at=now,
         )

@@ -10,6 +10,11 @@ from typing import cast
 from botocore.config import Config
 
 from nova_runtime_support.aws import new_aioboto3_session
+from nova_runtime_support.export_copy_parts import (
+    DynamoResource as ExportCopyPartsDynamoResource,
+    build_export_copy_part_repository,
+)
+from nova_runtime_support.export_copy_worker import LargeExportCopyCoordinator
 from nova_runtime_support.export_runtime import (
     DynamoExportRepository,
     DynamoResource,
@@ -29,6 +34,7 @@ class WorkflowServices:
 
     export_service: WorkflowExportStateService
     transfer_service: S3ExportTransferService
+    large_copy_service: LargeExportCopyCoordinator
 
 
 @dataclass(slots=True)
@@ -97,6 +103,7 @@ async def workflow_services(
         s3_client = await stack.enter_async_context(
             session.client("s3", config=s3_config)
         )
+        sqs_client = await stack.enter_async_context(session.client("sqs"))
         dynamodb_resource = await stack.enter_async_context(
             session.resource("dynamodb")
         )
@@ -108,7 +115,41 @@ async def workflow_services(
             config=export_transfer_config_from_settings(resolved_settings),
             s3_client=s3_client,
         )
+        large_copy_service = LargeExportCopyCoordinator(
+            bucket=resolved_settings.file_transfer_bucket,
+            upload_prefix=resolved_settings.file_transfer_upload_prefix,
+            export_prefix=resolved_settings.file_transfer_export_prefix,
+            copy_part_size_bytes=(
+                resolved_settings.file_transfer_export_copy_part_size_bytes
+            ),
+            worker_threshold_bytes=(
+                resolved_settings.file_transfer_large_export_worker_threshold_bytes
+            ),
+            max_attempts=(
+                resolved_settings.file_transfer_export_copy_worker_attempts
+            ),
+            queue_url=(
+                resolved_settings.file_transfer_export_copy_queue_url or ""
+            ),
+            s3_client=s3_client,
+            sqs_client=sqs_client,
+            export_repository=export_service.repository,
+            export_copy_part_repository=build_export_copy_part_repository(
+                table_name=(
+                    resolved_settings.file_transfer_export_copy_parts_table
+                ),
+                dynamodb_resource=cast(
+                    ExportCopyPartsDynamoResource | None,
+                    dynamodb_resource,
+                ),
+                enabled=bool(
+                    resolved_settings.file_transfer_export_copy_parts_table
+                ),
+            ),
+            metrics=export_service.metrics,
+        )
         yield WorkflowServices(
             export_service=export_service,
             transfer_service=transfer_service,
+            large_copy_service=large_copy_service,
         )

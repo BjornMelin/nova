@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from contextlib import AsyncExitStack
 from typing import Any, cast
 
@@ -10,6 +11,7 @@ import structlog
 from botocore.config import Config
 
 from nova_runtime_support.aws import new_aioboto3_session
+from nova_runtime_support.export_copy_worker import ExportCopyTaskMessage
 from nova_runtime_support.transfer_reconciliation import (
     TransferReconciliationConfig,
     TransferReconciliationService,
@@ -29,6 +31,9 @@ from nova_workflows.tasks import (
     copy_export,
     fail_export,
     finalize_export,
+    poll_queued_export_copy,
+    prepare_export_copy,
+    start_queued_export_copy,
     validate_export,
 )
 
@@ -56,6 +61,30 @@ def copy_export_handler(
     return asyncio.run(_copy_export(event=event))
 
 
+def prepare_export_copy_handler(
+    event: dict[str, Any],
+    _context: object,
+) -> dict[str, Any]:
+    """Lambda handler for export-copy planning."""
+    return asyncio.run(_prepare_export_copy(event=event))
+
+
+def start_queued_export_copy_handler(
+    event: dict[str, Any],
+    _context: object,
+) -> dict[str, Any]:
+    """Lambda handler for large export queue initialization."""
+    return asyncio.run(_start_queued_export_copy(event=event))
+
+
+def poll_queued_export_copy_handler(
+    event: dict[str, Any],
+    _context: object,
+) -> dict[str, Any]:
+    """Lambda handler for queued export-copy polling/finalization."""
+    return asyncio.run(_poll_queued_export_copy(event=event))
+
+
 def finalize_export_handler(
     event: dict[str, Any],
     _context: object,
@@ -78,6 +107,14 @@ def reconcile_transfer_state_handler(
 ) -> dict[str, Any]:
     """Lambda handler for stale multipart upload reconciliation."""
     return asyncio.run(_reconcile_transfer_state(event=event))
+
+
+def export_copy_worker_handler(
+    event: dict[str, Any],
+    _context: object,
+) -> dict[str, Any]:
+    """Lambda handler for queued export multipart-copy workers."""
+    return asyncio.run(_export_copy_worker(event=event))
 
 
 async def _validate_export(*, event: dict[str, Any]) -> dict[str, Any]:
@@ -109,6 +146,39 @@ async def _copy_export(*, event: dict[str, Any]) -> dict[str, Any]:
             export_service=services.export_service,
             transfer_service=services.transfer_service,
             file_transfer_bucket=settings.file_transfer_bucket,
+        )
+    return result.model_dump(mode="json")
+
+
+async def _prepare_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
+    workflow_input = ExportWorkflowInput.model_validate(event)
+    async with workflow_services(settings=WorkflowSettings()) as services:
+        result = await prepare_export_copy(
+            workflow_input=workflow_input,
+            export_service=services.export_service,
+            large_copy_service=services.large_copy_service,
+        )
+    return result.model_dump(mode="json")
+
+
+async def _start_queued_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
+    workflow_input = ExportWorkflowInput.model_validate(event)
+    async with workflow_services(settings=WorkflowSettings()) as services:
+        result = await start_queued_export_copy(
+            workflow_input=workflow_input,
+            export_service=services.export_service,
+            large_copy_service=services.large_copy_service,
+        )
+    return result.model_dump(mode="json")
+
+
+async def _poll_queued_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
+    workflow_input = ExportWorkflowInput.model_validate(event)
+    async with workflow_services(settings=WorkflowSettings()) as services:
+        result = await poll_queued_export_copy(
+            workflow_input=workflow_input,
+            export_service=services.export_service,
+            large_copy_service=services.large_copy_service,
         )
     return result.model_dump(mode="json")
 
@@ -196,3 +266,23 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
         )
         result = await service.reconcile()
     return result.as_dict()
+
+
+async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
+    messages: list[tuple[str, ExportCopyTaskMessage]] = []
+    for record in cast(list[dict[str, Any]], event.get("Records", [])):
+        message_id = str(record.get("messageId", ""))
+        body = str(record.get("body", "{}"))
+        payload = ExportCopyTaskMessage.from_dict(
+            cast(dict[str, object], json.loads(body))
+        )
+        messages.append((message_id, payload))
+    async with workflow_services(settings=WorkflowSettings()) as services:
+        failures = await services.large_copy_service.process_message_batch(
+            messages=messages
+        )
+    return {
+        "batchItemFailures": [
+            {"itemIdentifier": message_id} for message_id in failures
+        ]
+    }

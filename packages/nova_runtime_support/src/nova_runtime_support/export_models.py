@@ -52,6 +52,12 @@ class ExportRecord(BaseModel):
     error: str | None = None
     execution_arn: str | None = None
     cancel_requested_at: datetime | None = None
+    source_size_bytes: int | None = None
+    copy_strategy: str | None = None
+    copy_export_key: str | None = None
+    copy_upload_id: str | None = None
+    copy_part_size_bytes: int | None = None
+    copy_part_count: int | None = None
     copying_entered_at: datetime | None = None
     finalizing_entered_at: datetime | None = None
     created_at: datetime

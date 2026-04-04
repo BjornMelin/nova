@@ -574,6 +574,12 @@ class StepFunctionsExportPublisher:
                 if export.cancel_requested_at is not None
                 else None
             ),
+            "source_size_bytes": export.source_size_bytes,
+            "copy_strategy": export.copy_strategy,
+            "copy_export_key": export.copy_export_key,
+            "copy_upload_id": export.copy_upload_id,
+            "copy_part_size_bytes": export.copy_part_size_bytes,
+            "copy_part_count": export.copy_part_count,
             "created_at": export.created_at.isoformat(),
             "updated_at": export.updated_at.isoformat(),
             "copying_entered_at": (

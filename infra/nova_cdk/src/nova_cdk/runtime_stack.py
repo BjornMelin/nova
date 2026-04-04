@@ -24,9 +24,11 @@ from aws_cdk import (
     aws_events_targets as targets,
     aws_iam as iam,
     aws_lambda as lambda_,
+    aws_lambda_event_sources as lambda_event_sources,
     aws_logs as logs,
     aws_route53 as route53,
     aws_s3 as s3,
+    aws_sqs as sqs,
     aws_stepfunctions as sfn,
     aws_stepfunctions_tasks as tasks,
 )
@@ -203,13 +205,15 @@ def _default_transfer_policy_document() -> TransferPolicyDocument:
         target_upload_part_count=2000,
         upload_part_size_bytes=128 * 1024 * 1024,
         max_concurrency_hint=4,
-        sign_batch_size_hint=32,
+        sign_batch_size_hint=64,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        checksum_mode="none",
         resumable_ttl_seconds=7 * 24 * 60 * 60,
         active_multipart_upload_limit=200,
         daily_ingress_budget_bytes=1024 * 1024 * 1024 * 1024,
         sign_requests_per_upload_limit=512,
+        large_export_worker_threshold_bytes=50 * 1024 * 1024 * 1024,
     )
 
 
@@ -609,12 +613,48 @@ class NovaRuntimeStack(Stack):
             point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
+        export_copy_parts_table = dynamodb.Table(
+            self,
+            "ExportCopyPartsTable",
+            partition_key=dynamodb.Attribute(
+                name="export_id",
+                type=dynamodb.AttributeType.STRING,
+            ),
+            sort_key=dynamodb.Attribute(
+                name="part_number",
+                type=dynamodb.AttributeType.NUMBER,
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="expires_at_epoch",
+            point_in_time_recovery_specification=_point_in_time_recovery(),
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+        export_copy_dlq = sqs.Queue(
+            self,
+            "ExportCopyWorkerDlq",
+            retention_period=Duration.days(14),
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            enforce_ssl=True,
+        )
+        export_copy_queue = sqs.Queue(
+            self,
+            "ExportCopyWorkerQueue",
+            dead_letter_queue=sqs.DeadLetterQueue(
+                queue=export_copy_dlq,
+                max_receive_count=5,
+            ),
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            enforce_ssl=True,
+            receive_message_wait_time=Duration.seconds(20),
+            visibility_timeout=Duration.minutes(30),
+        )
         file_bucket = s3.Bucket(
             self,
             "FileTransferBucket",
             encryption=s3.BucketEncryption.S3_MANAGED,
             enforce_ssl=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            transfer_acceleration=True,
             versioned=True,
             lifecycle_rules=[
                 s3.LifecycleRule(
@@ -725,6 +765,14 @@ class NovaRuntimeStack(Stack):
                 2 * 1024 * 1024 * 1024
             ),
             "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": "8",
+            "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES": str(
+                50 * 1024 * 1024 * 1024
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS": "5",
+            "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": (
+                export_copy_parts_table.table_name
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": export_copy_queue.queue_url,
         }
         common_env = {
             **workflow_common_env,
@@ -749,6 +797,7 @@ class NovaRuntimeStack(Stack):
                 1024 * 1024 * 1024 * 1024
             ),
             "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT": "512",
+            "FILE_TRANSFER_CHECKSUM_MODE": "none",
             "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": (
                 transfer_policy_application.ref
             ),
@@ -840,6 +889,50 @@ class NovaRuntimeStack(Stack):
             ),
             **workflow_fn_props,
         )
+        prepare_copy_fn = lambda_.Function(
+            self,
+            "PrepareExportCopyFunction",
+            handler="nova_workflows.handlers.prepare_export_copy_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="PrepareExportCopyFunction",
+            ),
+            **workflow_fn_props,
+        )
+        start_queued_copy_fn = lambda_.Function(
+            self,
+            "StartQueuedExportCopyFunction",
+            handler="nova_workflows.handlers.start_queued_export_copy_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="StartQueuedExportCopyFunction",
+            ),
+            **workflow_fn_props,
+        )
+        poll_queued_copy_fn = lambda_.Function(
+            self,
+            "PollQueuedExportCopyFunction",
+            handler="nova_workflows.handlers.poll_queued_export_copy_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="PollQueuedExportCopyFunction",
+            ),
+            **workflow_fn_props,
+        )
+        export_copy_worker_fn = lambda_.Function(
+            self,
+            "ExportCopyWorkerFunction",
+            handler="nova_workflows.handlers.export_copy_worker_handler",
+            environment=task_env,
+            log_group=_runtime_log_group(
+                self,
+                function_name="ExportCopyWorkerFunction",
+            ),
+            **workflow_fn_props,
+        )
         reconcile_transfer_state_fn = lambda_.Function(
             self,
             "ReconcileTransferStateFunction",
@@ -864,12 +957,67 @@ class NovaRuntimeStack(Stack):
             function=fail_fn,
             export_table=export_table,
         )
+        grant_export_status_permissions(
+            function=prepare_copy_fn,
+            export_table=export_table,
+        )
+        grant_export_status_permissions(
+            function=start_queued_copy_fn,
+            export_table=export_table,
+        )
+        grant_export_status_permissions(
+            function=poll_queued_copy_fn,
+            export_table=export_table,
+        )
         grant_copy_export_permissions(
             function=copy_fn,
             export_table=export_table,
             file_bucket=file_bucket,
             export_prefix="exports/",
             upload_prefix="uploads/",
+        )
+        grant_copy_export_permissions(
+            function=prepare_copy_fn,
+            export_table=export_table,
+            file_bucket=file_bucket,
+            export_prefix="exports/",
+            upload_prefix="uploads/",
+        )
+        grant_copy_export_permissions(
+            function=start_queued_copy_fn,
+            export_table=export_table,
+            file_bucket=file_bucket,
+            export_prefix="exports/",
+            upload_prefix="uploads/",
+        )
+        grant_copy_export_permissions(
+            function=poll_queued_copy_fn,
+            export_table=export_table,
+            file_bucket=file_bucket,
+            export_prefix="exports/",
+            upload_prefix="uploads/",
+        )
+        grant_copy_export_permissions(
+            function=export_copy_worker_fn,
+            export_table=export_table,
+            file_bucket=file_bucket,
+            export_prefix="exports/",
+            upload_prefix="uploads/",
+        )
+        export_copy_parts_table.grant_read_write_data(start_queued_copy_fn)
+        export_copy_parts_table.grant_read_write_data(poll_queued_copy_fn)
+        export_copy_parts_table.grant_read_write_data(export_copy_worker_fn)
+        export_copy_queue.grant_send_messages(start_queued_copy_fn)
+        export_copy_queue.grant_consume_messages(export_copy_worker_fn)
+        export_copy_dlq.grant_consume_messages(export_copy_worker_fn)
+        export_copy_worker_fn.add_event_source(
+            lambda_event_sources.SqsEventSource(
+                export_copy_queue,
+                batch_size=10,
+                max_batching_window=Duration.seconds(5),
+                report_batch_item_failures=True,
+                max_concurrency=8,
+            )
         )
         upload_sessions_table.grant_read_write_data(reconcile_transfer_state_fn)
         transfer_usage_table.grant_read_write_data(reconcile_transfer_state_fn)
@@ -918,6 +1066,13 @@ class NovaRuntimeStack(Stack):
             payload_response_only=True,
             retry_on_service_exceptions=False,
         )
+        prepare_copy_task = tasks.LambdaInvoke(
+            self,
+            "PrepareExportCopy",
+            lambda_function=prepare_copy_fn,
+            payload_response_only=True,
+            retry_on_service_exceptions=False,
+        )
         copy_task = tasks.LambdaInvoke(
             self,
             "CopyExport",
@@ -925,9 +1080,30 @@ class NovaRuntimeStack(Stack):
             payload_response_only=True,
             retry_on_service_exceptions=False,
         )
-        finalize_task = tasks.LambdaInvoke(
+        start_queued_copy_task = tasks.LambdaInvoke(
             self,
-            "FinalizeExport",
+            "StartQueuedExportCopy",
+            lambda_function=start_queued_copy_fn,
+            payload_response_only=True,
+            retry_on_service_exceptions=False,
+        )
+        poll_queued_copy_task = tasks.LambdaInvoke(
+            self,
+            "PollQueuedExportCopy",
+            lambda_function=poll_queued_copy_fn,
+            payload_response_only=True,
+            retry_on_service_exceptions=False,
+        )
+        finalize_inline_task = tasks.LambdaInvoke(
+            self,
+            "FinalizeInlineExport",
+            lambda_function=finalize_fn,
+            payload_response_only=True,
+            retry_on_service_exceptions=False,
+        )
+        finalize_queued_task = tasks.LambdaInvoke(
+            self,
+            "FinalizeQueuedExport",
             lambda_function=finalize_fn,
             payload_response_only=True,
             retry_on_service_exceptions=False,
@@ -935,8 +1111,12 @@ class NovaRuntimeStack(Stack):
 
         for task in (
             validate_task,
+            prepare_copy_task,
             copy_task,
-            finalize_task,
+            start_queued_copy_task,
+            poll_queued_copy_task,
+            finalize_inline_task,
+            finalize_queued_task,
             workflow_failure_task,
         ):
             task.add_retry(
@@ -963,8 +1143,51 @@ class NovaRuntimeStack(Stack):
                 max_delay=Duration.seconds(30),
                 jitter_strategy=sfn.JitterType.FULL,
             )
-        for task in (validate_task, copy_task, finalize_task):
+        for task in (
+            validate_task,
+            prepare_copy_task,
+            copy_task,
+            start_queued_copy_task,
+            poll_queued_copy_task,
+            finalize_inline_task,
+            finalize_queued_task,
+        ):
             task.add_catch(workflow_failure, result_path="$.workflow_error")
+
+        copy_strategy_choice = sfn.Choice(self, "SelectExportCopyLane")
+        queued_copy_progress_choice = sfn.Choice(
+            self,
+            "QueuedExportCopyReady",
+        )
+        queued_copy_wait = sfn.Wait(
+            self,
+            "WaitForQueuedExportCopy",
+            time=sfn.WaitTime.duration(Duration.seconds(15)),
+        )
+        export_completed = sfn.Succeed(self, "ExportCompleted")
+        export_cancelled = sfn.Succeed(self, "ExportCancelled")
+
+        queued_copy_chain = (
+            start_queued_copy_task.next(queued_copy_wait)
+            .next(poll_queued_copy_task)
+            .next(
+                queued_copy_progress_choice.when(
+                    sfn.Condition.string_equals(
+                        "$.copy_progress_state",
+                        "ready",
+                    ),
+                    finalize_queued_task.next(export_completed),
+                )
+                .when(
+                    sfn.Condition.string_equals(
+                        "$.copy_progress_state",
+                        "cancelled",
+                    ),
+                    export_cancelled,
+                )
+                .otherwise(queued_copy_wait)
+            )
+        )
 
         state_machine_log_group = logs.LogGroup(
             self,
@@ -977,16 +1200,26 @@ class NovaRuntimeStack(Stack):
             "ExportWorkflowStateMachine",
             state_machine_type=sfn.StateMachineType.STANDARD,
             definition_body=sfn.DefinitionBody.from_chainable(
-                validate_task.next(copy_task)
-                .next(finalize_task)
-                .next(sfn.Succeed(self, "ExportCompleted"))
+                validate_task.next(prepare_copy_task).next(
+                    copy_strategy_choice.when(
+                        sfn.Condition.string_equals(
+                            "$.copy_strategy",
+                            "worker",
+                        ),
+                        queued_copy_chain,
+                    ).otherwise(
+                        copy_task.next(finalize_inline_task).next(
+                            export_completed
+                        )
+                    )
+                )
             ),
             logs=sfn.LogOptions(
                 destination=state_machine_log_group,
                 level=sfn.LogLevel.ALL,
             ),
             tracing_enabled=True,
-            timeout=Duration.minutes(15),
+            timeout=Duration.hours(1),
         )
 
         api_lambda_artifact_bucket_name = _required_context_or_env_value(
@@ -1159,16 +1392,34 @@ class NovaRuntimeStack(Stack):
             self,
             "WorkflowTaskThrottlesAlarm",
             metric=cloudwatch.MathExpression(
-                expression="validate + copy + finalize + fail",
+                expression=(
+                    "validate + prepare + copy + start + poll + "
+                    "finalize_inline + finalize_queued + fail + worker"
+                ),
                 period=Duration.minutes(5),
                 using_metrics={
                     "validate": validate_fn.metric_throttles(
                         period=Duration.minutes(5)
                     ),
+                    "prepare": prepare_copy_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
                     "copy": copy_fn.metric_throttles(
                         period=Duration.minutes(5)
                     ),
-                    "finalize": finalize_fn.metric_throttles(
+                    "start": start_queued_copy_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "poll": poll_queued_copy_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "finalize_inline": finalize_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "finalize_queued": finalize_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                    "worker": export_copy_worker_fn.metric_throttles(
                         period=Duration.minutes(5)
                     ),
                     "fail": fail_fn.metric_throttles(
@@ -1311,6 +1562,33 @@ class NovaRuntimeStack(Stack):
             ),
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
+        export_copy_worker_dlq_alarm = cloudwatch.Alarm(
+            self,
+            "ExportCopyWorkerDlqAlarm",
+            metric=export_copy_dlq.metric_approximate_number_of_messages_visible(
+                period=Duration.minutes(5)
+            ),
+            threshold=1,
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when the export copy worker DLQ receives messages."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        export_copy_worker_queue_age_alarm = cloudwatch.Alarm(
+            self,
+            "ExportCopyWorkerQueueAgeAlarm",
+            metric=export_copy_queue.metric_approximate_age_of_oldest_message(
+                period=Duration.minutes(5)
+            ),
+            threshold=300,
+            evaluation_periods=1,
+            alarm_description=(
+                "Alarm when queued export copy work waits longer than "
+                "5 minutes."
+            ),
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
         add_alarm_actions(
             alarms=[
                 api_gateway_5xx_alarm,
@@ -1319,6 +1597,8 @@ class NovaRuntimeStack(Stack):
                 api_lambda_throttles_alarm,
                 export_workflow_failures_alarm,
                 export_workflow_timeouts_alarm,
+                export_copy_worker_dlq_alarm,
+                export_copy_worker_queue_age_alarm,
                 exports_table_throttles_alarm,
                 upload_sessions_table_throttles_alarm,
                 upload_sessions_stale_alarm,
@@ -1600,6 +1880,26 @@ class NovaRuntimeStack(Stack):
                 ],
             ),
             cloudwatch.GraphWidget(
+                title="Export copy worker queue and DLQ",
+                width=12,
+                left=[
+                    export_copy_queue.metric_approximate_number_of_messages_visible(
+                        period=Duration.minutes(5)
+                    ),
+                    export_copy_queue.metric_approximate_age_of_oldest_message(
+                        period=Duration.minutes(5)
+                    ),
+                ],
+                right=[
+                    export_copy_dlq.metric_approximate_number_of_messages_visible(
+                        period=Duration.minutes(5)
+                    ),
+                    export_copy_worker_fn.metric_throttles(
+                        period=Duration.minutes(5)
+                    ),
+                ],
+            ),
+            cloudwatch.GraphWidget(
                 title="S3 incomplete multipart uploads older than 7 days",
                 width=12,
                 left=[
@@ -1681,6 +1981,11 @@ class NovaRuntimeStack(Stack):
                 "ExportNovaTransferUsageTableName",
                 "TransferUsageTableName",
                 transfer_usage_table.table_name,
+            ),
+            (
+                "ExportNovaExportCopyPartsTableName",
+                "ExportCopyPartsTableName",
+                export_copy_parts_table.table_name,
             ),
             (
                 "ExportNovaTransferPolicyAppConfigApplicationId",

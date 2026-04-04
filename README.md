@@ -9,7 +9,7 @@ Nova is a serverless file transfer and export orchestration platform.
 
 At a product level, Nova gives browser, Dash, Python, TypeScript, and R clients a typed control plane for secure direct-to-S3 uploads, multipart transfer flows, presigned downloads, and durable export workflows.
 
-At an engineering level, this repository is the canonical monorepo for the Nova runtime, SDKs, contracts, release automation, and AWS infrastructure. The active platform shape is a FastAPI control plane running on AWS Lambda behind API Gateway Regional REST API, with production WAF enabled by default and non-production WAF opt-in, plus S3, DynamoDB, and Step Functions for the durable substrate.
+At an engineering level, this repository is the canonical monorepo for the Nova runtime, SDKs, contracts, release automation, and AWS infrastructure. The active platform shape is a FastAPI control plane running on AWS Lambda behind API Gateway Regional REST API, with production WAF enabled by default and non-production WAF opt-in, plus S3, DynamoDB, AppConfig, Step Functions, and an internal SQS worker lane for the durable substrate.
 
 ## Status
 
@@ -33,8 +33,13 @@ Clients upload and download data directly against AWS storage primitives using N
 - Multipart part signing, upload introspection, completion, and abort
 - Additive initiate hints for upload sessions, resumable windows, and browser
   multipart tuning
+- Policy-controlled transfer acceleration and checksum modes, including
+  workload- or profile-scoped transfer hints
 - Presigned download issuance
-- Durable export workflow creation, status tracking, listing, and optional cancellation
+- Durable export workflow creation, status tracking, listing, and optional
+  cancellation
+- Two export copy lanes: inline server-side copy for moderate objects and
+  queue-backed multipart copy workers for larger objects
 - Typed OpenAPI contract with generated TypeScript and Python SDKs, plus a thin R client
 - Repo-owned release, deploy, and post-deploy validation workflows
 - Published deploy-output provenance for runtime URL authority and release identity
@@ -72,7 +77,7 @@ Browser / Dash / TS / Python / R clients
                 |
       Lambda (FastAPI via Mangum)
                 |
-       DynamoDB + S3 + Step Functions
+ DynamoDB + AppConfig + S3 + Step Functions + SQS
                 |
    Lambda workflow handlers and SDK generation
 ```
@@ -85,6 +90,7 @@ Nova is responsible for:
 - completing and aborting uploads
 - issuing download URLs
 - creating and tracking export workflows
+- selecting transfer policy overlays and worker-lane thresholds
 - exposing typed operational and capability endpoints
 - publishing stable contract and release artifacts for downstream consumers
 

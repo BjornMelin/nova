@@ -30,6 +30,7 @@ class ExportTransferConfig:
     max_concurrency: int
     copy_part_size_bytes: int
     copy_max_concurrency: int
+    large_copy_worker_threshold_bytes: int
 
 
 @dataclass(slots=True, frozen=True)

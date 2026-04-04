@@ -56,6 +56,25 @@ class WorkflowSettings(BaseSettings):
         ge=1,
         le=32,
     )
+    file_transfer_large_export_worker_threshold_bytes: int = Field(
+        default=50 * 1024 * 1024 * 1024,
+        validation_alias="FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        ge=5 * 1024 * 1024 * 1024,
+    )
+    file_transfer_export_copy_worker_attempts: int = Field(
+        default=5,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        ge=1,
+        le=20,
+    )
+    file_transfer_export_copy_parts_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    )
+    file_transfer_export_copy_queue_url: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    )
     file_transfer_max_concurrency: int = Field(
         default=4,
         validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
@@ -137,4 +156,7 @@ def export_transfer_config_from_settings(
         max_concurrency=settings.file_transfer_export_copy_max_concurrency,
         copy_part_size_bytes=settings.file_transfer_export_copy_part_size_bytes,
         copy_max_concurrency=settings.file_transfer_export_copy_max_concurrency,
+        large_copy_worker_threshold_bytes=(
+            settings.file_transfer_large_export_worker_threshold_bytes
+        ),
     )

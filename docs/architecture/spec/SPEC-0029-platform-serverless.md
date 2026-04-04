@@ -2,8 +2,8 @@
 SPEC: 0029
 Title: Canonical serverless platform
 Status: Implemented
-Version: 1.0
-Date: 2026-03-25
+Version: 1.1
+Date: 2026-04-03
 Related:
   - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
 ---
@@ -16,6 +16,8 @@ Related:
 - Step Functions Standard
 - DynamoDB
 - S3
+- AppConfig
+- SQS for the internal large-export copy worker lane
 - CloudWatch / tracing
 
 ## IaC
@@ -39,6 +41,7 @@ Related:
 - bearer JWT verification remains in-process in the application
 - browser CORS remains an explicit allowed-origins contract across API and S3
   browser flows
+- transfer acceleration remains policy-scoped, not a global default
 
 ## Operational defaults
 
@@ -49,6 +52,7 @@ Related:
 - structured JSON logs
 - correlation IDs
 - RED metrics + saturation + workflow failure metrics
+- queue age / DLQ depth metrics for the export worker lane
 - post-deploy validation must prove release identity, readiness, protected
   auth behavior, browser CORS preflight, and legacy-path 404 drift against the
   deploy-output artifact
