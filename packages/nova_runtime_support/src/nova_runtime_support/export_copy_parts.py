@@ -13,7 +13,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Protocol, cast
 
-from boto3.dynamodb.types import TypeSerializer
+from boto3.dynamodb.types import TypeSerializer  # type: ignore[import-untyped]
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel, ConfigDict, Field
 
