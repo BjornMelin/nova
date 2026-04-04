@@ -269,7 +269,7 @@ export type ExportResource = {
 export type ExportStatus = 'queued' | 'validating' | 'copying' | 'finalizing' | 'succeeded' | 'failed' | 'cancelled';
 
 /**
- * HTTPValidationError
+ * Validation error envelope returned for invalid request payloads.
  */
 export type HttpValidationError = {
     /**
@@ -300,7 +300,7 @@ export type HealthResponse = {
  * ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
  * integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
  * client preference; preference is not the same enum as mode mapping and the
- * final mode decision happen server-side.
+ * final mode decision happens server-side.
  */
 export type InitiateUploadRequest = {
     /**
@@ -746,7 +746,7 @@ export type UploadedPart = {
 };
 
 /**
- * ValidationError
+ * One request-validation issue with location, message, and error type.
  */
 export type ValidationError = {
     /**
@@ -773,6 +773,9 @@ export type ValidationError = {
     type: string;
 };
 
+/**
+ * Request data for the `MetricsSummary` operation.
+ */
 export type MetricsSummaryData = {
     body?: never;
     path?: never;
@@ -780,6 +783,9 @@ export type MetricsSummaryData = {
     url: '/metrics/summary';
 };
 
+/**
+ * Error responses for the `MetricsSummary` operation.
+ */
 export type MetricsSummaryErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -791,8 +797,14 @@ export type MetricsSummaryErrors = {
     403: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `MetricsSummary` operation.
+ */
 export type MetricsSummaryError = MetricsSummaryErrors[keyof MetricsSummaryErrors];
 
+/**
+ * Response variants for the `MetricsSummary` operation.
+ */
 export type MetricsSummaryResponses = {
     /**
      * Successful Response
@@ -802,6 +814,9 @@ export type MetricsSummaryResponses = {
 
 export type MetricsSummaryResponse2 = MetricsSummaryResponses[keyof MetricsSummaryResponses];
 
+/**
+ * Request data for the `GetCapabilities` operation.
+ */
 export type GetCapabilitiesData = {
     body?: never;
     path?: never;
@@ -809,6 +824,9 @@ export type GetCapabilitiesData = {
     url: '/v1/capabilities';
 };
 
+/**
+ * Response variants for the `GetCapabilities` operation.
+ */
 export type GetCapabilitiesResponses = {
     /**
      * Successful Response
@@ -816,8 +834,14 @@ export type GetCapabilitiesResponses = {
     200: CapabilitiesResponse;
 };
 
+/**
+ * Response union for the `GetCapabilities` operation.
+ */
 export type GetCapabilitiesResponse = GetCapabilitiesResponses[keyof GetCapabilitiesResponses];
 
+/**
+ * Request data for the `GetTransferCapabilities` operation.
+ */
 export type GetTransferCapabilitiesData = {
     body?: never;
     path?: never;
@@ -834,6 +858,9 @@ export type GetTransferCapabilitiesData = {
     url: '/v1/capabilities/transfers';
 };
 
+/**
+ * Error responses for the `GetTransferCapabilities` operation.
+ */
 export type GetTransferCapabilitiesErrors = {
     /**
      * Validation Error
@@ -841,8 +868,14 @@ export type GetTransferCapabilitiesErrors = {
     422: HttpValidationError;
 };
 
+/**
+ * Error union for the `GetTransferCapabilities` operation.
+ */
 export type GetTransferCapabilitiesError = GetTransferCapabilitiesErrors[keyof GetTransferCapabilitiesErrors];
 
+/**
+ * Response variants for the `GetTransferCapabilities` operation.
+ */
 export type GetTransferCapabilitiesResponses = {
     /**
      * Successful Response
@@ -850,8 +883,14 @@ export type GetTransferCapabilitiesResponses = {
     200: TransferCapabilitiesResponse;
 };
 
+/**
+ * Response union for the `GetTransferCapabilities` operation.
+ */
 export type GetTransferCapabilitiesResponse = GetTransferCapabilitiesResponses[keyof GetTransferCapabilitiesResponses];
 
+/**
+ * Request data for the `ListExports` operation.
+ */
 export type ListExportsData = {
     body?: never;
     path?: never;
@@ -864,6 +903,9 @@ export type ListExportsData = {
     url: '/v1/exports';
 };
 
+/**
+ * Error responses for the `ListExports` operation.
+ */
 export type ListExportsErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -879,8 +921,14 @@ export type ListExportsErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `ListExports` operation.
+ */
 export type ListExportsError = ListExportsErrors[keyof ListExportsErrors];
 
+/**
+ * Response variants for the `ListExports` operation.
+ */
 export type ListExportsResponses = {
     /**
      * Successful Response
@@ -888,8 +936,14 @@ export type ListExportsResponses = {
     200: ExportListResponse;
 };
 
+/**
+ * Response union for the `ListExports` operation.
+ */
 export type ListExportsResponse = ListExportsResponses[keyof ListExportsResponses];
 
+/**
+ * Request data for the `CreateExport` operation.
+ */
 export type CreateExportData = {
     body: CreateExportRequest;
     headers?: {
@@ -903,6 +957,9 @@ export type CreateExportData = {
     url: '/v1/exports';
 };
 
+/**
+ * Error responses for the `CreateExport` operation.
+ */
 export type CreateExportErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -926,8 +983,14 @@ export type CreateExportErrors = {
     503: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `CreateExport` operation.
+ */
 export type CreateExportError = CreateExportErrors[keyof CreateExportErrors];
 
+/**
+ * Response variants for the `CreateExport` operation.
+ */
 export type CreateExportResponses = {
     /**
      * Successful Response
@@ -935,8 +998,14 @@ export type CreateExportResponses = {
     201: ExportResource;
 };
 
+/**
+ * Response union for the `CreateExport` operation.
+ */
 export type CreateExportResponse = CreateExportResponses[keyof CreateExportResponses];
 
+/**
+ * Request data for the `GetExport` operation.
+ */
 export type GetExportData = {
     body?: never;
     path: {
@@ -949,6 +1018,9 @@ export type GetExportData = {
     url: '/v1/exports/{export_id}';
 };
 
+/**
+ * Error responses for the `GetExport` operation.
+ */
 export type GetExportErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -968,8 +1040,14 @@ export type GetExportErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `GetExport` operation.
+ */
 export type GetExportError = GetExportErrors[keyof GetExportErrors];
 
+/**
+ * Response variants for the `GetExport` operation.
+ */
 export type GetExportResponses = {
     /**
      * Successful Response
@@ -977,8 +1055,14 @@ export type GetExportResponses = {
     200: ExportResource;
 };
 
+/**
+ * Response union for the `GetExport` operation.
+ */
 export type GetExportResponse = GetExportResponses[keyof GetExportResponses];
 
+/**
+ * Request data for the `CancelExport` operation.
+ */
 export type CancelExportData = {
     body?: never;
     path: {
@@ -991,6 +1075,9 @@ export type CancelExportData = {
     url: '/v1/exports/{export_id}/cancel';
 };
 
+/**
+ * Error responses for the `CancelExport` operation.
+ */
 export type CancelExportErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1010,8 +1097,14 @@ export type CancelExportErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `CancelExport` operation.
+ */
 export type CancelExportError = CancelExportErrors[keyof CancelExportErrors];
 
+/**
+ * Response variants for the `CancelExport` operation.
+ */
 export type CancelExportResponses = {
     /**
      * Successful Response
@@ -1019,8 +1112,14 @@ export type CancelExportResponses = {
     200: ExportResource;
 };
 
+/**
+ * Response union for the `CancelExport` operation.
+ */
 export type CancelExportResponse = CancelExportResponses[keyof CancelExportResponses];
 
+/**
+ * Request data for the `HealthLive` operation.
+ */
 export type HealthLiveData = {
     body?: never;
     path?: never;
@@ -1028,6 +1127,9 @@ export type HealthLiveData = {
     url: '/v1/health/live';
 };
 
+/**
+ * Response variants for the `HealthLive` operation.
+ */
 export type HealthLiveResponses = {
     /**
      * Successful Response
@@ -1035,8 +1137,14 @@ export type HealthLiveResponses = {
     200: HealthResponse;
 };
 
+/**
+ * Response union for the `HealthLive` operation.
+ */
 export type HealthLiveResponse = HealthLiveResponses[keyof HealthLiveResponses];
 
+/**
+ * Request data for the `HealthReady` operation.
+ */
 export type HealthReadyData = {
     body?: never;
     path?: never;
@@ -1044,6 +1152,9 @@ export type HealthReadyData = {
     url: '/v1/health/ready';
 };
 
+/**
+ * Error responses for the `HealthReady` operation.
+ */
 export type HealthReadyErrors = {
     /**
      * Service Unavailable - Readiness failed.
@@ -1051,8 +1162,14 @@ export type HealthReadyErrors = {
     503: ReadinessResponse;
 };
 
+/**
+ * Error union for the `HealthReady` operation.
+ */
 export type HealthReadyError = HealthReadyErrors[keyof HealthReadyErrors];
 
+/**
+ * Response variants for the `HealthReady` operation.
+ */
 export type HealthReadyResponses = {
     /**
      * Successful Response
@@ -1060,8 +1177,14 @@ export type HealthReadyResponses = {
     200: ReadinessResponse;
 };
 
+/**
+ * Response union for the `HealthReady` operation.
+ */
 export type HealthReadyResponse = HealthReadyResponses[keyof HealthReadyResponses];
 
+/**
+ * Request data for the `GetReleaseInfo` operation.
+ */
 export type GetReleaseInfoData = {
     body?: never;
     path?: never;
@@ -1069,6 +1192,9 @@ export type GetReleaseInfoData = {
     url: '/v1/releases/info';
 };
 
+/**
+ * Response variants for the `GetReleaseInfo` operation.
+ */
 export type GetReleaseInfoResponses = {
     /**
      * Successful Response
@@ -1076,8 +1202,14 @@ export type GetReleaseInfoResponses = {
     200: ReleaseInfoResponse;
 };
 
+/**
+ * Response union for the `GetReleaseInfo` operation.
+ */
 export type GetReleaseInfoResponse = GetReleaseInfoResponses[keyof GetReleaseInfoResponses];
 
+/**
+ * Request data for the `PlanResources` operation.
+ */
 export type PlanResourcesData = {
     body: ResourcePlanRequest;
     path?: never;
@@ -1085,6 +1217,9 @@ export type PlanResourcesData = {
     url: '/v1/resources/plan';
 };
 
+/**
+ * Error responses for the `PlanResources` operation.
+ */
 export type PlanResourcesErrors = {
     /**
      * Unprocessable Content - Request validation failed.
@@ -1092,8 +1227,14 @@ export type PlanResourcesErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `PlanResources` operation.
+ */
 export type PlanResourcesError = PlanResourcesErrors[keyof PlanResourcesErrors];
 
+/**
+ * Response variants for the `PlanResources` operation.
+ */
 export type PlanResourcesResponses = {
     /**
      * Successful Response
@@ -1101,8 +1242,14 @@ export type PlanResourcesResponses = {
     200: ResourcePlanResponse;
 };
 
+/**
+ * Response union for the `PlanResources` operation.
+ */
 export type PlanResourcesResponse = PlanResourcesResponses[keyof PlanResourcesResponses];
 
+/**
+ * Request data for the `PresignDownload` operation.
+ */
 export type PresignDownloadData = {
     body: PresignDownloadRequest;
     path?: never;
@@ -1110,6 +1257,9 @@ export type PresignDownloadData = {
     url: '/v1/transfers/downloads/presign';
 };
 
+/**
+ * Error responses for the `PresignDownload` operation.
+ */
 export type PresignDownloadErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1125,8 +1275,14 @@ export type PresignDownloadErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `PresignDownload` operation.
+ */
 export type PresignDownloadError = PresignDownloadErrors[keyof PresignDownloadErrors];
 
+/**
+ * Response variants for the `PresignDownload` operation.
+ */
 export type PresignDownloadResponses = {
     /**
      * Successful Response
@@ -1136,6 +1292,9 @@ export type PresignDownloadResponses = {
 
 export type PresignDownloadResponse2 = PresignDownloadResponses[keyof PresignDownloadResponses];
 
+/**
+ * Request data for the `AbortUpload` operation.
+ */
 export type AbortUploadData = {
     body: AbortUploadRequest;
     path?: never;
@@ -1143,6 +1302,9 @@ export type AbortUploadData = {
     url: '/v1/transfers/uploads/abort';
 };
 
+/**
+ * Error responses for the `AbortUpload` operation.
+ */
 export type AbortUploadErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1158,8 +1320,14 @@ export type AbortUploadErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `AbortUpload` operation.
+ */
 export type AbortUploadError = AbortUploadErrors[keyof AbortUploadErrors];
 
+/**
+ * Response variants for the `AbortUpload` operation.
+ */
 export type AbortUploadResponses = {
     /**
      * Successful Response
@@ -1169,6 +1337,9 @@ export type AbortUploadResponses = {
 
 export type AbortUploadResponse2 = AbortUploadResponses[keyof AbortUploadResponses];
 
+/**
+ * Request data for the `CompleteUpload` operation.
+ */
 export type CompleteUploadData = {
     body: CompleteUploadRequest;
     path?: never;
@@ -1176,6 +1347,9 @@ export type CompleteUploadData = {
     url: '/v1/transfers/uploads/complete';
 };
 
+/**
+ * Error responses for the `CompleteUpload` operation.
+ */
 export type CompleteUploadErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1191,8 +1365,14 @@ export type CompleteUploadErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `CompleteUpload` operation.
+ */
 export type CompleteUploadError = CompleteUploadErrors[keyof CompleteUploadErrors];
 
+/**
+ * Response variants for the `CompleteUpload` operation.
+ */
 export type CompleteUploadResponses = {
     /**
      * Successful Response
@@ -1202,6 +1382,9 @@ export type CompleteUploadResponses = {
 
 export type CompleteUploadResponse2 = CompleteUploadResponses[keyof CompleteUploadResponses];
 
+/**
+ * Request data for the `InitiateUpload` operation.
+ */
 export type InitiateUploadData = {
     body: InitiateUploadRequest;
     headers?: {
@@ -1215,6 +1398,9 @@ export type InitiateUploadData = {
     url: '/v1/transfers/uploads/initiate';
 };
 
+/**
+ * Error responses for the `InitiateUpload` operation.
+ */
 export type InitiateUploadErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1238,8 +1424,14 @@ export type InitiateUploadErrors = {
     503: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `InitiateUpload` operation.
+ */
 export type InitiateUploadError = InitiateUploadErrors[keyof InitiateUploadErrors];
 
+/**
+ * Response variants for the `InitiateUpload` operation.
+ */
 export type InitiateUploadResponses = {
     /**
      * Successful Response
@@ -1249,6 +1441,9 @@ export type InitiateUploadResponses = {
 
 export type InitiateUploadResponse2 = InitiateUploadResponses[keyof InitiateUploadResponses];
 
+/**
+ * Request data for the `IntrospectUpload` operation.
+ */
 export type IntrospectUploadData = {
     body: UploadIntrospectionRequest;
     path?: never;
@@ -1256,6 +1451,9 @@ export type IntrospectUploadData = {
     url: '/v1/transfers/uploads/introspect';
 };
 
+/**
+ * Error responses for the `IntrospectUpload` operation.
+ */
 export type IntrospectUploadErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1271,8 +1469,14 @@ export type IntrospectUploadErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `IntrospectUpload` operation.
+ */
 export type IntrospectUploadError = IntrospectUploadErrors[keyof IntrospectUploadErrors];
 
+/**
+ * Response variants for the `IntrospectUpload` operation.
+ */
 export type IntrospectUploadResponses = {
     /**
      * Successful Response
@@ -1280,8 +1484,14 @@ export type IntrospectUploadResponses = {
     200: UploadIntrospectionResponse;
 };
 
+/**
+ * Response union for the `IntrospectUpload` operation.
+ */
 export type IntrospectUploadResponse = IntrospectUploadResponses[keyof IntrospectUploadResponses];
 
+/**
+ * Request data for the `SignUploadParts` operation.
+ */
 export type SignUploadPartsData = {
     body: SignPartsRequest;
     path?: never;
@@ -1289,6 +1499,9 @@ export type SignUploadPartsData = {
     url: '/v1/transfers/uploads/sign-parts';
 };
 
+/**
+ * Error responses for the `SignUploadParts` operation.
+ */
 export type SignUploadPartsErrors = {
     /**
      * Unauthorized - Bearer token is missing or invalid.
@@ -1304,8 +1517,14 @@ export type SignUploadPartsErrors = {
     422: ErrorEnvelope;
 };
 
+/**
+ * Error union for the `SignUploadParts` operation.
+ */
 export type SignUploadPartsError = SignUploadPartsErrors[keyof SignUploadPartsErrors];
 
+/**
+ * Response variants for the `SignUploadParts` operation.
+ */
 export type SignUploadPartsResponses = {
     /**
      * Successful Response
@@ -1313,4 +1532,7 @@ export type SignUploadPartsResponses = {
     200: SignPartsResponse;
 };
 
+/**
+ * Response union for the `SignUploadParts` operation.
+ */
 export type SignUploadPartsResponse = SignUploadPartsResponses[keyof SignUploadPartsResponses];

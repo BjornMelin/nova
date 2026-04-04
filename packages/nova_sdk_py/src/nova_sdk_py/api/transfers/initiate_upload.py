@@ -101,7 +101,7 @@ def sync_detailed(
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
             client preference; preference is not the same enum as mode mapping and the
-            final mode decision happen server-side.
+            final mode decision happens server-side.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -142,7 +142,7 @@ def sync(
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
             client preference; preference is not the same enum as mode mapping and the
-            final mode decision happen server-side.
+            final mode decision happens server-side.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -178,7 +178,7 @@ async def asyncio_detailed(
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
             client preference; preference is not the same enum as mode mapping and the
-            final mode decision happen server-side.
+            final mode decision happens server-side.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -217,7 +217,7 @@ async def asyncio(
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
             client preference; preference is not the same enum as mode mapping and the
-            final mode decision happen server-side.
+            final mode decision happens server-side.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

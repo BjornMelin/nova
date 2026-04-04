@@ -54,6 +54,84 @@ _SDK_OPERATION_DOCBLOCK_PATTERN = re.compile(
     r"export const (?P<name>\w+) =",
     re.MULTILINE,
 )
+_UNDOCUMENTED_TYPE_EXPORT_PATTERN = re.compile(
+    r"(?m)^(?P<export>export type (?P<name>[A-Z][A-Za-z0-9]+) = )"
+)
+_TYPE_ALIAS_SUMMARY_OVERRIDES = {
+    "HttpValidationError": (
+        "Validation error envelope returned for invalid request payloads."
+    ),
+    "ValidationError": (
+        "One request-validation issue with location, message, and error type."
+    ),
+}
+
+
+def _type_alias_summary(name: str) -> str | None:
+    """Return a sentence-style summary for generated exported type aliases."""
+    override = _TYPE_ALIAS_SUMMARY_OVERRIDES.get(name)
+    if override is not None:
+        return override
+    if name.endswith("Data"):
+        operation_name = name.removesuffix("Data")
+        return f"Request data for the `{operation_name}` operation."
+    if name.endswith("Errors"):
+        operation_name = name.removesuffix("Errors")
+        return f"Error responses for the `{operation_name}` operation."
+    if name.endswith("Error"):
+        operation_name = name.removesuffix("Error")
+        return f"Error union for the `{operation_name}` operation."
+    if name.endswith("Responses"):
+        operation_name = name.removesuffix("Responses")
+        return f"Response variants for the `{operation_name}` operation."
+    if name.endswith("Response"):
+        operation_name = name.removesuffix("Response")
+        return f"Response union for the `{operation_name}` operation."
+    return None
+
+
+def _ensure_typescript_type_docblocks(source: str) -> str:
+    """Add sentence-style docblocks to exported TS type aliases."""
+    for name, summary in _TYPE_ALIAS_SUMMARY_OVERRIDES.items():
+        titles = {name, name.upper()}
+        if name == "HttpValidationError":
+            titles.add("HTTPValidationError")
+        for title in titles:
+            source = source.replace(
+                f"/**\n * {title}\n *\n * {summary}\n */\nexport type {name} =",
+                f"/**\n * {summary}\n */\nexport type {name} =",
+            )
+            source = source.replace(
+                f"/**\n * {title}\n */\nexport type {name} =",
+                f"/**\n * {summary}\n */\nexport type {name} =",
+            )
+    result: list[str] = []
+    pending_docblock: list[str] = []
+    for line in source.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("/**") or pending_docblock:
+            pending_docblock.append(line)
+            if stripped.endswith("*/"):
+                result.extend(pending_docblock)
+                pending_docblock = []
+            continue
+        match = _UNDOCUMENTED_TYPE_EXPORT_PATTERN.match(line)
+        if match:
+            alias_summary = _type_alias_summary(match.group("name"))
+            previous_non_empty = next(
+                (entry.strip() for entry in reversed(result) if entry.strip()),
+                "",
+            )
+            if alias_summary is not None and previous_non_empty != "*/":
+                result.extend(
+                    [
+                        "/**",
+                        f" * {alias_summary}",
+                        " */",
+                    ]
+                )
+        result.append(line)
+    return "\n".join(result) + "\n"
 
 
 def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
@@ -124,6 +202,13 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
     )
     if normalized_sdk_text != sdk_text:
         sdk_path.write_text(normalized_sdk_text, encoding="utf-8")
+
+    types_path = root / "types.gen.ts"
+    if types_path.exists():
+        types_text = types_path.read_text(encoding="utf-8")
+        normalized_types_text = _ensure_typescript_type_docblocks(types_text)
+        if normalized_types_text != types_text:
+            types_path.write_text(normalized_types_text, encoding="utf-8")
 
 
 def _run_openapi_ts(

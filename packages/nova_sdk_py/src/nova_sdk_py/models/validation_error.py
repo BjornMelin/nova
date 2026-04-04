@@ -23,7 +23,8 @@ T = TypeVar("T", bound="ValidationError")
 
 @_attrs_define
 class ValidationError:
-    """
+    """One request-validation issue with location, message, and error type.
+
     Attributes:
         loc (list[int | str]):
         msg (str):

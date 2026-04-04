@@ -547,9 +547,6 @@ class ValidationErrorContext:
 
         Returns:
             Mapping of preserved validation-error context values.
-
-        Raises:
-            None.
         """
 
         field_dict: dict[str, Any] = {}
@@ -566,9 +563,6 @@ class ValidationErrorContext:
 
         Returns:
             New ``ValidationErrorContext`` containing all supplied keys.
-
-        Raises:
-            None.
         """
 
         d = dict(src_dict)
@@ -654,6 +648,33 @@ def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
     _repair_blank_model_docstrings(root)
+    _repair_model_docstring_indentation(root)
+
+
+def _repair_model_docstring_indentation(root: Path) -> None:
+    model_dir = root / "models"
+    if not model_dir.exists():
+        return
+    for path in sorted(model_dir.glob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        updated_lines: list[str] = []
+        in_attributes_block = False
+        for line in lines:
+            if line == "        Attributes:":
+                updated_lines.append("    Attributes:")
+                in_attributes_block = True
+                continue
+            if in_attributes_block:
+                if line.startswith("            ") and line.strip():
+                    updated_lines.append(line[4:])
+                    continue
+                if line.strip() in {'"""', "'''"} or not line.strip():
+                    in_attributes_block = False
+            updated_lines.append(line)
+        updated = "\n".join(updated_lines) + "\n"
+        original = "\n".join(lines) + "\n"
+        if updated != original:
+            path.write_text(updated, encoding="utf-8")
 
 
 def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:

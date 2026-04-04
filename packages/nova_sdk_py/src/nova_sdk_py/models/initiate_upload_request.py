@@ -23,16 +23,16 @@ class InitiateUploadRequest:
     ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
     integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
     client preference; preference is not the same enum as mode mapping and the
-    final mode decision happen server-side.
+    final mode decision happens server-side.
 
-        Attributes:
-            filename (str):
-            size_bytes (int):
-            checksum_preference (None | str | Unset):
-            checksum_value (None | str | Unset):
-            content_type (None | str | Unset):
-            policy_hint (None | str | Unset):
-            workload_class (None | str | Unset):
+    Attributes:
+        filename (str):
+        size_bytes (int):
+        checksum_preference (None | str | Unset):
+        checksum_value (None | str | Unset):
+        content_type (None | str | Unset):
+        policy_hint (None | str | Unset):
+        workload_class (None | str | Unset):
     """
 
     filename: str

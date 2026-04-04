@@ -28,9 +28,6 @@ class ValidationErrorContext:
 
         Returns:
             Mapping of preserved validation-error context values.
-
-        Raises:
-            None.
         """
 
         field_dict: dict[str, Any] = {}
@@ -47,9 +44,6 @@ class ValidationErrorContext:
 
         Returns:
             New ``ValidationErrorContext`` containing all supplied keys.
-
-        Raises:
-            None.
         """
 
         d = dict(src_dict)
