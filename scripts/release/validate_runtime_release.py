@@ -381,7 +381,10 @@ def _parse_json_object(payload: bytes | None, *, url: str) -> dict[str, Any]:
     """Parse one JSON response body into an object."""
     if payload is None:
         raise ValueError(f"Missing JSON response body for {url}")
-    parsed = json.loads(payload.decode("utf-8"))
+    try:
+        parsed = json.loads(payload.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"Invalid UTF-8 JSON response body for {url}") from exc
     if not isinstance(parsed, dict):
         raise TypeError(f"JSON response must be an object for {url}")
     return parsed
@@ -725,7 +728,7 @@ def _validate_dashboard(
         failures=aws_failures,
         name="observability_dashboard_available",
         expected="DashboardBody is a non-empty string",
-        actual=dashboard_name,
+        actual=dashboard_body,
         ok=isinstance(dashboard_body, str) and bool(dashboard_body.strip()),
     )
 
@@ -967,7 +970,7 @@ def _validate_transfer_budget(
         failures=aws_failures,
         name="transfer_budget_sns_subscriber_matches_alarm_topic",
         expected=f"SNS subscriber {alarm_topic_arn}",
-        actual=alarm_topic_arn,
+        actual=subscribers,
         ok=has_matching_subscriber,
     )
 

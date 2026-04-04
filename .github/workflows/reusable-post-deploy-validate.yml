@@ -126,15 +126,6 @@ jobs:
           enable-cache: true
           prune-cache: true
 
-      - name: Configure AWS credentials for live runtime checks
-        if: inputs.aws_role_to_assume != ''
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # aws-actions/configure-aws-credentials@v6.0.0
-        with:
-          aws-region: us-east-1
-          role-to-assume: ${{ inputs.aws_role_to_assume }}
-          role-session-name: ${{ github.run_id }}
-          unset-current-credentials: true
-
       - name: Sync
         run: uv sync --locked --all-packages --all-extras --dev
 
@@ -201,6 +192,15 @@ jobs:
 
           echo "deploy_output_path=${deploy_output_path}" >> "$GITHUB_OUTPUT"
           echo "deploy_output_sha256_path=${deploy_output_sha256_path}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials for live runtime checks
+        if: inputs.aws_role_to_assume != ''
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # aws-actions/configure-aws-credentials@v6.0.0
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+          role-session-name: ${{ github.run_id }}
+          unset-current-credentials: true
 
       - id: run-validation
         name: Validate runtime against deploy-output authority

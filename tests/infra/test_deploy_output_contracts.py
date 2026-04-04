@@ -64,11 +64,6 @@ def _transfer_capabilities_payload() -> dict[str, object]:
     }
 
 
-def _patch_noop_aws_runtime_validators(monkeypatch: MonkeyPatch) -> None:
-    """Patch AWS-backed validator helpers that the tests don't exercise."""
-    _patch_noop_aws_runtime_validators(monkeypatch)
-
-
 def _validate_schema(
     instance: Any,
     schema: dict[str, Any],
@@ -1262,9 +1257,15 @@ def test_validate_runtime_release_emits_report_when_concurrency_lookup_raises(
     )
 
 
-def test_validate_transfer_policy_rollout_uses_region_and_profile_name() -> (
-    None
-):
+def test_parse_json_object_rejects_invalid_utf8() -> None:
+    """Invalid UTF-8 response bodies should fail with a parse error."""
+    with pytest.raises(ValueError, match="Invalid UTF-8 JSON response body"):
+        _VALIDATOR._parse_json_object(b"\xff", url="https://example.test")
+
+
+def test_validate_transfer_policy_rollout_uses_region_and_profile_name(
+    monkeypatch: MonkeyPatch,
+) -> None:
     """AppConfig rollout validation should be region-aware and profile-aware."""
     checks: list[_VALIDATOR.AssertionCheck] = []
     failures: list[str] = []
@@ -1287,23 +1288,19 @@ def test_validate_transfer_policy_rollout_uses_region_and_profile_name() -> (
             }
         raise AssertionError(args)
 
-    original = _VALIDATOR._aws_cli_json
-    _VALIDATOR._aws_cli_json = fake_aws_cli_json
-    try:
-        _VALIDATOR._validate_transfer_policy_rollout(
-            deploy_output={
-                "stack_outputs": {
-                    "NovaTransferPolicyAppConfigApplicationId": "app-123",
-                    "NovaTransferPolicyAppConfigEnvironmentId": "env-123",
-                    "NovaTransferPolicyAppConfigProfileId": "profile-123",
-                }
-            },
-            region="us-west-2",
-            aws_runtime_checks=checks,
-            aws_failures=failures,
-        )
-    finally:
-        _VALIDATOR._aws_cli_json = original
+    monkeypatch.setattr(_VALIDATOR, "_aws_cli_json", fake_aws_cli_json)
+    _VALIDATOR._validate_transfer_policy_rollout(
+        deploy_output={
+            "stack_outputs": {
+                "NovaTransferPolicyAppConfigApplicationId": "app-123",
+                "NovaTransferPolicyAppConfigEnvironmentId": "env-123",
+                "NovaTransferPolicyAppConfigProfileId": "profile-123",
+            }
+        },
+        region="us-west-2",
+        aws_runtime_checks=checks,
+        aws_failures=failures,
+    )
 
     assert not failures
     assert {check.name for check in checks} >= {
@@ -1318,7 +1315,9 @@ def test_validate_transfer_policy_rollout_uses_region_and_profile_name() -> (
     assert any(call[:2] == ("appconfig", "list-deployments") for call in calls)
 
 
-def test_validate_transfer_budget_checks_alarm_topic_subscriber() -> None:
+def test_validate_transfer_budget_checks_alarm_topic_subscriber(
+    monkeypatch: MonkeyPatch,
+) -> None:
     """Budget validation should confirm the SNS subscriber target."""
     checks: list[_VALIDATOR.AssertionCheck] = []
     failures: list[str] = []
@@ -1356,25 +1355,20 @@ def test_validate_transfer_budget_checks_alarm_topic_subscriber() -> None:
             }
         raise AssertionError(args)
 
-    original = _VALIDATOR._aws_cli_json
-    _VALIDATOR._aws_cli_json = fake_aws_cli_json
-    try:
-        _VALIDATOR._validate_transfer_budget(
-            deploy_output={
-                "stack_outputs": {
-                    "NovaAlarmTopicArn": (
-                        "arn:aws:sns:us-east-1:123456789012:"
-                        "nova-runtime-alarms-dev"
-                    ),
-                    "NovaTransferSpendBudgetName": "nova-transfer-dev",
-                }
-            },
-            account_id="123456789012",
-            aws_runtime_checks=checks,
-            aws_failures=failures,
-        )
-    finally:
-        _VALIDATOR._aws_cli_json = original
+    monkeypatch.setattr(_VALIDATOR, "_aws_cli_json", fake_aws_cli_json)
+    _VALIDATOR._validate_transfer_budget(
+        deploy_output={
+            "stack_outputs": {
+                "NovaAlarmTopicArn": (
+                    "arn:aws:sns:us-east-1:123456789012:nova-runtime-alarms-dev"
+                ),
+                "NovaTransferSpendBudgetName": "nova-transfer-dev",
+            }
+        },
+        account_id="123456789012",
+        aws_runtime_checks=checks,
+        aws_failures=failures,
+    )
 
     assert not failures
     assert {check.name for check in checks} >= {
