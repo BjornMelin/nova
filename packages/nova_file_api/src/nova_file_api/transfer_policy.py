@@ -249,6 +249,23 @@ def resolve_transfer_policy(
         minimum=_MIN_SIGN_BATCH_SIZE,
         maximum=_MAX_SIGN_BATCH_SIZE,
     )
+    checksum_mode = _effective_checksum_mode(
+        configured=(
+            document.checksum_mode
+            if document and document.checksum_mode is not None
+            else config.checksum_mode
+        ),
+        checksum_preference=checksum_preference,
+    )
+    checksum_algorithm = _effective_checksum_algorithm(
+        configured=(
+            document.checksum_algorithm
+            if document and document.checksum_algorithm is not None
+            else config.checksum_algorithm
+        ),
+        checksum_mode=checksum_mode,
+        checksum_preference=checksum_preference,
+    )
     return TransferPolicy(
         policy_id=_opt_str(document.policy_id if document else None)
         or config.policy_id
@@ -286,22 +303,8 @@ def resolve_transfer_policy(
             if document and document.accelerate_enabled is not None
             else config.use_accelerate_endpoint
         ),
-        checksum_algorithm=_effective_checksum_algorithm(
-            configured=(
-                document.checksum_algorithm
-                if document and document.checksum_algorithm is not None
-                else config.checksum_algorithm
-            ),
-            checksum_preference=checksum_preference,
-        ),
-        checksum_mode=_effective_checksum_mode(
-            configured=(
-                document.checksum_mode
-                if document and document.checksum_mode is not None
-                else config.checksum_mode
-            ),
-            checksum_preference=checksum_preference,
-        ),
+        checksum_algorithm=checksum_algorithm,
+        checksum_mode=checksum_mode,
         resumable_ttl_seconds=_bounded_int(
             configured=document.resumable_ttl_seconds if document else None,
             default=config.resumable_window_seconds,
@@ -478,6 +481,7 @@ def _select_transfer_policy_document(
 def _effective_checksum_algorithm(
     *,
     configured: str | None,
+    checksum_mode: str,
     checksum_preference: str | None,
 ) -> str | None:
     preference = _normalized_identifier(checksum_preference)
@@ -485,7 +489,7 @@ def _effective_checksum_algorithm(
         return None
     if preference == "none" and configured is not None:
         return configured
-    if preference == "strict" and configured is None:
+    if checksum_mode != "none" and configured is None:
         return "SHA256"
     return configured
 

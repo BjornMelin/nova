@@ -422,6 +422,25 @@ def test_runtime_stack_adds_export_copy_worker_resources() -> None:
         == ["ReportBatchItemFailures"]
         for resource in event_sources.values()
     )
+    worker_functions = [
+        resource
+        for resource in functions.values()
+        if resource["Properties"]["Handler"]
+        == "nova_workflows.handlers.export_copy_worker_handler"
+    ]
+    assert len(worker_functions) == 1
+    worker_env = worker_functions[0]["Properties"]["Environment"]["Variables"]
+    assert "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE" in worker_env
+    assert "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL" in worker_env
+    alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
+    assert any(
+        logical_id.startswith("ExportCopyWorkerDlqAlarm")
+        for logical_id in alarms
+    )
+    assert any(
+        logical_id.startswith("ExportCopyWorkerQueueAgeAlarm")
+        for logical_id in alarms
+    )
 
 
 def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
@@ -461,42 +480,6 @@ def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
     assert file_transfer_buckets[0]["Properties"][
         "AccelerateConfiguration"
     ] == {"AccelerationStatus": "Enabled"}
-
-
-def test_runtime_stack_adds_large_export_worker_lane_resources() -> None:
-    """Runtime stack should provision the queued export-copy worker lane."""
-    bundle = _build_bundle()
-    tables = _resources_of_type(bundle.resources, "AWS::DynamoDB::Table")
-    assert any(
-        logical_id.startswith("ExportCopyPartsTable") for logical_id in tables
-    )
-    queues = _resources_of_type(bundle.resources, "AWS::SQS::Queue")
-    assert any(
-        logical_id.startswith("ExportCopyWorkerQueue") for logical_id in queues
-    )
-    assert any(
-        logical_id.startswith("ExportCopyWorkerDlq") for logical_id in queues
-    )
-    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
-    worker_functions = [
-        resource
-        for resource in functions.values()
-        if resource["Properties"]["Handler"]
-        == "nova_workflows.handlers.export_copy_worker_handler"
-    ]
-    assert len(worker_functions) == 1
-    worker_env = worker_functions[0]["Properties"]["Environment"]["Variables"]
-    assert "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE" in worker_env
-    assert "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL" in worker_env
-    alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
-    assert any(
-        logical_id.startswith("ExportCopyWorkerDlqAlarm")
-        for logical_id in alarms
-    )
-    assert any(
-        logical_id.startswith("ExportCopyWorkerQueueAgeAlarm")
-        for logical_id in alarms
-    )
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:

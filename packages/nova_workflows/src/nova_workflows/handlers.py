@@ -269,20 +269,39 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
+    failures: list[str] = []
     messages: list[tuple[str, ExportCopyTaskMessage]] = []
     for record in cast(list[dict[str, Any]], event.get("Records", [])):
         message_id = str(record.get("messageId", ""))
-        body = str(record.get("body", "{}"))
-        payload = ExportCopyTaskMessage.from_dict(
-            cast(dict[str, object], json.loads(body))
-        )
+        try:
+            body = str(record.get("body", "{}"))
+            payload = ExportCopyTaskMessage.from_dict(
+                cast(dict[str, object], json.loads(body))
+            )
+        except Exception:
+            _LOGGER.warning(
+                "workflow_export_copy_worker_message_invalid",
+                message_id=message_id,
+                exc_info=True,
+            )
+            failures.append(message_id)
+            continue
         messages.append((message_id, payload))
+    if not messages:
+        return {
+            "batchItemFailures": [
+                {"itemIdentifier": message_id} for message_id in failures
+            ]
+        }
     async with workflow_services(settings=WorkflowSettings()) as services:
-        failures = await services.large_copy_service.process_message_batch(
-            messages=messages
+        failures.extend(
+            await services.large_copy_service.process_message_batch(
+                messages=messages
+            )
         )
     return {
         "batchItemFailures": [
-            {"itemIdentifier": message_id} for message_id in failures
+            {"itemIdentifier": message_id}
+            for message_id in dict.fromkeys(failures)
         ]
     }

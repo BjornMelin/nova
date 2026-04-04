@@ -87,7 +87,7 @@ def main() -> None:
                 "mode": "browser_upload_batch_matrix",
                 "current_rule": (
                     "configured sign batch when provided; otherwise "
-                    "min(16, max(1, 2 * maxConcurrency))"
+                    "min(128, max(64, 4 * maxConcurrency))"
                 ),
                 "scenarios": scenarios,
             },

@@ -72,7 +72,7 @@ def browser_sign_batch_size(
         if configured_sign_batch_size > 128:
             raise ValueError("configured_sign_batch_size must be <= 128")
         return configured_sign_batch_size
-    return min(16, max(1, max_concurrency * 2))
+    return min(128, max(64, max_concurrency * 4))
 
 
 def sign_request_count(*, total_parts: int, sign_batch_size: int) -> int:

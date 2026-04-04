@@ -230,3 +230,16 @@ def test_strict_checksum_preference_enables_supported_algorithm() -> None:
 
     assert policy.checksum_mode == "required"
     assert policy.checksum_algorithm == "SHA256"
+
+
+def test_checksum_mode_without_algorithm_defaults_to_sha256() -> None:
+    policy = resolve_transfer_policy(
+        config=_config(),
+        document=TransferPolicyDocument(
+            policy_id="checksum-tier",
+            checksum_mode="optional",
+        ),
+    )
+
+    assert policy.checksum_mode == "optional"
+    assert policy.checksum_algorithm == "SHA256"
