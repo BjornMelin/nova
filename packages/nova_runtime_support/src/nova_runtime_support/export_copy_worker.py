@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import re
-import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -22,6 +20,11 @@ from nova_runtime_support.export_copy_parts import (
 )
 from nova_runtime_support.export_models import ExportRecord, ExportStatus
 from nova_runtime_support.export_runtime import ExportMetrics, ExportRepository
+from nova_runtime_support.export_utils import (
+    _multipart_copy_create_upload_kwargs,
+    _multipart_copy_part_size_bytes,
+    _sanitize_filename,
+)
 
 _SQS_BATCH_SIZE = 10
 _COPY_PART_RECORD_TTL_SECONDS = 14 * 24 * 60 * 60
@@ -595,70 +598,11 @@ class LargeExportCopyCoordinator:
             raise ValueError("key is outside caller upload scope")
 
 
-def _multipart_copy_part_size_bytes(
-    *,
-    source_size_bytes: int,
-    preferred_part_size_bytes: int,
-) -> int:
-    return min(
-        5 * 1024 * 1024 * 1024,
-        max(
-            preferred_part_size_bytes,
-            5 * 1024 * 1024,
-            math.ceil(source_size_bytes / 10_000),
-        ),
-    )
-
-
-def _multipart_copy_create_upload_kwargs(
-    *,
-    bucket: str,
-    key: str,
-    source_object: dict[str, Any],
-) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
-    for field in (
-        "CacheControl",
-        "ContentDisposition",
-        "ContentEncoding",
-        "ContentLanguage",
-        "ContentType",
-        "Expires",
-        "Metadata",
-    ):
-        value = source_object.get(field)
-        if value is not None:
-            kwargs[field] = value
-    return kwargs
-
-
 def _normalize_prefix(prefix: str) -> str:
     normalized = prefix.strip()
     if normalized and not normalized.endswith("/"):
         normalized = f"{normalized}/"
     return normalized
-
-
-def _sanitize_filename(filename: str) -> str:
-    base_name = unicodedata.normalize("NFC", Path(filename).name)
-    allowed_punct = frozenset({".", "-", "_", " "})
-    out: list[str] = []
-    for ch in base_name:
-        if ch in "/\\":
-            continue
-        if unicodedata.category(ch) == "Cc":
-            continue
-        if ch in allowed_punct:
-            out.append(ch)
-            continue
-        cat = unicodedata.category(ch)
-        if ch.isalnum() or cat.startswith(("L", "M", "N")):
-            out.append(ch)
-            continue
-    merged = re.sub(r"\s+", " ", "".join(out)).strip()
-    if len(merged) > 255:
-        merged = merged[:255]
-    return merged if merged else "file"
 
 
 def _new_export_key(

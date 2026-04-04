@@ -53,6 +53,24 @@ def test_workflow_settings_require_export_copy_worker_backends_together() -> (
         )
 
 
+def test_workflow_settings_require_export_copy_worker_queue_with_table() -> (
+    None
+):
+    """Worker queue without copy-parts table must be rejected."""
+    with pytest.raises(
+        ValidationError,
+        match="FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    ):
+        WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": False,
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": (
+                    "https://sqs.us-west-2.amazonaws.com/123/queue"
+                ),
+            }
+        )
+
+
 def test_build_export_service_uses_dynamo_repository() -> None:
     """Workflow runtime assembly should always build a Dynamo repository."""
     service = _build_export_service(

@@ -644,6 +644,15 @@ def _item_to_record(item: dict[str, Any]) -> ExportCopyPartRecord:
         normalized["expires_at_epoch"] = int(expires_at_epoch)
     if isinstance(lease_expires_at_epoch, Decimal):
         normalized["lease_expires_at_epoch"] = int(lease_expires_at_epoch)
+    start_byte = normalized.get("start_byte")
+    end_byte = normalized.get("end_byte")
+    attempts = normalized.get("attempts")
+    if isinstance(start_byte, Decimal):
+        normalized["start_byte"] = int(start_byte)
+    if isinstance(end_byte, Decimal):
+        normalized["end_byte"] = int(end_byte)
+    if isinstance(attempts, Decimal):
+        normalized["attempts"] = int(attempts)
     return ExportCopyPartRecord.model_validate(normalized)
 
 
