@@ -13,6 +13,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Protocol, cast
 
+from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -102,6 +103,7 @@ class ExportCopyPartRepository(Protocol):
 
 _DYNAMO_BATCH_WRITE_MAX = 25
 _BATCH_WRITE_UNPROCESSED_MAX_ATTEMPTS = 10
+_TYPE_SERIALIZER = TypeSerializer()
 
 
 class DynamoTable(Protocol):
@@ -595,7 +597,10 @@ async def _batch_write_put_items(
     for start in range(0, len(items), _DYNAMO_BATCH_WRITE_MAX):
         chunk = items[start : start + _DYNAMO_BATCH_WRITE_MAX]
         request_items: dict[str, object] = {
-            table_name: [{"PutRequest": {"Item": item}} for item in chunk]
+            table_name: [
+                {"PutRequest": {"Item": _serialize_item(item)}}
+                for item in chunk
+            ]
         }
         await _retry_unprocessed_batch_write(
             batch_write_item=batch_write_item,
@@ -631,6 +636,13 @@ async def _retry_unprocessed_batch_write(
 
 def _record_to_item(record: ExportCopyPartRecord) -> dict[str, object]:
     return cast(dict[str, object], record.model_dump(mode="json"))
+
+
+def _serialize_item(item: dict[str, object]) -> dict[str, object]:
+    return {
+        key: cast(object, _TYPE_SERIALIZER.serialize(value))
+        for key, value in item.items()
+    }
 
 
 def _item_to_record(item: dict[str, Any]) -> ExportCopyPartRecord:

@@ -69,4 +69,23 @@ def _multipart_copy_create_upload_kwargs(
         value = source_object.get(field)
         if value is not None:
             kwargs[field] = value
+    checksum_algorithm = _source_checksum_algorithm(source_object)
+    if checksum_algorithm is not None:
+        kwargs["ChecksumAlgorithm"] = checksum_algorithm
     return kwargs
+
+
+def _source_checksum_algorithm(
+    source_object: dict[str, Any],
+) -> str | None:
+    for field in ("ChecksumAlgorithm", "x-amz-checksum-algorithm"):
+        value = source_object.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    metadata = source_object.get("Metadata")
+    if isinstance(metadata, dict):
+        for field in ("ChecksumAlgorithm", "x-amz-checksum-algorithm"):
+            value = metadata.get(field)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None

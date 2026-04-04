@@ -326,6 +326,51 @@ async def test_process_message_batch_reclaims_expired_copying_part() -> None:
 
 
 @pytest.mark.anyio
+async def test_process_message_batch_stops_when_max_attempts_is_reached() -> (
+    None
+):
+    export_repository = MemoryExportRepository()
+    export = _export_record()
+    await export_repository.create(export)
+    part_repository = MemoryExportCopyPartRepository()
+    coordinator, s3_client, _sqs_client, _parts = _coordinator(
+        source_size_bytes=60 * 1024 * 1024 * 1024,
+        export_repository=export_repository,
+        part_repository=part_repository,
+    )
+    coordinator.max_attempts = 1
+    prepared = await coordinator.prepare(export=export)
+    await coordinator.start(export=export, prepared=prepared)
+
+    failures = await coordinator.process_message_batch(
+        messages=[
+            (
+                "msg-1",
+                ExportCopyTaskMessage(
+                    export_id=export.export_id,
+                    source_key=export.source_key,
+                    export_key=prepared.export_key,
+                    upload_id="worker-upload-id",
+                    part_number=1,
+                    start_byte=0,
+                    end_byte=prepared.copy_part_size_bytes - 1,
+                ),
+            )
+        ]
+    )
+
+    refreshed = await part_repository.get(
+        export_id=export.export_id,
+        part_number=1,
+    )
+    assert failures == []
+    assert refreshed is not None
+    assert refreshed.status.value == "failed"
+    assert refreshed.error == "max_attempts_exceeded"
+    assert s3_client.part_calls == []
+
+
+@pytest.mark.anyio
 async def test_start_reuses_existing_worker_upload_id_on_retry() -> None:
     export_repository = MemoryExportRepository()
     export = _export_record()

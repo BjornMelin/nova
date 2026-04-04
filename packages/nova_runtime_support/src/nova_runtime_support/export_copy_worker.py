@@ -500,6 +500,13 @@ class LargeExportCopyCoordinator:
             raise RuntimeError(
                 "queued export copy message byte range does not match claim"
             )
+        if claimed.attempts >= self.max_attempts:
+            await self._parts.mark_failed(
+                export_id=payload.export_id,
+                part_number=payload.part_number,
+                error="max_attempts_exceeded",
+            )
+            return
         response = await self._s3.upload_part_copy(
             Bucket=self.bucket,
             CopySource={"Bucket": self.bucket, "Key": payload.source_key},
