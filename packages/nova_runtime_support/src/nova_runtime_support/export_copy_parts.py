@@ -42,6 +42,7 @@ class ExportCopyPartRecord(BaseModel):
     error: str | None = Field(default=None, max_length=4000)
     created_at: datetime
     updated_at: datetime
+    lease_expires_at_epoch: int | None = Field(default=None, ge=1)
     expires_at_epoch: int | None = Field(default=None, ge=1)
 
 
@@ -65,7 +66,13 @@ class ExportCopyPartRepository(Protocol):
         """Replace one queued copy part record."""
 
     async def claim(
-        self, *, export_id: str, part_number: int, upload_id: str
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        source_key: str,
+        export_key: str,
     ) -> ExportCopyPartRecord | None:
         """Claim one queued or failed part for copy work."""
 
@@ -137,6 +144,7 @@ class MemoryExportCopyPartRepository:
     _records: dict[tuple[str, int], ExportCopyPartRecord] = field(
         default_factory=dict
     )
+    claim_lease_seconds: int = 30 * 60
     _lock: asyncio.Lock = field(
         init=False, repr=False, default_factory=asyncio.Lock
     )
@@ -176,24 +184,44 @@ class MemoryExportCopyPartRepository:
             self._records[(record.export_id, record.part_number)] = record
 
     async def claim(
-        self, *, export_id: str, part_number: int, upload_id: str
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        source_key: str,
+        export_key: str,
     ) -> ExportCopyPartRecord | None:
         """Claim one queued copy-part record for worker execution."""
         async with self._lock:
             current = self._records.get((export_id, part_number))
             if current is None:
                 return None
-            if current.upload_id != upload_id:
+            if (
+                current.upload_id != upload_id
+                or current.source_key != source_key
+                or current.export_key != export_key
+            ):
                 return None
             if current.status == ExportCopyPartStatus.COPIED:
                 return current
-            if current.status == ExportCopyPartStatus.COPYING:
+            if (
+                current.status == ExportCopyPartStatus.COPYING
+                and not _lease_expired(
+                    lease_expires_at_epoch=current.lease_expires_at_epoch
+                )
+            ):
                 return None
+            now = _now_like(current.updated_at)
             updated = current.model_copy(
                 update={
                     "status": ExportCopyPartStatus.COPYING,
                     "attempts": current.attempts + 1,
-                    "updated_at": _now_like(current.updated_at),
+                    "updated_at": now,
+                    "lease_expires_at_epoch": _lease_expires_at_epoch(
+                        now=now,
+                        lease_seconds=self.claim_lease_seconds,
+                    ),
                     "error": None,
                 }
             )
@@ -214,6 +242,7 @@ class MemoryExportCopyPartRepository:
                     "etag": etag,
                     "error": None,
                     "updated_at": _now_like(current.updated_at),
+                    "lease_expires_at_epoch": None,
                 }
             )
             self._records[(export_id, part_number)] = updated
@@ -232,6 +261,7 @@ class MemoryExportCopyPartRepository:
                     "status": ExportCopyPartStatus.FAILED,
                     "error": error,
                     "updated_at": _now_like(current.updated_at),
+                    "lease_expires_at_epoch": None,
                 }
             )
             self._records[(export_id, part_number)] = updated
@@ -248,6 +278,7 @@ class DynamoExportCopyPartRepository:
 
     table_name: str
     dynamodb_resource: DynamoResource
+    claim_lease_seconds: int = 30 * 60
     _table: DynamoTable | None = field(init=False, repr=False, default=None)
     _table_lock: asyncio.Lock = field(init=False, repr=False)
 
@@ -294,33 +325,58 @@ class DynamoExportCopyPartRepository:
         await table.put_item(Item=_record_to_item(record))
 
     async def claim(
-        self, *, export_id: str, part_number: int, upload_id: str
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        source_key: str,
+        export_key: str,
     ) -> ExportCopyPartRecord | None:
         """Claim one queued copy-part record for worker execution."""
         table = await self._resolve_table()
         now = datetime.now(tz=UTC)
+        now_epoch = int(now.timestamp())
         try:
             response = await table.update_item(
                 Key={"export_id": export_id, "part_number": part_number},
                 UpdateExpression=(
                     "SET #status = :copying, "
                     "attempts = if_not_exists(attempts, :zero) + :one, "
-                    "updated_at = :updated_at "
+                    "updated_at = :updated_at, "
+                    "lease_expires_at_epoch = :lease_expires_at_epoch "
                     "REMOVE #error"
                 ),
                 ConditionExpression=(
-                    "#upload_id = :upload_id AND #status IN (:queued, :failed)"
+                    "#upload_id = :upload_id AND "
+                    "#source_key = :source_key AND "
+                    "#export_key = :export_key AND "
+                    "("
+                    "#status IN (:queued, :failed) OR "
+                    "("
+                    "#status = :copying AND "
+                    "attribute_exists(lease_expires_at_epoch) AND "
+                    "lease_expires_at_epoch <= :now_epoch"
+                    ")"
+                    ")"
                 ),
                 ExpressionAttributeNames={
                     "#error": "error",
+                    "#export_key": "export_key",
+                    "#source_key": "source_key",
                     "#status": "status",
                     "#upload_id": "upload_id",
                 },
                 ExpressionAttributeValues={
                     ":copying": ExportCopyPartStatus.COPYING.value,
+                    ":export_key": export_key,
                     ":failed": ExportCopyPartStatus.FAILED.value,
+                    ":lease_expires_at_epoch": now_epoch
+                    + self.claim_lease_seconds,
+                    ":now_epoch": now_epoch,
                     ":one": 1,
                     ":queued": ExportCopyPartStatus.QUEUED.value,
+                    ":source_key": source_key,
                     ":updated_at": now.isoformat(),
                     ":upload_id": upload_id,
                     ":zero": 0,
@@ -355,7 +411,7 @@ class DynamoExportCopyPartRepository:
                     "SET #status = :copied, "
                     "etag = :etag, "
                     "updated_at = :updated_at "
-                    "REMOVE #error"
+                    "REMOVE #error, lease_expires_at_epoch"
                 ),
                 ConditionExpression="#status = :copying",
                 ExpressionAttributeNames={
@@ -392,7 +448,8 @@ class DynamoExportCopyPartRepository:
                 UpdateExpression=(
                     "SET #status = :failed, "
                     "#error = :error, "
-                    "updated_at = :updated_at"
+                    "updated_at = :updated_at "
+                    "REMOVE lease_expires_at_epoch"
                 ),
                 ConditionExpression="#status = :copying",
                 ExpressionAttributeNames={
@@ -446,6 +503,7 @@ def build_export_copy_part_repository(
     table_name: str | None,
     dynamodb_resource: DynamoResource | None,
     enabled: bool,
+    claim_lease_seconds: int = 30 * 60,
 ) -> ExportCopyPartRepository:
     """Return the configured copy-part repository."""
     normalized_table_name = (table_name or "").strip()
@@ -463,8 +521,11 @@ def build_export_copy_part_repository(
         return DynamoExportCopyPartRepository(
             table_name=normalized_table_name,
             dynamodb_resource=dynamodb_resource,
+            claim_lease_seconds=claim_lease_seconds,
         )
-    return MemoryExportCopyPartRepository()
+    return MemoryExportCopyPartRepository(
+        claim_lease_seconds=claim_lease_seconds
+    )
 
 
 def _record_to_item(record: ExportCopyPartRecord) -> dict[str, object]:
@@ -475,10 +536,13 @@ def _item_to_record(item: dict[str, Any]) -> ExportCopyPartRecord:
     normalized = dict(item)
     part_number = normalized.get("part_number")
     expires_at_epoch = normalized.get("expires_at_epoch")
+    lease_expires_at_epoch = normalized.get("lease_expires_at_epoch")
     if isinstance(part_number, Decimal):
         normalized["part_number"] = int(part_number)
     if isinstance(expires_at_epoch, Decimal):
         normalized["expires_at_epoch"] = int(expires_at_epoch)
+    if isinstance(lease_expires_at_epoch, Decimal):
+        normalized["lease_expires_at_epoch"] = int(lease_expires_at_epoch)
     return ExportCopyPartRecord.model_validate(normalized)
 
 
@@ -505,3 +569,13 @@ def _now_like(value: datetime) -> datetime:
 def _is_conditional_check_failed(exc: ClientError) -> bool:
     error_code = str(exc.response.get("Error", {}).get("Code", ""))
     return error_code == "ConditionalCheckFailedException"
+
+
+def _lease_expired(*, lease_expires_at_epoch: int | None) -> bool:
+    if lease_expires_at_epoch is None:
+        return False
+    return lease_expires_at_epoch <= int(datetime.now(tz=UTC).timestamp())
+
+
+def _lease_expires_at_epoch(*, now: datetime, lease_seconds: int) -> int:
+    return int(now.timestamp()) + lease_seconds

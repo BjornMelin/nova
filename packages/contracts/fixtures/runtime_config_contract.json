@@ -105,6 +105,12 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "source": "literal",
+        "value": "1800"
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
         "source": "literal",
         "value": "53687091200"
@@ -454,6 +460,10 @@
         "env_var": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS"
       },
       {
+        "cloudformation_parameter": "FileTransferExportCopyWorkerLeaseSeconds",
+        "env_var": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS"
+      },
+      {
         "cloudformation_parameter": "FileTransferExportPrefix",
         "env_var": "FILE_TRANSFER_EXPORT_PREFIX"
       },
@@ -512,7 +522,8 @@
     "AWS_DEFAULT_REGION",
     "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
     "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
-    "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS"
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS"
   ],
   "schema_version": 2,
   "settings": [
@@ -1056,6 +1067,12 @@
         "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
         "source": "literal",
         "value": "5"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "source": "literal",
+        "value": "1800"
       },
       {
         "condition": "always",

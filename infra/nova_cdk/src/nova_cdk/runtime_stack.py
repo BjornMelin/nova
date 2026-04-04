@@ -769,6 +769,7 @@ class NovaRuntimeStack(Stack):
                 50 * 1024 * 1024 * 1024
             ),
             "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS": "5",
+            "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS": str(30 * 60),
             "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": (
                 export_copy_parts_table.table_name
             ),

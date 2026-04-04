@@ -67,6 +67,12 @@ class WorkflowSettings(BaseSettings):
         ge=1,
         le=20,
     )
+    file_transfer_export_copy_worker_lease_seconds: int = Field(
+        default=30 * 60,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        ge=60,
+        le=24 * 60 * 60,
+    )
     file_transfer_export_copy_parts_table: str | None = Field(
         default=None,
         validation_alias="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",

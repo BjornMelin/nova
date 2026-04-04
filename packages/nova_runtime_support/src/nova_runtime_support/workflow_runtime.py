@@ -145,6 +145,9 @@ async def workflow_services(
                 enabled=bool(
                     resolved_settings.file_transfer_export_copy_parts_table
                 ),
+                claim_lease_seconds=(
+                    resolved_settings.file_transfer_export_copy_worker_lease_seconds
+                ),
             ),
             metrics=export_service.metrics,
         )

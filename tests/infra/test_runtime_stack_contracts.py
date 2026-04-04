@@ -432,6 +432,7 @@ def test_runtime_stack_adds_export_copy_worker_resources() -> None:
     worker_env = worker_functions[0]["Properties"]["Environment"]["Variables"]
     assert "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE" in worker_env
     assert "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL" in worker_env
+    assert "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS" in worker_env
     alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
     assert any(
         logical_id.startswith("ExportCopyWorkerDlqAlarm")

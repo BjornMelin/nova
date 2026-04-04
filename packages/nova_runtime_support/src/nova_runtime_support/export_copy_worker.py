@@ -385,6 +385,8 @@ class LargeExportCopyCoordinator:
             export_id=payload.export_id,
             part_number=payload.part_number,
             upload_id=payload.upload_id,
+            source_key=payload.source_key,
+            export_key=payload.export_key,
         )
         if claimed is None or claimed.status == ExportCopyPartStatus.COPIED:
             return
@@ -393,7 +395,12 @@ class LargeExportCopyCoordinator:
             or claimed.export_key != payload.export_key
             or claimed.source_key != payload.source_key
         ):
-            return
+            await self._parts.mark_failed(
+                export_id=payload.export_id,
+                part_number=payload.part_number,
+                error="stale_copy_message",
+            )
+            raise RuntimeError("queued export copy message payload is stale")
         response = await self._s3.upload_part_copy(
             Bucket=self.bucket,
             CopySource={"Bucket": self.bucket, "Key": payload.source_key},

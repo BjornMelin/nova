@@ -70,6 +70,7 @@ EXTRA_RUNTIME_ENV_VARS = (
     "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
     "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
     "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
 )
 
 
@@ -199,6 +200,10 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
     EnvJsonOverrideContract(
         "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
         "FileTransferExportCopyWorkerAttempts",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "FileTransferExportCopyWorkerLeaseSeconds",
     ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_EXPORT_PREFIX", "FileTransferExportPrefix"
@@ -400,6 +405,12 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "5",
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "literal",
+        "always",
+        str(30 * 60),
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
         "literal",
         "always",
@@ -557,6 +568,12 @@ WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
         "literal",
         "always",
         "5",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "literal",
+        "always",
+        str(30 * 60),
     ),
     RuntimeEnvContract(
         "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
