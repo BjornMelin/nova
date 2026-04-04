@@ -51,21 +51,50 @@ _CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
 
 # Cap HTTPValidationError.detail[] (FastAPI how-to: extending-openapi).
 _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS = 256
+_HTTP_VALIDATION_ERROR_LOC_MAX_ITEMS = 32
+_HTTP_VALIDATION_ERROR_DESCRIPTION = (
+    "Validation error envelope returned for invalid request payloads."
+)
+_VALIDATION_ERROR_DESCRIPTION = (
+    "One request-validation issue with location, message, and error type."
+)
 
 
 def _patch_http_validation_error_detail_max_items(
     schema: dict[str, Any],
 ) -> None:
-    """Add maxItems to ``HTTPValidationError.detail`` when present."""
+    """Patch validation-error schemas for bounded and documented output."""
+    schemas = schema.get("components", {}).get("schemas", {})
+    if not isinstance(schemas, dict):
+        return
+    http_validation_error = schemas.get("HTTPValidationError", {})
+    validation_error = schemas.get("ValidationError", {})
+
+    if isinstance(http_validation_error, dict):
+        http_validation_error.setdefault(
+            "description",
+            _HTTP_VALIDATION_ERROR_DESCRIPTION,
+        )
+    if isinstance(validation_error, dict):
+        validation_error.setdefault(
+            "description",
+            _VALIDATION_ERROR_DESCRIPTION,
+        )
+
     detail = (
-        schema.get("components", {})
-        .get("schemas", {})
-        .get("HTTPValidationError", {})
-        .get("properties", {})
-        .get("detail")
+        http_validation_error.get("properties", {}).get("detail")
+        if isinstance(http_validation_error, dict)
+        else None
     )
     if isinstance(detail, dict) and detail.get("type") == "array":
         detail["maxItems"] = _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS
+    loc = (
+        validation_error.get("properties", {}).get("loc")
+        if isinstance(validation_error, dict)
+        else None
+    )
+    if isinstance(loc, dict) and loc.get("type") == "array":
+        loc["maxItems"] = _HTTP_VALIDATION_ERROR_LOC_MAX_ITEMS
 
 
 def _install_openapi_override(*, app: FastAPI) -> None:

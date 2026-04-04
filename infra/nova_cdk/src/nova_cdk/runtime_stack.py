@@ -1240,7 +1240,7 @@ class NovaRuntimeStack(Stack):
                 level=sfn.LogLevel.ALL,
             ),
             tracing_enabled=True,
-            timeout=Duration.hours(1),
+            timeout=Duration.hours(3),
         )
 
         api_lambda_artifact_bucket_name = _required_context_or_env_value(

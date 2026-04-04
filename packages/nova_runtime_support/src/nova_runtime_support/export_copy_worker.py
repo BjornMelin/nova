@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -159,8 +160,6 @@ class LargeExportCopyCoordinator:
             export_copy_part_repository: Per-part copy state store.
             metrics: EMF metrics sink for worker observability.
 
-        Raises:
-            None.
         """
         self.bucket = bucket
         self.upload_prefix = _normalize_prefix(upload_prefix)
@@ -397,7 +396,10 @@ class LargeExportCopyCoordinator:
                             "ETag": cast(str, record.etag),
                             "PartNumber": record.part_number,
                         }
-                        for record in completed_parts
+                        for record in sorted(
+                            completed_parts,
+                            key=lambda record: record.part_number,
+                        )
                     ]
                 },
             )
@@ -442,19 +444,18 @@ class LargeExportCopyCoordinator:
         Returns:
             Message ids that should be retried or sent to the DLQ.
 
-        Raises:
-            None. Per-message failures are captured and returned for retry.
         """
         failures: list[str] = []
         for message_id, payload in messages:
             try:
                 await self._process_message(payload=payload)
             except Exception:
-                await self._parts.mark_failed(
-                    export_id=payload.export_id,
-                    part_number=payload.part_number,
-                    error="upload_part_copy_failed",
-                )
+                with suppress(Exception):
+                    await self._parts.mark_failed(
+                        export_id=payload.export_id,
+                        part_number=payload.part_number,
+                        error="upload_part_copy_failed",
+                    )
                 failures.append(message_id)
         return failures
 

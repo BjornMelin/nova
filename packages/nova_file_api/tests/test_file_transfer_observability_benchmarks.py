@@ -11,9 +11,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from nova_file_api.transfer_policy import SIGN_BATCH_SIZE_HINT_MAX
 from scripts.perf.file_transfer_observability_baseline import (
     CURRENT_MAX_CONCURRENCY,
     CURRENT_PART_SIZE_BYTES,
+    browser_sign_batch_size,
     build_browser_multipart_plan,
     gibibytes,
     summarize_latency,
@@ -48,3 +50,11 @@ def test_summarize_latency_is_repeatable() -> None:
         "p95_ms": 38.5,
         "p99_ms": 39.7,
     }
+
+
+def test_browser_sign_batch_size_uses_public_max_hint_constant() -> None:
+    """The benchmark helper should stay aligned with the public max hint."""
+    assert (
+        browser_sign_batch_size(max_concurrency=1000)
+        == SIGN_BATCH_SIZE_HINT_MAX
+    )

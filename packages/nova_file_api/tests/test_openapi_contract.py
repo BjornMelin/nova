@@ -245,6 +245,21 @@ def test_openapi_schema_generation_smoke() -> None:
         ]["maxItems"]
         == 256
     )
+    assert (
+        schema["components"]["schemas"]["ValidationError"]["properties"]["loc"][
+            "maxItems"
+        ]
+        == 32
+    )
+    assert (
+        schema["components"]["schemas"]["HTTPValidationError"]["description"]
+        == "Validation error envelope returned for invalid request payloads."
+    )
+    assert schema["components"]["schemas"]["ValidationError"][
+        "description"
+    ] == (
+        "One request-validation issue with location, message, and error type."
+    )
 
 
 def test_openapi_declares_bearer_auth_scheme() -> None:

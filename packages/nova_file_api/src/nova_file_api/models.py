@@ -12,6 +12,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
 from nova_file_api.transfer_policy import ChecksumMode
@@ -50,7 +51,7 @@ class InitiateUploadRequest(BaseModel):
     ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
     integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
     client preference; preference is not the same enum as mode mapping and the
-    final mode decision happen server-side.
+    final mode decision happens server-side.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -201,6 +202,20 @@ class CompleteUploadRequest(BaseModel):
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
     parts: list[CompletedPart] = Field(min_length=1, max_length=10_000)
+
+    @model_validator(mode="after")
+    def validate_checksum_part_sequence(self) -> CompleteUploadRequest:
+        """Require contiguous part numbers when checksum values are present."""
+        if not any(part.checksum_sha256 is not None for part in self.parts):
+            return self
+        actual = [part.part_number for part in self.parts]
+        expected = list(range(1, len(self.parts) + 1))
+        if actual != expected:
+            raise ValueError(
+                "parts must be consecutive and start at 1 when "
+                "checksum_sha256 is provided"
+            )
+        return self
 
 
 class CompleteUploadResponse(BaseModel):

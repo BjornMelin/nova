@@ -423,6 +423,7 @@
         "type": "string"
       },
       "HTTPValidationError": {
+        "description": "Validation error envelope returned for invalid request payloads.",
         "properties": {
           "detail": {
             "items": {
@@ -453,7 +454,7 @@
       },
       "InitiateUploadRequest": {
         "additionalProperties": false,
-        "description": "Initiate-upload request model.\n\nClient hints (``workload_class``, ``policy_hint``, ``checksum_preference``)\nare inputs only. The effective persisted transfer policy exposes\n``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3\nintegration). ``checksum_preference`` accepts ``none|standard|strict`` as a\nclient preference; preference is not the same enum as mode mapping and the\nfinal mode decision happen server-side.",
+        "description": "Initiate-upload request model.\n\nClient hints (``workload_class``, ``policy_hint``, ``checksum_preference``)\nare inputs only. The effective persisted transfer policy exposes\n``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3\nintegration). ``checksum_preference`` accepts ``none|standard|strict`` as a\nclient preference; preference is not the same enum as mode mapping and the\nfinal mode decision happens server-side.",
         "properties": {
           "checksum_preference": {
             "anyOf": [
@@ -1171,6 +1172,7 @@
         "type": "object"
       },
       "ValidationError": {
+        "description": "One request-validation issue with location, message, and error type.",
         "properties": {
           "ctx": {
             "title": "Context",
@@ -1190,6 +1192,7 @@
                 }
               ]
             },
+            "maxItems": 32,
             "title": "Location",
             "type": "array"
           },

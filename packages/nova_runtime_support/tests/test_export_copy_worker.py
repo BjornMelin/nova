@@ -421,6 +421,14 @@ async def test_poll_returns_ready_after_all_parts_complete() -> None:
     assert result.state == "ready"
     assert result.completed_parts == queued.copy_part_count
     assert len(s3_client.complete_calls) == 1
+    multipart_upload = cast(
+        dict[str, list[dict[str, object]]],
+        s3_client.complete_calls[0]["MultipartUpload"],
+    )
+    completed_parts = multipart_upload["Parts"]
+    assert [item["PartNumber"] for item in completed_parts] == sorted(
+        item["PartNumber"] for item in completed_parts
+    )
 
 
 @pytest.mark.anyio

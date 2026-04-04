@@ -129,6 +129,14 @@ async def test_resolve_transfer_policy_applies_appconfig_overlay() -> None:
     assert policy.sign_requests_per_upload_limit == 512
 
 
+def test_resolve_transfer_policy_rejects_invalid_checksum_mode() -> None:
+    with pytest.raises(ValueError, match="unsupported checksum mode"):
+        resolve_transfer_policy(
+            config=replace(_config(), checksum_mode="invalid"),
+            document=None,
+        )
+
+
 @pytest.mark.anyio
 async def test_appconfig_source_refreshes_again_after_poll_window_expires() -> (
     None

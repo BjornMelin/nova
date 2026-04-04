@@ -24,12 +24,21 @@ _MAXIMUM_UPLOAD_PART_SIZE_BYTES = 512 * 1024 * 1024
 _MIN_SIGN_BATCH_SIZE = 32
 _MAX_SIGN_BATCH_SIZE = 128
 SIGN_BATCH_SIZE_HINT_MIN = _MIN_SIGN_BATCH_SIZE
+SIGN_BATCH_SIZE_HINT_MAX = _MAX_SIGN_BATCH_SIZE
 _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT = 200
 _DEFAULT_DAILY_INGRESS_BUDGET_BYTES = 1024 * 1024 * 1024 * 1024
 _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT = 512
 _LOGGER = logging.getLogger(__name__)
 
 ChecksumMode = Literal["none", "optional", "required"]
+_VALID_CHECKSUM_MODES = frozenset(("none", "optional", "required"))
+
+
+def _validated_checksum_mode(value: str) -> ChecksumMode:
+    """Return a validated checksum mode literal."""
+    if value not in _VALID_CHECKSUM_MODES:
+        raise ValueError(f"unsupported checksum mode: {value!r}")
+    return cast(ChecksumMode, value)
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -252,8 +261,7 @@ def resolve_transfer_policy(
         minimum=_MIN_SIGN_BATCH_SIZE,
         maximum=_MAX_SIGN_BATCH_SIZE,
     )
-    checksum_mode = cast(
-        ChecksumMode,
+    checksum_mode = _validated_checksum_mode(
         _effective_checksum_mode(
             configured=(
                 document.checksum_mode
@@ -261,7 +269,7 @@ def resolve_transfer_policy(
                 else config.checksum_mode
             ),
             checksum_preference=checksum_preference,
-        ),
+        )
     )
     checksum_algorithm = _effective_checksum_algorithm(
         configured=(

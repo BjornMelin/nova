@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
+from pydantic import ValidationError
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
@@ -685,6 +686,32 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     assert str(exc_info.value) == "multipart upload part numbers must be unique"
     assert exc_info.value.details == {"part_numbers": [1]}
     assert fake_s3.complete_calls == []
+
+
+def test_complete_upload_request_requires_contiguous_checksum_parts() -> None:
+    with pytest.raises(
+        ValidationError,
+        match=(
+            "parts must be consecutive and start at 1 when "
+            "checksum_sha256 is provided"
+        ),
+    ):
+        CompleteUploadRequest(
+            key="uploads/scope-1/file.csv",
+            upload_id="upload-1",
+            parts=[
+                CompletedPart(
+                    part_number=1,
+                    etag='"etag-1"',
+                    checksum_sha256="checksum-1",
+                ),
+                CompletedPart(
+                    part_number=3,
+                    etag='"etag-3"',
+                    checksum_sha256="checksum-3",
+                ),
+            ],
+        )
 
 
 @pytest.mark.anyio

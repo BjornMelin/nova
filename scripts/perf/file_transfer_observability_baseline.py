@@ -7,7 +7,10 @@ import statistics
 from dataclasses import dataclass
 from typing import Final
 
-from nova_file_api.transfer_policy import SIGN_BATCH_SIZE_HINT_MIN
+from nova_file_api.transfer_policy import (
+    SIGN_BATCH_SIZE_HINT_MAX,
+    SIGN_BATCH_SIZE_HINT_MIN,
+)
 
 CURRENT_MULTIPART_THRESHOLD_BYTES: Final[int] = 100 * 1024 * 1024
 CURRENT_PART_SIZE_BYTES: Final[int] = 128 * 1024 * 1024
@@ -87,10 +90,16 @@ def browser_sign_batch_size(
                 "configured_sign_batch_size must be "
                 f">= {SIGN_BATCH_SIZE_HINT_MIN}"
             )
-        if configured_sign_batch_size > 128:
-            raise ValueError("configured_sign_batch_size must be <= 128")
+        if configured_sign_batch_size > SIGN_BATCH_SIZE_HINT_MAX:
+            raise ValueError(
+                "configured_sign_batch_size must be <= "
+                f"{SIGN_BATCH_SIZE_HINT_MAX}"
+            )
         return configured_sign_batch_size
-    return min(128, max(64, max_concurrency * 4))
+    return min(
+        SIGN_BATCH_SIZE_HINT_MAX,
+        max(64, max_concurrency * 4),
+    )
 
 
 def sign_request_count(*, total_parts: int, sign_batch_size: int) -> int:
