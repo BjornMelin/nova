@@ -20,13 +20,27 @@ from nova_runtime_support.workflow_config import (
     WorkflowSettings,
     export_transfer_config_from_settings,
 )
-from nova_runtime_support.workflow_runtime import _build_export_service
+from nova_runtime_support.workflow_runtime import (
+    _build_export_service,
+    workflow_services,
+)
 
 
 def test_workflow_settings_require_exports_table_when_exports_enabled() -> None:
     """Exports-enabled workflow settings must require a DynamoDB table."""
     with pytest.raises(ValidationError, match="EXPORTS_DYNAMODB_TABLE"):
         WorkflowSettings.model_validate({"EXPORTS_ENABLED": True})
+
+
+def test_workflow_settings_require_copy_backends_when_exports_enabled() -> None:
+    """Require copy queue and parts table when exports are enabled."""
+    with pytest.raises(ValidationError, match="FILE_TRANSFER_EXPORT_COPY"):
+        WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": True,
+                "EXPORTS_DYNAMODB_TABLE": "exports-table",
+            }
+        )
 
 
 def test_workflow_settings_allow_missing_exports_table_when_disabled() -> None:
@@ -37,6 +51,40 @@ def test_workflow_settings_allow_missing_exports_table_when_disabled() -> None:
     assert settings.exports_dynamodb_table is None
 
 
+def test_workflow_settings_require_export_copy_worker_backends_together() -> (
+    None
+):
+    """Copy-parts table and worker queue must be configured together."""
+    with pytest.raises(
+        ValidationError,
+        match="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    ):
+        WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": False,
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": "parts-table",
+            }
+        )
+
+
+def test_workflow_settings_require_export_copy_worker_queue_with_table() -> (
+    None
+):
+    """Worker queue without copy-parts table must be rejected."""
+    with pytest.raises(
+        ValidationError,
+        match="FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    ):
+        WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": False,
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": (
+                    "https://sqs.us-west-2.amazonaws.com/123/queue"
+                ),
+            }
+        )
+
+
 def test_build_export_service_uses_dynamo_repository() -> None:
     """Workflow runtime assembly should always build a Dynamo repository."""
     service = _build_export_service(
@@ -44,6 +92,10 @@ def test_build_export_service_uses_dynamo_repository() -> None:
             {
                 "EXPORTS_ENABLED": True,
                 "EXPORTS_DYNAMODB_TABLE": "exports-table",
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": (
+                    "https://sqs.us-west-2.amazonaws.com/123456789012/q"
+                ),
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": "export-copy-parts",
                 "METRICS_NAMESPACE": "WorkflowTests",
             }
         ),
@@ -76,6 +128,28 @@ def test_build_export_service_rejects_blank_exports_table() -> None:
             resolved_settings=settings,
             dynamodb_resource=object(),
         )
+
+
+@pytest.mark.anyio
+async def test_workflow_services_reject_blank_copy_worker_settings() -> None:
+    """Workflow assembly must fail closed on blank queued-copy settings."""
+    settings = WorkflowSettings.model_construct(
+        exports_enabled=True,
+        exports_dynamodb_table="exports-table",
+        file_transfer_bucket="bucket",
+        file_transfer_upload_prefix="uploads/",
+        file_transfer_export_prefix="exports/",
+        file_transfer_tmp_prefix="tmp/",
+        file_transfer_part_size_bytes=128 * 1024 * 1024,
+        file_transfer_max_concurrency=4,
+        file_transfer_use_accelerate_endpoint=False,
+        file_transfer_export_copy_queue_url="   ",
+        file_transfer_export_copy_parts_table="export-copy-parts",
+    )
+
+    with pytest.raises(ValueError, match="FILE_TRANSFER_EXPORT_COPY"):
+        async with workflow_services(settings=settings):
+            pytest.fail("workflow_services should not yield")
 
 
 def test_export_transfer_config_strips_bucket() -> None:

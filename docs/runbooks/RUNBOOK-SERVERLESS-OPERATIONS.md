@@ -91,7 +91,7 @@
   - multipart threshold: `100 MiB`
   - multipart part size: `128 MiB`
   - browser max concurrency: `4`
-  - browser sign batch hint floor: `32`, with larger values returned by
+  - browser sign batch hint floor: `64`, with larger values returned by
     initiate responses when policy allows
   - max upload size: `500 GiB`
 - Transfer quotas are enforced from the effective policy envelope:
@@ -101,9 +101,20 @@
 - The API runtime reads the effective transfer policy from AppConfig when the
   profile is configured and falls back to the static environment envelope when
   AppConfig is unavailable.
-- Current export copy behavior uses the inline Lambda path with dedicated copy
-  tuning controls (`FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES`,
-  `FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY`).
+- Transfer Acceleration stays disabled by default and is only enabled for
+  policy profiles that explicitly allow it.
+- Checksum enforcement is policy-controlled:
+  - `none`: no checksum material required
+  - `optional`: checksum material may be supplied and preserved
+  - `required`: compatible checksum material is mandatory for presigning and
+    multipart completion
+- Export copy behavior now uses two internal lanes:
+  - inline Lambda copy with dedicated tuning controls
+    (`FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES`,
+    `FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY`)
+  - queued worker-lane copy above
+    `FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES`
+    with SQS + DLQ + durable DynamoDB part state
 - Clients can inspect the current transfer policy envelope through
   `GET /v1/capabilities/transfers`.
 - A scheduled reconciliation Lambda settles expired upload sessions, retries
@@ -112,8 +123,8 @@
 
 ### Current operating plans
 
-- `500 GiB` single upload: `4,000` multipart parts and `500` `sign-parts`
-  requests at the current defaults.
+- `500 GiB` single upload: `2,000` multipart parts and `32` `sign-parts`
+  requests at the current tuned defaults (`256 MiB` parts, sign batch `64`).
 - `1 TiB` aggregate burst: treat as two concurrent `500 GiB` uploads, or the
   equivalent control-plane pressure against initiate, sign, introspect,
   complete, and abort.
@@ -140,6 +151,7 @@ and export baseline monitoring. The dashboard includes:
   `uploads_complete`, and `uploads_abort`
 - API throttles, API 5xx, and reserved-concurrency saturation
 - export queued/copying/finalizing age
+- export worker queue age and DLQ depth
 - incomplete multipart upload footprint and `>7 day` MPU metrics wired to S3
   Storage Lens metric names
 - transfer and export observability dashboard coverage
@@ -156,6 +168,6 @@ and export baseline monitoring. The dashboard includes:
 ### Accepted current gaps
 
 - No dedicated API Gateway `429` widget beyond Lambda throttles and API 5xx.
-- No Transfer Acceleration spend widget while TA stays disabled by default.
-- No worker-lane or DLQ alarms before a worker lane exists.
+- No dedicated Transfer Acceleration spend widget yet; rely on policy scoping
+  plus transfer budget alarms until spend telemetry is expanded.
 - No KMS anomaly alarms while SSE-S3 remains the default posture.

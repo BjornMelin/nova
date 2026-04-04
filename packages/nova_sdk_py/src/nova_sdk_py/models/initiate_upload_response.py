@@ -11,6 +11,9 @@ from typing import (
 from attrs import define as _attrs_define, field as _attrs_field
 from dateutil.parser import isoparse
 
+from nova_sdk_py.models.initiate_upload_response_checksum_mode import (
+    InitiateUploadResponseChecksumMode,
+)
 from nova_sdk_py.models.upload_strategy import UploadStrategy
 from nova_sdk_py.types import UNSET, Unset
 
@@ -24,6 +27,7 @@ class InitiateUploadResponse:
     Attributes:
         accelerate_enabled (bool):
         bucket (str):
+        checksum_mode (InitiateUploadResponseChecksumMode):
         expires_in_seconds (int):
         key (str):
         max_concurrency_hint (int):
@@ -41,6 +45,7 @@ class InitiateUploadResponse:
 
     accelerate_enabled: bool
     bucket: str
+    checksum_mode: InitiateUploadResponseChecksumMode
     expires_in_seconds: int
     key: str
     max_concurrency_hint: int
@@ -59,6 +64,8 @@ class InitiateUploadResponse:
         accelerate_enabled = self.accelerate_enabled
 
         bucket = self.bucket
+
+        checksum_mode = self.checksum_mode.value
 
         expires_in_seconds = self.expires_in_seconds
 
@@ -108,6 +115,7 @@ class InitiateUploadResponse:
             {
                 "accelerate_enabled": accelerate_enabled,
                 "bucket": bucket,
+                "checksum_mode": checksum_mode,
                 "expires_in_seconds": expires_in_seconds,
                 "key": key,
                 "max_concurrency_hint": max_concurrency_hint,
@@ -136,6 +144,10 @@ class InitiateUploadResponse:
         accelerate_enabled = d.pop("accelerate_enabled")
 
         bucket = d.pop("bucket")
+
+        checksum_mode = InitiateUploadResponseChecksumMode(
+            d.pop("checksum_mode")
+        )
 
         expires_in_seconds = d.pop("expires_in_seconds")
 
@@ -198,6 +210,7 @@ class InitiateUploadResponse:
         initiate_upload_response = cls(
             accelerate_enabled=accelerate_enabled,
             bucket=bucket,
+            checksum_mode=checksum_mode,
             expires_in_seconds=expires_in_seconds,
             key=key,
             max_concurrency_hint=max_concurrency_hint,

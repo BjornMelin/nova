@@ -5,6 +5,12 @@ from typing import cast
 
 import pytest
 
+from nova_runtime_support.export_copy_worker import (
+    ExportCopyPollResult,
+    ExportCopyStrategy,
+    PreparedExportCopy,
+    QueuedExportCopyState,
+)
 from nova_runtime_support.export_models import ExportRecord, ExportStatus
 from nova_runtime_support.export_runtime import (
     MemoryExportRepository,
@@ -20,6 +26,9 @@ from nova_workflows.tasks import (
     copy_export,
     fail_export,
     finalize_export,
+    poll_queued_export_copy,
+    prepare_export_copy,
+    start_queued_export_copy,
     validate_export,
 )
 
@@ -42,6 +51,54 @@ class _FakeTransferService:
         return ExportCopyResult(
             export_key="exports/scope-1/export-1/source.csv",
             download_filename="source.csv",
+        )
+
+
+class _FakeLargeCopyService:
+    async def prepare(self, *, export: ExportRecord) -> PreparedExportCopy:
+        assert export.export_id == "export-1"
+        return PreparedExportCopy(
+            export_key="exports/scope-1/export-1/source.csv",
+            download_filename="source.csv",
+            source_size_bytes=60 * 1024 * 1024 * 1024,
+            copy_part_size_bytes=2 * 1024 * 1024 * 1024,
+            copy_part_count=30,
+            strategy=ExportCopyStrategy.WORKER,
+        )
+
+    async def start(
+        self,
+        *,
+        export: ExportRecord,
+        prepared: PreparedExportCopy,
+    ) -> QueuedExportCopyState:
+        assert export.export_id == "export-1"
+        assert prepared.strategy == ExportCopyStrategy.WORKER
+        return QueuedExportCopyState(
+            export_key=prepared.export_key,
+            upload_id="worker-upload-id",
+            copy_part_count=prepared.copy_part_count,
+            copy_part_size_bytes=prepared.copy_part_size_bytes,
+        )
+
+    async def poll(
+        self,
+        *,
+        export: ExportRecord,
+        upload_id: str,
+        export_key: str,
+        download_filename: str,
+    ) -> ExportCopyPollResult:
+        assert export.export_id == "export-1"
+        assert upload_id == "worker-upload-id"
+        assert export_key == "exports/scope-1/export-1/source.csv"
+        assert download_filename == "source.csv"
+        return ExportCopyPollResult(
+            state="ready",
+            completed_parts=30,
+            total_parts=30,
+            output_key=export_key,
+            download_filename=download_filename,
         )
 
 
@@ -136,3 +193,43 @@ async def test_fail_export_persists_error_detail() -> None:
     assert finished is not None
     assert finished.status == ExportStatus.FAILED
     assert finished.error == "copy task timed out"
+
+
+@pytest.mark.anyio
+async def test_prepare_and_queue_worker_export_copy_tasks() -> None:
+    _repository, export_service = await _service_with_record()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+
+    prepared = await prepare_export_copy(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    assert prepared.copy_strategy == "worker"
+    assert prepared.output == WorkflowOutput(
+        key="exports/scope-1/export-1/source.csv",
+        download_filename="source.csv",
+    )
+
+    queued = await start_queued_export_copy(
+        workflow_input=prepared,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    assert queued.copy_upload_id == "worker-upload-id"
+    assert queued.copy_progress_state == "pending"
+    assert queued.copy_total_parts == 30
+
+    polled = await poll_queued_export_copy(
+        workflow_input=queued,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    assert polled.copy_progress_state == "ready"
+    assert polled.copy_completed_parts == 30

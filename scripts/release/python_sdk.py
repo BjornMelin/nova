@@ -450,12 +450,231 @@ def _repair_export_resource_output_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def _repair_sign_parts_request_checksum_parser(root: Path) -> None:
+    path = root / "models" / "sign_parts_request.py"
+    if not path.exists():
+        return
+
+    content = path.read_text(encoding="utf-8")
+    checksum_repaired = (
+        "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+        '                        cast("Mapping[str, Any]", data)\n'
+        "                    )"
+    )
+    if checksum_repaired in content:
+        return
+
+    markers = (
+        "SignPartsRequestChecksumsSha256Type0.from_dict(data)",
+        (
+            "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+            "                    data\n"
+            "                )"
+        ),
+        (
+            "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+            "                        data\n"
+            "                    )"
+        ),
+    )
+    for marker in markers:
+        if marker in content:
+            updated = content.replace(
+                marker,
+                (
+                    "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+                    '                        cast("Mapping[str, Any]", data)\n'
+                    "                    )"
+                ),
+                1,
+            )
+            path.write_text(updated, encoding="utf-8")
+            return
+
+    raise RuntimeError(
+        "expected SignPartsRequest checksum parser snippet not found in "
+        f"{path.relative_to(root)}"
+    )
+
+
+def _ensure_validation_error_context_file(root: Path) -> None:
+    """Rewrite ``validation_error_context.py`` when codegen output is wrong.
+
+    The attrs model is emitted without a module docstring; this helper writes
+    the full file when the expected marker is missing (not a docstring-only
+    edit).
+    """
+    path = root / "models" / "validation_error_context.py"
+    if not path.exists():
+        return
+    content = path.read_text(encoding="utf-8")
+    if (
+        "Hold arbitrary key/value pairs returned alongside validation errors"
+        in content
+    ):
+        return
+    if "class ValidationErrorContext" not in content:
+        return
+    path.write_text(
+        '''\
+"""Context for HTTP validation error payloads (additionalProperties)."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar
+
+from attrs import define as _attrs_define, field as _attrs_field
+
+T = TypeVar("T", bound="ValidationErrorContext")
+
+
+@_attrs_define
+class ValidationErrorContext:
+    """Hold arbitrary key/value pairs returned alongside validation errors.
+
+    Attributes:
+        additional_properties: Extra response members preserved from the
+            decoded payload.
+    """
+
+    additional_properties: dict[str, Any] = _attrs_field(
+        init=False, factory=dict
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize additional properties to a plain ``dict``.
+
+        Returns:
+            Mapping of preserved validation-error context values.
+        """
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        """Build an instance from a decoded mapping.
+
+        Args:
+            src_dict: Decoded mapping containing arbitrary context members.
+
+        Returns:
+            New ``ValidationErrorContext`` containing all supplied keys.
+        """
+
+        d = dict(src_dict)
+        validation_error_context = cls()
+
+        validation_error_context.additional_properties = d
+        return validation_error_context
+
+    @property
+    def additional_keys(self) -> list[str]:
+        """Return keys present in ``additional_properties``.
+
+        Returns:
+            Ordered list of preserved context keys.
+        """
+
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        """Return the value for ``key`` from ``additional_properties``.
+
+        Args:
+            key: Context key to retrieve.
+
+        Returns:
+            Stored value for ``key``.
+
+        Raises:
+            KeyError: If ``key`` is not present.
+        """
+
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Set ``key`` on ``additional_properties``.
+
+        Args:
+            key: Context key to update.
+            value: Value to store for ``key``.
+
+        Returns:
+            None.
+        """
+
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        """Remove ``key`` from ``additional_properties``.
+
+        Args:
+            key: Context key to remove.
+
+        Returns:
+            None.
+
+        Raises:
+            KeyError: If ``key`` is not present.
+        """
+
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        """Return whether ``key`` exists in ``additional_properties``.
+
+        Args:
+            key: Context key to test.
+
+        Returns:
+            ``True`` when ``key`` is present, else ``False``.
+        """
+
+        return key in self.additional_properties
+''',
+        encoding="utf-8",
+    )
+
+
 def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
+    _repair_sign_parts_request_checksum_parser(root)
+    _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
     _repair_blank_model_docstrings(root)
+    _repair_model_docstring_indentation(root)
+
+
+def _repair_model_docstring_indentation(root: Path) -> None:
+    model_dir = root / "models"
+    if not model_dir.exists():
+        return
+    for path in sorted(model_dir.glob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        updated_lines: list[str] = []
+        in_attributes_block = False
+        for line in lines:
+            if line == "        Attributes:":
+                updated_lines.append("    Attributes:")
+                in_attributes_block = True
+                continue
+            if in_attributes_block:
+                if line.startswith("            ") and line.strip():
+                    updated_lines.append(line[4:])
+                    continue
+                if line.strip() in {'"""', "'''"} or not line.strip():
+                    in_attributes_block = False
+            updated_lines.append(line)
+        updated = "\n".join(updated_lines) + "\n"
+        original = "\n".join(lines) + "\n"
+        if updated != original:
+            path.write_text(updated, encoding="utf-8")
 
 
 def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:

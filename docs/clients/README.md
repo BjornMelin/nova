@@ -65,8 +65,11 @@ tokens, then render the full `Authorization` header value into the hidden DOM
 node read by `nova_dash_bridge`.
 Browser upload clients should honor additive initiate hints such as
 `part_size_bytes`, `max_concurrency_hint`, `sign_batch_size_hint`,
-`session_id`, and `resumable_until` instead of hard-coding multipart tuning.
+`session_id`, `resumable_until`, `accelerate_enabled`, `checksum_algorithm`,
+and `checksum_mode` instead of hard-coding multipart tuning.
 Client integrations that inspect `GET /v1/capabilities/transfers` should treat
 quota fields such as `active_multipart_upload_limit`,
 `daily_ingress_budget_bytes`, and `sign_requests_per_upload_limit` as the
-current effective envelope for one deployed environment.
+current effective envelope for one deployed environment, and should also
+respect `large_export_worker_threshold_bytes` when coordinating downstream
+large-export behavior.

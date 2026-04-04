@@ -42,6 +42,12 @@ def main() -> None:
         default=CURRENT_PART_SIZE_BYTES,
         help="Multipart part size in bytes.",
     )
+    parser.add_argument(
+        "--configured-sign-batch-size",
+        type=int,
+        default=None,
+        help="Optional explicit sign batch size override.",
+    )
     args = parser.parse_args()
 
     if args.max_concurrency <= 0:
@@ -56,11 +62,15 @@ def main() -> None:
         parser.error(str(exc))
 
     for file_size_bytes in sizes:
-        plan = build_browser_multipart_plan(
-            file_size_bytes=file_size_bytes,
-            part_size_bytes=args.part_size_bytes,
-            max_concurrency=args.max_concurrency,
-        )
+        try:
+            plan = build_browser_multipart_plan(
+                file_size_bytes=file_size_bytes,
+                part_size_bytes=args.part_size_bytes,
+                max_concurrency=args.max_concurrency,
+                configured_sign_batch_size=args.configured_sign_batch_size,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
         scenarios.append(
             {
                 "file_size_bytes": plan.file_size_bytes,
@@ -78,7 +88,10 @@ def main() -> None:
         json.dumps(
             {
                 "mode": "browser_upload_batch_matrix",
-                "current_rule": "min(16, max(1, 2 * maxConcurrency))",
+                "current_rule": (
+                    "configured sign batch when provided; otherwise "
+                    "min(128, max(64, 4 * maxConcurrency))"
+                ),
                 "scenarios": scenarios,
             },
             indent=2,

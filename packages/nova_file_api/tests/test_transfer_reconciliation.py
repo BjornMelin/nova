@@ -79,6 +79,7 @@ def _record(
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        checksum_mode="none",
         sign_requests_count=0,
         sign_requests_limit=512,
         resumable_until=created_at,

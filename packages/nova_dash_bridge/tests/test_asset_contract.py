@@ -70,10 +70,17 @@ def test_asset_keeps_progressive_sign_batch_controls() -> None:
     source = _file_transfer_asset_source()
 
     assert 'root.dataset.signBatchSize || ""' in source
+    assert 'root.dataset.policyHint || ""' in source
+    assert 'root.dataset.workloadClass || ""' in source
+    assert 'root.dataset.checksumPreference || ""' in source
+    assert (
+        "function buildInitiatePayload(config, file, contentType, extra)"
+        in source
+    )
     assert "function clampPositiveInt(value, fallback, maximum)" in source
     assert "configuredBatchSize > 0" in source
     assert "clampPositiveInt(" in source
-    assert "Math.min(16, Math.max(1, maxConcurrency * 2))" in source
+    assert "Math.min(16, Math.max(1, maxConcurrency * 2))" not in source
 
 
 def test_file_transfer_assets_inline_by_default() -> None:

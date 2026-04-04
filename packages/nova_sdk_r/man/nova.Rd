@@ -69,12 +69,14 @@
 }
 
 \section{nova_get_transfer_capabilities}{
-  \code{nova_get_transfer_capabilities(client, headers = NULL)}
+  \code{nova_get_transfer_capabilities(client, policy_hint = NULL, workload_class = NULL, headers = NULL)}
 
   Get Transfer Capabilities
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
+    \item{policy_hint}{Optional query parameter \code{policy_hint}.}
+    \item{workload_class}{Optional query parameter \code{workload_class}.}
     \item{headers}{Optional named list of per-request headers.}
     \item{Returns}{Parsed JSON response as a named list, or NULL when the response body is empty.}
   }

@@ -97,6 +97,7 @@ def initialize_runtime_state(
     *,
     settings: Settings,
     s3_client: object,
+    accelerate_s3_client: object | None = None,
     dynamodb_resource: object | None = None,
     stepfunctions_client: object | None = None,
     appconfig_client: object | None = None,
@@ -107,6 +108,9 @@ def initialize_runtime_state(
         app: FastAPI application receiving the singletons.
         settings: Resolved runtime settings.
         s3_client: Configured S3 client used by transfer services.
+        accelerate_s3_client: Optional accelerate-mode S3 client used only for
+            presigning requests when the effective transfer policy enables
+            acceleration.
         dynamodb_resource: Optional DynamoDB resource for DynamoDB backends.
         stepfunctions_client: Optional Step Functions client for workflow-
             backed export dispatch.
@@ -158,6 +162,7 @@ def initialize_runtime_state(
     app.state.transfer_service = build_transfer_service(
         settings=settings,
         s3_client=s3_client,
+        accelerate_s3_client=accelerate_s3_client,
         dynamodb_resource=dynamodb_resource,
         appconfig_client=appconfig_client,
     )
@@ -269,6 +274,7 @@ def build_transfer_service(
     *,
     settings: Settings,
     s3_client: object,
+    accelerate_s3_client: object | None = None,
     dynamodb_resource: object | None = None,
     appconfig_client: object | None = None,
 ) -> TransferService:
@@ -293,6 +299,7 @@ def build_transfer_service(
     return TransferService(
         config=transfer_config,
         s3_client=s3_client,
+        accelerate_s3_client=accelerate_s3_client,
         policy_provider=build_transfer_policy_provider(
             config=transfer_config,
             appconfig_client=cast(

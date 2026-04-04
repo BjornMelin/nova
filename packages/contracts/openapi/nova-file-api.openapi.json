@@ -163,6 +163,19 @@
         "additionalProperties": false,
         "description": "Part metadata needed for multipart completion.",
         "properties": {
+          "checksum_sha256": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Sha256"
+          },
           "etag": {
             "maxLength": 256,
             "minLength": 1,
@@ -409,6 +422,21 @@
         "title": "ExportStatus",
         "type": "string"
       },
+      "HTTPValidationError": {
+        "description": "Validation error envelope returned for invalid request payloads.",
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "maxItems": 256,
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "HealthResponse": {
         "additionalProperties": false,
         "description": "Health endpoint response body.",
@@ -426,8 +454,33 @@
       },
       "InitiateUploadRequest": {
         "additionalProperties": false,
-        "description": "Initiate-upload request model.",
+        "description": "Initiate-upload request model.\n\nClient hints (``workload_class``, ``policy_hint``, ``checksum_preference``)\nare inputs only. The effective persisted transfer policy exposes\n``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3\nintegration). ``checksum_preference`` accepts ``none|standard|strict`` as a\nclient preference; preference is not the same enum as mode mapping and the\nfinal mode decision happens server-side.",
         "properties": {
+          "checksum_preference": {
+            "anyOf": [
+              {
+                "pattern": "^(none|standard|strict)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Preference"
+          },
+          "checksum_value": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum Value"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -446,10 +499,36 @@
             "title": "Filename",
             "type": "string"
           },
+          "policy_hint": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Hint"
+          },
           "size_bytes": {
             "exclusiveMinimum": 0.0,
             "title": "Size Bytes",
             "type": "integer"
+          },
+          "workload_class": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workload Class"
           }
         },
         "required": [
@@ -481,6 +560,15 @@
               }
             ],
             "title": "Checksum Algorithm"
+          },
+          "checksum_mode": {
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Checksum Mode",
+            "type": "string"
           },
           "expires_in_seconds": {
             "title": "Expires In Seconds",
@@ -563,6 +651,7 @@
           "max_concurrency_hint",
           "sign_batch_size_hint",
           "accelerate_enabled",
+          "checksum_mode",
           "resumable_until"
         ],
         "title": "InitiateUploadResponse",
@@ -809,6 +898,20 @@
         "additionalProperties": false,
         "description": "Multipart sign-parts request.",
         "properties": {
+          "checksums_sha256": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksums Sha256"
+          },
           "key": {
             "maxLength": 2048,
             "minLength": 1,
@@ -888,8 +991,21 @@
             ],
             "title": "Checksum Algorithm"
           },
+          "checksum_mode": {
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ],
+            "title": "Checksum Mode",
+            "type": "string"
+          },
           "daily_ingress_budget_bytes": {
             "title": "Daily Ingress Budget Bytes",
+            "type": "integer"
+          },
+          "large_export_worker_threshold_bytes": {
+            "title": "Large Export Worker Threshold Bytes",
             "type": "integer"
           },
           "max_concurrency_hint": {
@@ -948,10 +1064,12 @@
           "max_concurrency_hint",
           "sign_batch_size_hint",
           "accelerate_enabled",
+          "checksum_mode",
           "resumable_ttl_seconds",
           "active_multipart_upload_limit",
           "daily_ingress_budget_bytes",
-          "sign_requests_per_upload_limit"
+          "sign_requests_per_upload_limit",
+          "large_export_worker_threshold_bytes"
         ],
         "title": "TransferCapabilitiesResponse",
         "type": "object"
@@ -1052,6 +1170,48 @@
         ],
         "title": "UploadedPart",
         "type": "object"
+      },
+      "ValidationError": {
+        "description": "One request-validation issue with location, message, and error type.",
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "maxItems": 32,
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1142,6 +1302,42 @@
       "get": {
         "description": "Expose the current transfer policy envelope.",
         "operationId": "get_transfer_capabilities",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workload_class",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workload Class"
+            }
+          },
+          {
+            "in": "query",
+            "name": "policy_hint",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Policy Hint"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1152,6 +1348,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Get Transfer Capabilities",

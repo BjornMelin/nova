@@ -2,13 +2,50 @@
 
 from __future__ import annotations
 
-from nova_runtime_support.export_models import ExportOutput, ExportStatus
+from typing import Protocol
+
+from nova_runtime_support.export_copy_worker import (
+    ExportCopyPollResult,
+    ExportCopyStrategy,
+    PreparedExportCopy,
+    QueuedExportCopyState,
+)
+from nova_runtime_support.export_models import (
+    ExportOutput,
+    ExportRecord,
+    ExportStatus,
+)
 from nova_runtime_support.export_runtime import WorkflowExportStateService
 from nova_runtime_support.export_transfer import (
     ExportCopyResult,
     ExportTransferService,
 )
 from nova_workflows.models import ExportWorkflowInput, WorkflowOutput
+
+
+class ExportCopyCoordinator(Protocol):
+    """Subset of the large export-copy coordinator used by workflow tasks."""
+
+    async def prepare(self, *, export: ExportRecord) -> PreparedExportCopy:
+        """Resolve one export-copy execution plan."""
+
+    async def start(
+        self,
+        *,
+        export: ExportRecord,
+        prepared: PreparedExportCopy,
+    ) -> QueuedExportCopyState:
+        """Persist part state and enqueue queued copy work."""
+
+    async def poll(
+        self,
+        *,
+        export: ExportRecord,
+        upload_id: str,
+        export_key: str,
+        download_filename: str,
+    ) -> ExportCopyPollResult:
+        """Poll queued copy progress and finalize the destination MPU."""
 
 
 async def validate_export(
@@ -51,9 +88,165 @@ async def copy_export(
         update={
             "output": WorkflowOutput.from_export_output(
                 _export_output(export_result)
-            )
+            ),
+            "copy_progress_state": "ready",
         }
     )
+
+
+async def prepare_export_copy(
+    *,
+    workflow_input: ExportWorkflowInput,
+    export_service: WorkflowExportStateService,
+    large_copy_service: ExportCopyCoordinator,
+) -> ExportWorkflowInput:
+    """Resolve export-copy strategy and persist internal copy metadata."""
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    prepared = await large_copy_service.prepare(export=export)
+    updated_record = export.model_copy(
+        update={
+            "source_size_bytes": prepared.source_size_bytes,
+            "copy_strategy": prepared.strategy.value,
+            "copy_export_key": prepared.export_key,
+            "copy_part_size_bytes": prepared.copy_part_size_bytes,
+            "copy_part_count": prepared.copy_part_count,
+        }
+    )
+    updated_ok = await export_service.repository.update_if_status(
+        record=updated_record,
+        expected_status=export.status,
+    )
+    if not updated_ok:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return workflow_input.model_copy(
+                update={"copy_progress_state": "cancelled"}
+            )
+        if latest is None or latest.status != ExportStatus.CANCELLED:
+            raise RuntimeError(
+                "export copy planning changed before state could persist"
+            )
+    return workflow_input.model_copy(
+        update={
+            "source_size_bytes": prepared.source_size_bytes,
+            "copy_strategy": prepared.strategy.value,
+            "copy_export_key": prepared.export_key,
+            "copy_part_size_bytes": prepared.copy_part_size_bytes,
+            "copy_part_count": prepared.copy_part_count,
+            "output": WorkflowOutput(
+                key=prepared.export_key,
+                download_filename=prepared.download_filename,
+            ),
+        }
+    )
+
+
+async def start_queued_export_copy(
+    *,
+    workflow_input: ExportWorkflowInput,
+    export_service: WorkflowExportStateService,
+    large_copy_service: ExportCopyCoordinator,
+) -> ExportWorkflowInput:
+    """Create the worker-lane MPU, persist part state, and enqueue work."""
+    if workflow_input.copy_progress_state == "cancelled":
+        return workflow_input
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    if export.status == ExportStatus.CANCELLED:
+        return workflow_input.model_copy(
+            update={"copy_progress_state": "cancelled"}
+        )
+    if workflow_input.output is None:
+        raise ValueError(
+            "workflow output is required before queueing copy work"
+        )
+    prepared = _prepared_export_copy(workflow_input=workflow_input)
+    if prepared.strategy != ExportCopyStrategy.WORKER:
+        return workflow_input.model_copy(
+            update={"copy_progress_state": "ready"}
+        )
+    queued = await large_copy_service.start(export=export, prepared=prepared)
+    copying_record = await export_service.update_status(
+        export_id=workflow_input.export_id,
+        status=ExportStatus.COPYING,
+        output=None,
+        error=None,
+    )
+    updated_record = copying_record.model_copy(
+        update={
+            "source_size_bytes": prepared.source_size_bytes,
+            "copy_strategy": prepared.strategy.value,
+            "copy_export_key": queued.export_key,
+            "copy_upload_id": queued.upload_id,
+            "copy_part_size_bytes": queued.copy_part_size_bytes,
+            "copy_part_count": queued.copy_part_count,
+        }
+    )
+    updated_ok = await export_service.repository.update_if_status(
+        record=updated_record,
+        expected_status=copying_record.status,
+    )
+    if not updated_ok:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return workflow_input.model_copy(
+                update={"copy_progress_state": "cancelled"}
+            )
+        if latest is None or latest.status != ExportStatus.CANCELLED:
+            raise RuntimeError(
+                "export copy metadata changed before queued state could persist"
+            )
+    return workflow_input.model_copy(
+        update={
+            "copy_strategy": prepared.strategy.value,
+            "copy_export_key": queued.export_key,
+            "copy_upload_id": queued.upload_id,
+            "copy_part_size_bytes": queued.copy_part_size_bytes,
+            "copy_part_count": queued.copy_part_count,
+            "copy_progress_state": "pending",
+            "copy_completed_parts": 0,
+            "copy_total_parts": queued.copy_part_count,
+        }
+    )
+
+
+async def poll_queued_export_copy(
+    *,
+    workflow_input: ExportWorkflowInput,
+    export_service: WorkflowExportStateService,
+    large_copy_service: ExportCopyCoordinator,
+) -> ExportWorkflowInput:
+    """Poll queued part-copy progress and finalize the MPU when complete."""
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    if workflow_input.output is None:
+        raise ValueError("workflow output is required before polling copy work")
+    if (
+        workflow_input.copy_upload_id is None
+        or workflow_input.copy_export_key is None
+    ):
+        raise ValueError("queued copy context is missing")
+    polled = await large_copy_service.poll(
+        export=export,
+        upload_id=workflow_input.copy_upload_id,
+        export_key=workflow_input.copy_export_key,
+        download_filename=workflow_input.output.download_filename,
+    )
+    update: dict[str, object] = {
+        "copy_progress_state": polled.state,
+        "copy_completed_parts": polled.completed_parts,
+        "copy_total_parts": polled.total_parts,
+    }
+    if polled.output_key is not None and polled.download_filename is not None:
+        update["output"] = WorkflowOutput(
+            key=polled.output_key,
+            download_filename=polled.download_filename,
+        )
+    return workflow_input.model_copy(update=update)
 
 
 async def finalize_export(
@@ -100,4 +293,34 @@ def _export_output(result: ExportCopyResult) -> ExportOutput:
     return ExportOutput(
         key=result.export_key,
         download_filename=result.download_filename,
+    )
+
+
+def _prepared_export_copy(
+    *,
+    workflow_input: ExportWorkflowInput,
+) -> PreparedExportCopy:
+    if (
+        workflow_input.output is None
+        or workflow_input.source_size_bytes is None
+        or workflow_input.copy_part_size_bytes is None
+        or workflow_input.copy_part_count is None
+        or workflow_input.copy_strategy is None
+    ):
+        raise ValueError(
+            "prepared queued export copy state is missing from workflow input"
+        )
+    try:
+        strategy = ExportCopyStrategy(workflow_input.copy_strategy)
+    except ValueError as exc:
+        raise ValueError(
+            f"invalid copy_strategy: {workflow_input.copy_strategy}"
+        ) from exc
+    return PreparedExportCopy(
+        export_key=workflow_input.output.key,
+        download_filename=workflow_input.output.download_filename,
+        source_size_bytes=workflow_input.source_size_bytes,
+        copy_part_size_bytes=workflow_input.copy_part_size_bytes,
+        copy_part_count=workflow_input.copy_part_count,
+        strategy=strategy,
     )

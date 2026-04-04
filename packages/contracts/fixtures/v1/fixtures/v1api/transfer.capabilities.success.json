@@ -7,11 +7,13 @@
   "minimum_part_size_bytes": 67108864,
   "maximum_part_size_bytes": 536870912,
   "max_concurrency_hint": 4,
-  "sign_batch_size_hint": 32,
+  "sign_batch_size_hint": 64,
   "accelerate_enabled": false,
   "checksum_algorithm": null,
+  "checksum_mode": "none",
   "resumable_ttl_seconds": 604800,
   "active_multipart_upload_limit": 200,
   "daily_ingress_budget_bytes": 1099511627776,
-  "sign_requests_per_upload_limit": 512
+  "sign_requests_per_upload_limit": 512,
+  "large_export_worker_threshold_bytes": 53687091200
 }

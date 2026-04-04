@@ -7,6 +7,11 @@ import statistics
 from dataclasses import dataclass
 from typing import Final
 
+from nova_file_api.transfer_policy import (
+    SIGN_BATCH_SIZE_HINT_MAX,
+    SIGN_BATCH_SIZE_HINT_MIN,
+)
+
 CURRENT_MULTIPART_THRESHOLD_BYTES: Final[int] = 100 * 1024 * 1024
 CURRENT_PART_SIZE_BYTES: Final[int] = 128 * 1024 * 1024
 CURRENT_MAX_CONCURRENCY: Final[int] = 4
@@ -60,20 +65,41 @@ def browser_sign_batch_size(
     max_concurrency: int,
     configured_sign_batch_size: int | None = None,
 ) -> int:
-    """Mirror the current `file_transfer.js` default batching rule."""
+    """Mirror the current `file_transfer.js` batching rule.
+
+    Args:
+        max_concurrency: Maximum number of concurrent browser uploads.
+        configured_sign_batch_size: Optional explicit batch size override.
+
+    Returns:
+        The sign batch size to use for multipart signing requests.
+
+    Raises:
+        ValueError: If any input constraint is violated.
+    """
     if max_concurrency <= 0:
         raise ValueError("max_concurrency must be > 0")
-    cap = min(16, max_concurrency * 2)
     if (
         configured_sign_batch_size is not None
         and configured_sign_batch_size <= 0
     ):
         raise ValueError("configured_sign_batch_size must be > 0")
     if configured_sign_batch_size is not None:
-        if configured_sign_batch_size > cap:
-            raise ValueError(f"configured_sign_batch_size must be <= {cap}")
+        if configured_sign_batch_size < SIGN_BATCH_SIZE_HINT_MIN:
+            raise ValueError(
+                "configured_sign_batch_size must be "
+                f">= {SIGN_BATCH_SIZE_HINT_MIN}"
+            )
+        if configured_sign_batch_size > SIGN_BATCH_SIZE_HINT_MAX:
+            raise ValueError(
+                "configured_sign_batch_size must be <= "
+                f"{SIGN_BATCH_SIZE_HINT_MAX}"
+            )
         return configured_sign_batch_size
-    return min(16, max(1, max_concurrency * 2))
+    return min(
+        SIGN_BATCH_SIZE_HINT_MAX,
+        max(64, max_concurrency * 4),
+    )
 
 
 def sign_request_count(*, total_parts: int, sign_batch_size: int) -> int:

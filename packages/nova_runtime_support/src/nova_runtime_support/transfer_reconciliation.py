@@ -200,6 +200,7 @@ class TransferReconciliationService:
                 sign_batch_size_hint=session.sign_batch_size_hint,
                 accelerate_enabled=session.accelerate_enabled,
                 checksum_algorithm=session.checksum_algorithm,
+                checksum_mode=session.checksum_mode,
                 sign_requests_count=session.sign_requests_count,
                 sign_requests_limit=session.sign_requests_limit,
                 resumable_until=session.resumable_until,

@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
+from pydantic import ValidationError
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import FileTransferError
@@ -235,6 +236,34 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
 
 
 @pytest.mark.anyio
+async def test_single_upload_required_checksum_signs_put_object_header() -> (
+    None
+):
+    settings = _settings(
+        FILE_TRANSFER_CHECKSUM_ALGORITHM="SHA256",
+        FILE_TRANSFER_CHECKSUM_MODE="required",
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=1024 * 1024 * 1024,
+    )
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    response = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=1024,
+            checksum_value="sha256-base64-value",
+        ),
+        principal=_principal(),
+    )
+
+    assert response.strategy == UploadStrategy.SINGLE
+    assert response.checksum_mode == "required"
+    params = fake_s3.calls[0]["Params"]
+    assert params["ChecksumSHA256"] == "sha256-base64-value"
+
+
+@pytest.mark.anyio
 async def test_initiate_upload_returns_policy_hints_and_persists_session() -> (
     None
 ):
@@ -269,7 +298,7 @@ async def test_initiate_upload_returns_policy_hints_and_persists_session() -> (
     assert (
         response.max_concurrency_hint == settings.file_transfer_max_concurrency
     )
-    assert response.sign_batch_size_hint == 32
+    assert response.sign_batch_size_hint == 64
     assert response.accelerate_enabled is False
     assert response.checksum_algorithm is None
     assert response.part_size_bytes == 256 * 1024 * 1024
@@ -282,6 +311,7 @@ async def test_initiate_upload_returns_policy_hints_and_persists_session() -> (
     assert stored.upload_id == fake_s3.multipart_upload_id
     assert stored.part_size_bytes == 256 * 1024 * 1024
     assert stored.policy_id == "giant-tier"
+    assert stored.checksum_mode == "none"
 
 
 @pytest.mark.anyio
@@ -658,6 +688,32 @@ async def test_complete_upload_rejects_duplicate_part_numbers() -> None:
     assert fake_s3.complete_calls == []
 
 
+def test_complete_upload_request_requires_contiguous_checksum_parts() -> None:
+    with pytest.raises(
+        ValidationError,
+        match=(
+            "parts must be consecutive and start at 1 when "
+            "checksum_sha256 is provided"
+        ),
+    ):
+        CompleteUploadRequest(
+            key="uploads/scope-1/file.csv",
+            upload_id="upload-1",
+            parts=[
+                CompletedPart(
+                    part_number=1,
+                    etag='"etag-1"',
+                    checksum_sha256="checksum-1",
+                ),
+                CompletedPart(
+                    part_number=3,
+                    etag='"etag-3"',
+                    checksum_sha256="checksum-3",
+                ),
+            ],
+        )
+
+
 @pytest.mark.anyio
 async def test_abort_upload_checks_session_scope_before_update() -> None:
     settings = _settings()
@@ -685,6 +741,7 @@ async def test_abort_upload_checks_session_scope_before_update() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        checksum_mode="none",
         sign_requests_count=0,
         sign_requests_limit=None,
         resumable_until=now,
@@ -708,6 +765,38 @@ async def test_abort_upload_checks_session_scope_before_update() -> None:
     assert exc_info.value.code == "invalid_request"
     assert str(exc_info.value) == "upload session is outside caller scope"
     assert repository._records_by_session_id[stored.session_id] == stored
+
+
+@pytest.mark.anyio
+async def test_sign_parts_includes_checksum_header_when_required() -> None:
+    settings = _settings(
+        FILE_TRANSFER_CHECKSUM_ALGORITHM="SHA256",
+        FILE_TRANSFER_CHECKSUM_MODE="required",
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+    )
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+            checksum_preference="strict",
+        ),
+        principal=_principal(),
+    )
+
+    await service.sign_parts(
+        request=SignPartsRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+            part_numbers=[1],
+            checksums_sha256={1: "part-checksum"},
+        ),
+        principal=_principal(),
+    )
+
+    assert fake_s3.calls[-1]["Params"]["ChecksumSHA256"] == "part-checksum"
 
 
 @pytest.mark.anyio
@@ -763,6 +852,7 @@ async def test_upload_session_repository_ignores_expired_records() -> None:
         sign_batch_size_hint=32,
         accelerate_enabled=False,
         checksum_algorithm=None,
+        checksum_mode="none",
         sign_requests_count=0,
         sign_requests_limit=None,
         resumable_until=now,

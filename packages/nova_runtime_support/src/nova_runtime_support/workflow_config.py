@@ -56,6 +56,31 @@ class WorkflowSettings(BaseSettings):
         ge=1,
         le=32,
     )
+    file_transfer_large_export_worker_threshold_bytes: int = Field(
+        default=50 * 1024 * 1024 * 1024,
+        validation_alias="FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        ge=5 * 1024 * 1024 * 1024,
+    )
+    file_transfer_export_copy_worker_attempts: int = Field(
+        default=5,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        ge=1,
+        le=20,
+    )
+    file_transfer_export_copy_worker_lease_seconds: int = Field(
+        default=30 * 60,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        ge=60,
+        le=24 * 60 * 60,
+    )
+    file_transfer_export_copy_parts_table: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    )
+    file_transfer_export_copy_queue_url: str | None = Field(
+        default=None,
+        validation_alias="FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    )
     file_transfer_max_concurrency: int = Field(
         default=4,
         validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
@@ -110,6 +135,36 @@ class WorkflowSettings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def validate_export_copy_worker_backends_pair(self) -> WorkflowSettings:
+        """Require copy-parts table and worker queue together."""
+        table = (self.file_transfer_export_copy_parts_table or "").strip()
+        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        if bool(table) != bool(queue):
+            raise ValueError(
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must both be configured "
+                "together (or both omitted)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_export_copy_worker_when_exports_enabled(
+        self,
+    ) -> WorkflowSettings:
+        """Require queued copy backends when durable exports are enabled."""
+        if not self.exports_enabled:
+            return self
+        table = (self.file_transfer_export_copy_parts_table or "").strip()
+        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        if not table or not queue:
+            raise ValueError(
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must be configured when "
+                "EXPORTS_ENABLED=true"
+            )
+        return self
+
 
 def export_transfer_config_from_settings(
     settings: WorkflowSettings,
@@ -137,4 +192,7 @@ def export_transfer_config_from_settings(
         max_concurrency=settings.file_transfer_export_copy_max_concurrency,
         copy_part_size_bytes=settings.file_transfer_export_copy_part_size_bytes,
         copy_max_concurrency=settings.file_transfer_export_copy_max_concurrency,
+        large_copy_worker_threshold_bytes=(
+            settings.file_transfer_large_export_worker_threshold_bytes
+        ),
     )

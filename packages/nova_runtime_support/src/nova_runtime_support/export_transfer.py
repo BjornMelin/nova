@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,10 +11,13 @@ from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
+from nova_runtime_support.export_utils import (
+    _multipart_copy_create_upload_kwargs,
+    _multipart_copy_part_size_bytes,
+    _sanitize_filename,
+)
+
 _COPY_OBJECT_MAX_BYTES = 5_000_000_000
-_MAX_MULTIPART_PARTS = 10_000
-_MIN_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024
-_MAX_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -30,6 +32,7 @@ class ExportTransferConfig:
     max_concurrency: int
     copy_part_size_bytes: int
     copy_max_concurrency: int
+    large_copy_worker_threshold_bytes: int
 
 
 @dataclass(slots=True, frozen=True)
@@ -306,20 +309,6 @@ class S3ExportTransferService:
             raise ValueError("key is outside caller upload scope")
 
 
-def _sanitize_filename(filename: str) -> str:
-    base_name = Path(filename).name
-    cleaned = "".join(
-        character
-        for character in base_name
-        if character.isalnum() or character in {".", "-", "_"}
-    )
-    if not cleaned:
-        return "file"
-    if len(cleaned) > 255:
-        return cleaned[:255]
-    return cleaned
-
-
 def _normalize_prefix(prefix: str) -> str:
     normalized = prefix.strip()
     if not normalized:
@@ -356,40 +345,3 @@ def _copy_part_etag(response: dict[str, Any]) -> str:
     if etag is None:
         raise RuntimeError("multipart export copy part etag is missing")
     return etag
-
-
-def _multipart_copy_part_size_bytes(
-    *,
-    source_size_bytes: int,
-    preferred_part_size_bytes: int,
-) -> int:
-    return min(
-        _MAX_MULTIPART_PART_SIZE_BYTES,
-        max(
-            preferred_part_size_bytes,
-            _MIN_MULTIPART_PART_SIZE_BYTES,
-            math.ceil(source_size_bytes / _MAX_MULTIPART_PARTS),
-        ),
-    )
-
-
-def _multipart_copy_create_upload_kwargs(
-    *,
-    bucket: str,
-    key: str,
-    source_object: dict[str, Any],
-) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
-    for field in (
-        "CacheControl",
-        "ContentDisposition",
-        "ContentEncoding",
-        "ContentLanguage",
-        "ContentType",
-        "Expires",
-        "Metadata",
-    ):
-        value = source_object.get(field)
-        if value is not None:
-            kwargs[field] = value
-    return kwargs

@@ -214,10 +214,15 @@ uv run --package nova-cdk python app.py
   explicitly before running `npx aws-cdk deploy`.
 - The transfer bucket aborts incomplete multipart uploads after 7 days and
   expires transient `tmp/` objects after 3 days. Durable `exports/` objects
-  are retained.
+  are retained. The bucket also has S3 Transfer Acceleration enabled, but the
+  runtime policy keeps acceleration disabled unless an allow-listed profile
+  turns it on for presigned upload requests.
 - The runtime stack now provisions:
   - `UploadSessionsTable` for durable multipart session state
   - `TransferUsageTable` for quota accounting
+  - `ExportCopyPartsTable` for durable worker-lane multipart copy state with
+    TTL cleanup on `expires_at_epoch`
+  - one SQS queue plus DLQ for queued export multipart copy work
   - one AppConfig application/environment/profile/deployment for the transfer
     policy document
   - one hourly reconciliation Lambda schedule for stale multipart uploads
@@ -242,9 +247,17 @@ uv run --package nova-cdk python app.py
 - The stack also exports:
   - `NovaUploadSessionsTableName`
   - `NovaTransferUsageTableName`
+  - `NovaExportCopyPartsTableName`
   - `NovaTransferPolicyAppConfigApplicationId`
   - `NovaTransferPolicyAppConfigEnvironmentId`
   - `NovaTransferPolicyAppConfigProfileId`
+- The transfer policy document now covers:
+  - policy-scoped acceleration enablement
+  - checksum mode (`none`, `optional`, `required`)
+  - the large-export worker threshold
+- The observability surface now includes queued export copy alarms for worker
+  DLQ depth and queue age in addition to the existing transfer and workflow
+  alarms.
 - When WAF is enabled, logs redact the `Authorization` and `Cookie` headers
   before delivery to CloudWatch Logs and keep only `BLOCK` / `COUNT`
   decisions to concentrate the security signal.

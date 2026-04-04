@@ -137,3 +137,40 @@ def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
         "@returns The response from the "
         "`getTransferCapabilities` operation." in source
     )
+
+
+def test_public_sdk_types_include_sentence_style_alias_docblocks() -> None:
+    """Generated exported type aliases should carry sentence-style docblocks."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
+
+    assert (
+        "/**\n"
+        " * Request data for the `GetTransferCapabilities` operation.\n"
+        " */\n"
+        "export type GetTransferCapabilitiesData ="
+    ) in source
+    assert (
+        "/**\n"
+        " * Error responses for the `GetTransferCapabilities` operation.\n"
+        " */\n"
+        "export type GetTransferCapabilitiesErrors ="
+    ) in source
+    assert (
+        "/**\n"
+        " * Error union for the `GetTransferCapabilities` operation.\n"
+        " */\n"
+        "export type GetTransferCapabilitiesError ="
+    ) in source
+    assert (
+        "/**\n"
+        " * Validation error envelope returned for invalid request payloads.\n"
+        " */\n"
+        "export type HttpValidationError ="
+    ) in source
+    assert (
+        "/**\n"
+        " * One request-validation issue with location, message, and "
+        "error type.\n"
+        " */\n"
+        "export type ValidationError ="
+    ) in source

@@ -49,6 +49,69 @@ _CORS_ALLOWED_HEADERS = [
 _CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
 _CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
 
+# Cap HTTPValidationError.detail[] (FastAPI how-to: extending-openapi).
+_HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS = 256
+_HTTP_VALIDATION_ERROR_LOC_MAX_ITEMS = 32
+_HTTP_VALIDATION_ERROR_DESCRIPTION = (
+    "Validation error envelope returned for invalid request payloads."
+)
+_VALIDATION_ERROR_DESCRIPTION = (
+    "One request-validation issue with location, message, and error type."
+)
+
+
+def _patch_http_validation_error_detail_max_items(
+    schema: dict[str, Any],
+) -> None:
+    """Patch validation-error schemas for bounded and documented output."""
+    schemas = schema.get("components", {}).get("schemas", {})
+    if not isinstance(schemas, dict):
+        return
+    http_validation_error = schemas.get("HTTPValidationError", {})
+    validation_error = schemas.get("ValidationError", {})
+
+    if isinstance(http_validation_error, dict):
+        http_validation_error.setdefault(
+            "description",
+            _HTTP_VALIDATION_ERROR_DESCRIPTION,
+        )
+    if isinstance(validation_error, dict):
+        validation_error.setdefault(
+            "description",
+            _VALIDATION_ERROR_DESCRIPTION,
+        )
+
+    detail = (
+        http_validation_error.get("properties", {}).get("detail")
+        if isinstance(http_validation_error, dict)
+        else None
+    )
+    if isinstance(detail, dict) and detail.get("type") == "array":
+        detail["maxItems"] = _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS
+    loc = (
+        validation_error.get("properties", {}).get("loc")
+        if isinstance(validation_error, dict)
+        else None
+    )
+    if isinstance(loc, dict) and loc.get("type") == "array":
+        loc["maxItems"] = _HTTP_VALIDATION_ERROR_LOC_MAX_ITEMS
+
+
+def _install_openapi_override(*, app: FastAPI) -> None:
+    """Install the documented FastAPI OpenAPI override on one app instance."""
+    original_openapi = app.openapi
+
+    def custom_openapi() -> dict[str, Any]:
+        schema = app.openapi_schema
+        if schema is not None:
+            return schema
+        schema = original_openapi()
+        _patch_http_validation_error_detail_max_items(schema)
+        app.openapi_schema = schema
+        return schema
+
+    app.__dict__["openapi"] = custom_openapi
+
 
 async def _close_authenticator(*, app: FastAPI) -> None:
     """Close the app authenticator when it exposes an async close hook."""
@@ -107,12 +170,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             else:
                 runtime_settings = app.state.settings
                 session = new_aioboto3_session()
-                s3_config = Config(
-                    s3={
-                        "use_accelerate_endpoint": (
-                            runtime_settings.file_transfer_use_accelerate_endpoint
-                        )
-                    }
+                standard_s3_config = Config(
+                    s3={"use_accelerate_endpoint": False}
+                )
+                accelerate_s3_config = Config(
+                    s3={"use_accelerate_endpoint": True}
                 )
                 requires_dynamodb = (
                     runtime_settings.file_transfer_enabled
@@ -162,7 +224,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(
-                        session.client("s3", config=s3_config)
+                        session.client("s3", config=standard_s3_config)
+                    )
+                    accelerate_s3_client = await stack.enter_async_context(
+                        session.client("s3", config=accelerate_s3_config)
                     )
                     dynamodb_resource = None
                     if requires_dynamodb:
@@ -183,6 +248,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     runtime_state_kwargs = {
                         "settings": runtime_settings,
                         "s3_client": s3_client,
+                        "accelerate_s3_client": accelerate_s3_client,
                         "dynamodb_resource": dynamodb_resource,
                     }
                     if stepfunctions_client is not None:
@@ -219,6 +285,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         middleware=_cors_middleware(settings=settings),
     )
     app.state.settings = settings
+    _install_openapi_override(app=app)
 
     app.include_router(ops_router)
     app.include_router(transfer_router)

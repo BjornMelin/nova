@@ -36,11 +36,16 @@ the bulk data plane. Product and API detail: `README.md`.
 - Transfer control plane: initiate responses include additive policy/session
   hints for browser clients, upload-session state is persisted in DynamoDB,
   transfer quota counters are persisted in DynamoDB, AppConfig can narrow the
-  effective transfer policy with environment-safe fallback, and
+  effective transfer policy with environment-safe fallback, selective transfer
+  acceleration and checksum requirements are policy-controlled, and
   `/v1/capabilities/transfers` exposes the effective transfer policy envelope.
-- Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB.
+- Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB. Moderate
+  export copies stay inline; larger server-side copies use an internal
+  SQS-backed worker lane with durable part state in DynamoDB and Step Functions
+  Standard polling/finalization.
 - Export cancellation persists caller intent and stops the active Step
-  Functions execution when one is running.
+  Functions execution when one is running; queued copy workers must check the
+  export record before copying parts.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
 - Workflows: Step Functions + `packages/nova_workflows` task handlers.
 - Multipart cleanup: `packages/nova_workflows` also owns the scheduled
@@ -139,7 +144,7 @@ Run from repository root unless the task needs otherwise.
 
 ```bash
 uv sync --locked --all-packages --all-extras --dev
-# npm ci  — only if TS workspace / TS SDK / TS conformance is in scope
+# npm ci -- only if TS workspace / TS SDK / TS conformance is in scope
 ```
 
 ### Python verification
@@ -203,6 +208,12 @@ npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cd
 
 For production context values and additional CDK guidance, see
 `infra/nova_cdk/README.md`.
+
+## Task Router
+
+Use the canonical fenced command blocks in **Commands** above.
+
+Task Router keeps the routing map only so command changes have one authority.
 
 ## Task routing
 

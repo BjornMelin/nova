@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import cast
+from collections.abc import Awaitable, Callable
+from typing import Annotated, cast
 
 import structlog
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Query, Response
 
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
@@ -93,6 +94,7 @@ async def get_capabilities(
                 "maximum_part_size_bytes": policy.maximum_part_size_bytes,
                 "accelerate_enabled": policy.accelerate_enabled,
                 "checksum_algorithm": policy.checksum_algorithm,
+                "checksum_mode": policy.checksum_mode,
                 "resumable_ttl_seconds": policy.resumable_ttl_seconds,
                 "active_multipart_upload_limit": (
                     policy.active_multipart_upload_limit
@@ -102,6 +104,9 @@ async def get_capabilities(
                 ),
                 "sign_requests_per_upload_limit": (
                     policy.sign_requests_per_upload_limit
+                ),
+                "large_export_worker_threshold_bytes": (
+                    policy.large_export_worker_threshold_bytes
                 ),
             },
         ),
@@ -117,11 +122,21 @@ async def get_capabilities(
 async def get_transfer_capabilities(
     settings: SettingsDep,
     transfer_service: TransferServiceDep,
+    workload_class: Annotated[
+        str | None,
+        Query(max_length=128),
+    ] = None,
+    policy_hint: Annotated[
+        str | None,
+        Query(max_length=128),
+    ] = None,
 ) -> TransferCapabilitiesResponse:
     """Expose the current transfer policy envelope."""
     policy = await _resolve_capabilities_policy(
         settings=settings,
         transfer_service=transfer_service,
+        workload_class=workload_class,
+        policy_hint=policy_hint,
     )
     return TransferCapabilitiesResponse(
         policy_id=policy.policy_id,
@@ -135,10 +150,14 @@ async def get_transfer_capabilities(
         sign_batch_size_hint=policy.sign_batch_size_hint,
         accelerate_enabled=policy.accelerate_enabled,
         checksum_algorithm=policy.checksum_algorithm,
+        checksum_mode=policy.checksum_mode,
         resumable_ttl_seconds=policy.resumable_ttl_seconds,
         active_multipart_upload_limit=policy.active_multipart_upload_limit,
         daily_ingress_budget_bytes=policy.daily_ingress_budget_bytes,
         sign_requests_per_upload_limit=policy.sign_requests_per_upload_limit,
+        large_export_worker_threshold_bytes=(
+            policy.large_export_worker_threshold_bytes
+        ),
     )
 
 
@@ -146,10 +165,31 @@ async def _resolve_capabilities_policy(
     *,
     settings: Settings,
     transfer_service: object,
+    workload_class: str | None = None,
+    policy_hint: str | None = None,
 ) -> TransferPolicy:
+    """Resolve the effective transfer policy for the capabilities endpoint."""
     resolver = getattr(transfer_service, "resolve_policy", None)
     if callable(resolver):
-        return cast(TransferPolicy, await resolver(scope_id=None))
+        resolve_fn = cast(
+            Callable[..., Awaitable[TransferPolicy]],
+            resolver,
+        )
+        try:
+            result = await resolve_fn(
+                scope_id=None,
+                workload_class=workload_class,
+                policy_hint=policy_hint,
+            )
+        except TypeError:
+            try:
+                result = await resolve_fn(
+                    scope_id=None,
+                    policy_hint=policy_hint,
+                )
+            except TypeError:
+                result = await resolve_fn(scope_id=None)
+        return result
     return resolve_transfer_policy(
         config=transfer_config_from_settings(settings)
     )

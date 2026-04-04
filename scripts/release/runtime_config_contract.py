@@ -67,6 +67,10 @@ class RuntimeEnvContract:
 EXTRA_RUNTIME_ENV_VARS = (
     "API_RELEASE_ARTIFACT_SHA256",
     "AWS_DEFAULT_REGION",
+    "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
 )
 
 
@@ -194,7 +198,22 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
         "FileTransferExportCopyPartSizeBytes",
     ),
     EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "FileTransferExportCopyWorkerAttempts",
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "FileTransferExportCopyWorkerLeaseSeconds",
+    ),
+    EnvJsonOverrideContract(
         "FILE_TRANSFER_EXPORT_PREFIX", "FileTransferExportPrefix"
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_CHECKSUM_MODE", "FileTransferChecksumMode"
+    ),
+    EnvJsonOverrideContract(
+        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "FileTransferLargeExportWorkerThresholdBytes",
     ),
     EnvJsonOverrideContract(
         "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
@@ -380,6 +399,24 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         str(2 * 1024 * 1024 * 1024),
     ),
     RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "literal",
+        "always",
+        "5",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "literal",
+        "always",
+        str(30 * 60),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "literal",
+        "always",
+        str(50 * 1024 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
         "FILE_TRANSFER_MAX_CONCURRENCY", "literal", "always", "4"
     ),
     RuntimeEnvContract(
@@ -476,6 +513,19 @@ API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
         "always",
         "512",
     ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_CHECKSUM_MODE", "literal", "always", "none"
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+        "stack resource",
+        "always",
+    ),
     RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "true"),
     RuntimeEnvContract(
         "IDEMPOTENCY_DYNAMODB_TABLE", "stack resource", "always"
@@ -512,6 +562,34 @@ WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
         "literal",
         "always",
         str(2 * 1024 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "literal",
+        "always",
+        "5",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "literal",
+        "always",
+        str(30 * 60),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "literal",
+        "always",
+        str(50 * 1024 * 1024 * 1024),
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+        "stack resource",
+        "always",
+    ),
+    RuntimeEnvContract(
+        "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+        "stack resource",
+        "always",
     ),
     RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
     RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
@@ -598,6 +676,9 @@ def build_contract_payload() -> dict[str, Any]:
             "handlers": [
                 "nova_workflows.handlers.validate_export_handler",
                 "nova_workflows.handlers.copy_export_handler",
+                "nova_workflows.handlers.prepare_export_copy_handler",
+                "nova_workflows.handlers.start_queued_export_copy_handler",
+                "nova_workflows.handlers.poll_queued_export_copy_handler",
                 "nova_workflows.handlers.finalize_export_handler",
                 "nova_workflows.handlers.fail_export_handler",
             ],

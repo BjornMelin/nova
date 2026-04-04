@@ -144,14 +144,20 @@
     }
   }
 
-  async function putObject(url, file, contentType) {
+  async function putObject(url, file, contentType, extraHeaders) {
     var timeoutMs = 300000;
+    var headers = {
+      "Content-Type": contentType || "application/octet-stream",
+    };
+    if (extraHeaders && typeof extraHeaders === "object") {
+      Object.keys(extraHeaders).forEach(function (key) {
+        headers[key] = extraHeaders[key];
+      });
+    }
     var response = await putWithTimeout(
       url,
       {
-        headers: {
-          "Content-Type": contentType || "application/octet-stream",
-        },
+        headers: headers,
         body: file,
       },
       timeoutMs,
@@ -163,11 +169,17 @@
     return response.headers.get("ETag");
   }
 
-  async function putPart(url, blob) {
+  async function putPart(url, blob, extraHeaders) {
     var timeoutMs = 300000;
+    var headers = {};
+    if (extraHeaders && typeof extraHeaders === "object") {
+      Object.keys(extraHeaders).forEach(function (key) {
+        headers[key] = extraHeaders[key];
+      });
+    }
     var response = await putWithTimeout(
       url,
-      { body: blob },
+      { body: blob, headers: headers },
       timeoutMs,
       "part upload timed out after " + timeoutMs + "ms"
     );
@@ -253,7 +265,76 @@
     return Number.isFinite(resumableUntilMs) && resumableUntilMs <= Date.now();
   }
 
-  async function uploadMultipart(config, file, initiated) {
+  function capabilitiesEndpoint(config) {
+    var base = String(config.transfersEndpointBase || "/v1/transfers").replace(/\/$/, "");
+    return base.replace(/\/v1\/transfers$/, "") + "/v1/capabilities/transfers";
+  }
+
+  function buildCapabilitiesUrl(config) {
+    var url = capabilitiesEndpoint(config);
+    var params = [];
+    if (config.workloadClass) {
+      params.push("workload_class=" + encodeURIComponent(config.workloadClass));
+    }
+    if (config.policyHint) {
+      params.push("policy_hint=" + encodeURIComponent(config.policyHint));
+    }
+    if (!params.length) {
+      return url;
+    }
+    return url + "?" + params.join("&");
+  }
+
+  async function fetchTransferCapabilities(config) {
+    return await getJson(buildCapabilitiesUrl(config), authorizedHeaders(config));
+  }
+
+  async function sha256Base64FromBlob(blob) {
+    if (!window.crypto || !window.crypto.subtle) {
+      throw new Error("SHA-256 checksum requires Web Crypto support");
+    }
+    var buffer = await blob.arrayBuffer();
+    var digest = await window.crypto.subtle.digest("SHA-256", buffer);
+    var bytes = new Uint8Array(digest);
+    var binary = "";
+    for (var index = 0; index < bytes.length; index += 1) {
+      binary += String.fromCharCode(bytes[index]);
+    }
+    return window.btoa(binary);
+  }
+
+  function shouldApplyChecksum(config, capabilities) {
+    if (!capabilities || capabilities.checksum_algorithm !== "SHA256") {
+      return false;
+    }
+    if (capabilities.checksum_mode === "required") {
+      return true;
+    }
+    return config.checksumPreference === "standard" || config.checksumPreference === "strict";
+  }
+
+  function buildInitiatePayload(config, file, contentType, extra) {
+    var payload = {
+      filename: file.name,
+      content_type: contentType,
+      size_bytes: file.size,
+    };
+    if (config.workloadClass) {
+      payload.workload_class = config.workloadClass;
+    }
+    if (config.policyHint) {
+      payload.policy_hint = config.policyHint;
+    }
+    if (config.checksumPreference) {
+      payload.checksum_preference = config.checksumPreference;
+    }
+    if (extra && extra.checksumValue) {
+      payload.checksum_value = extra.checksumValue;
+    }
+    return payload;
+  }
+
+  async function uploadMultipart(config, file, initiated, storedMultipartState) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
     var uploadId = initiated.upload_id;
@@ -284,7 +365,7 @@
       ? configuredBatchSize
       : clampPositiveInt(
         hintedBatchSize,
-        Math.min(16, Math.max(1, maxConcurrency * 2)),
+        Math.max(64, maxConcurrency * 4),
         128
       );
     var totalParts = Math.ceil(file.size / partSize);
@@ -304,9 +385,18 @@
         typeof initiated.resumable_until === "string"
           ? initiated.resumable_until
           : null,
+      checksum_algorithm:
+        typeof initiated.checksum_algorithm === "string"
+          ? initiated.checksum_algorithm
+          : null,
+      checksum_mode:
+        typeof initiated.checksum_mode === "string"
+          ? initiated.checksum_mode
+          : "none",
+      completed_checksums_sha256: {},
     });
 
-    async function uploadSinglePart(partNumber, url) {
+    async function uploadSinglePart(partNumber, url, checksumValue) {
       var start = (partNumber - 1) * partSize;
       var end = Math.min(file.size, start + partSize);
       var blob = file.slice(start, end);
@@ -314,11 +404,18 @@
       while (attempt < 3) {
         attempt += 1;
         try {
-          var etag = await putPart(url, blob);
+          var extraHeaders = checksumValue
+            ? { "x-amz-checksum-sha256": checksumValue }
+            : null;
+          var etag = await putPart(url, blob, extraHeaders);
           uploadedBytes += blob.size;
           var pct = Math.floor((uploadedBytes / file.size) * 100);
           setProgress(config.progressStoreId, pct, "Uploading… " + pct + "%");
-          return { part_number: partNumber, etag: etag };
+          return {
+            part_number: partNumber,
+            etag: etag,
+            checksum_sha256: checksumValue || null,
+          };
         } catch (error) {
           if (attempt >= 3) throw error;
           await sleep(250 * attempt);
@@ -343,9 +440,19 @@
       existingParts.forEach(function (part) {
         var partNumber = parseInt(part.part_number, 10);
         if (!Number.isFinite(partNumber) || partNumber <= 0) return;
+        var storedChecksums =
+          storedMultipartState &&
+          storedMultipartState.completed_checksums_sha256 &&
+          typeof storedMultipartState.completed_checksums_sha256 === "object"
+            ? storedMultipartState.completed_checksums_sha256
+            : {};
         completedByPartNumber[partNumber] = {
           part_number: partNumber,
           etag: part.etag || "",
+          checksum_sha256:
+            typeof storedChecksums[String(partNumber)] === "string"
+              ? storedChecksums[String(partNumber)]
+              : null,
         };
         uploadedBytes += partSizeForNumber(file.size, partSize, partNumber);
       });
@@ -370,6 +477,28 @@
           startIndex,
           startIndex + batchSize
         );
+        var checksumsSha256 = null;
+        if (
+          initiated.checksum_algorithm === "SHA256" &&
+          initiated.checksum_mode !== "none"
+        ) {
+          var checksumResults = await Promise.all(
+            partNumbers.map(function (checksumPartNumber) {
+              var checksumStart = (checksumPartNumber - 1) * partSize;
+              var checksumEnd = Math.min(file.size, checksumStart + partSize);
+              return sha256Base64FromBlob(file.slice(checksumStart, checksumEnd)).then(
+                function (digest) {
+                  return { partNumber: checksumPartNumber, digest: digest };
+                }
+              );
+            })
+          );
+          checksumsSha256 = {};
+          for (var checksumIndex = 0; checksumIndex < checksumResults.length; checksumIndex += 1) {
+            var checksumResult = checksumResults[checksumIndex];
+            checksumsSha256[String(checksumResult.partNumber)] = checksumResult.digest;
+          }
+        }
 
         var sign = await postJson(
           base + "/uploads/sign-parts",
@@ -377,6 +506,7 @@
             key: key,
             upload_id: uploadId,
             part_numbers: partNumbers,
+            checksums_sha256: checksumsSha256,
           },
           authorizedHeaders(config)
         );
@@ -392,8 +522,27 @@
                 if (!signedUrl) {
                   throw new Error("missing signed URL for part " + partNumber);
                 }
-                var completed = await uploadSinglePart(partNumber, signedUrl);
+                var checksumValue =
+                  checksumsSha256 && typeof checksumsSha256[String(partNumber)] === "string"
+                    ? checksumsSha256[String(partNumber)]
+                    : null;
+                var completed = await uploadSinglePart(
+                  partNumber,
+                  signedUrl,
+                  checksumValue
+                );
                 completedByPartNumber[partNumber] = completed;
+                var persistedState = loadMultipartState(storageKey) || {};
+                var persistedChecksums =
+                  persistedState.completed_checksums_sha256 &&
+                  typeof persistedState.completed_checksums_sha256 === "object"
+                    ? persistedState.completed_checksums_sha256
+                    : {};
+                if (completed.checksum_sha256) {
+                  persistedChecksums[String(partNumber)] = completed.checksum_sha256;
+                  persistedState.completed_checksums_sha256 = persistedChecksums;
+                  persistMultipartState(storageKey, persistedState);
+                }
               }
             })()
           );
@@ -567,6 +716,8 @@
     setProgress(config.progressStoreId, 0, "Preparing upload…");
 
     var initiated = null;
+    var transferCapabilities = null;
+    var checksumValue = null;
     var resumedMultipart =
       storedMultipartState &&
       typeof storedMultipartState.upload_id === "string" &&
@@ -582,24 +733,40 @@
         part_size_bytes: parseInt(storedMultipartState.part_size_bytes, 10),
         session_id: storedMultipartState.session_id || null,
         resumable_until: storedMultipartState.resumable_until || null,
+        checksum_algorithm: storedMultipartState.checksum_algorithm || null,
+        checksum_mode: storedMultipartState.checksum_mode || "none",
         expires_in_seconds: 0,
       };
       setProgress(config.progressStoreId, 0, "Resuming upload…");
     } else {
+      transferCapabilities = await fetchTransferCapabilities(config);
+      var shouldUseSingleChecksum =
+        transferCapabilities &&
+        file.size < transferCapabilities.multipart_threshold_bytes &&
+        shouldApplyChecksum(config, transferCapabilities);
+      if (shouldUseSingleChecksum) {
+        checksumValue = await sha256Base64FromBlob(file);
+      }
       initiated = await postJson(
         config.transfersEndpointBase + "/uploads/initiate",
-        {
-          filename: file.name,
-          content_type: contentType,
-          size_bytes: file.size,
-        },
+        buildInitiatePayload(config, file, contentType, {
+          checksumValue: checksumValue,
+        }),
         authorizedHeaders(config)
       );
     }
 
     var uploadResult = null;
     if (initiated.strategy === "single") {
-      await putObject(initiated.url, file, contentType);
+      var singleUploadHeaders =
+        initiated.checksum_algorithm === "SHA256" &&
+        transferCapabilities &&
+        shouldApplyChecksum(config, transferCapabilities) &&
+        typeof checksumValue === "string" &&
+        checksumValue
+          ? { "x-amz-checksum-sha256": checksumValue }
+          : null;
+      await putObject(initiated.url, file, contentType, singleUploadHeaders);
       clearMultipartState(storageKey);
       uploadResult = buildUploadResult(
         file,
@@ -608,7 +775,7 @@
       );
     } else if (initiated.strategy === "multipart") {
       try {
-        await uploadMultipart(config, file, initiated);
+        await uploadMultipart(config, file, initiated, storedMultipartState);
       } catch (error) {
         var resumeMissingMultipart =
           resumedMultipart && isMultipartNotFoundError(error);
@@ -643,21 +810,18 @@
             );
           }
           clearMultipartState(storageKey);
+          storedMultipartState = null;
           storageKey = multipartStateStorageKey(config, file);
           initiated = await postJson(
             config.transfersEndpointBase + "/uploads/initiate",
-            {
-              filename: file.name,
-              content_type: contentType,
-              size_bytes: file.size,
-            },
+            buildInitiatePayload(config, file, contentType, null),
             authorizedHeaders(config)
           );
           if (initiated.strategy === "single") {
-            await putObject(initiated.url, file, contentType);
+            await putObject(initiated.url, file, contentType, null);
             clearMultipartState(storageKey);
           } else if (initiated.strategy === "multipart") {
-            await uploadMultipart(config, file, initiated);
+            await uploadMultipart(config, file, initiated, storedMultipartState);
           } else {
             throw new Error("unknown strategy");
           }
@@ -759,6 +923,9 @@
       authHeaderElementId: root.dataset.authHeaderElementId || "",
       maxConcurrency: root.dataset.maxConcurrency || "4",
       signBatchSize: root.dataset.signBatchSize || "",
+      workloadClass: root.dataset.workloadClass || "",
+      policyHint: root.dataset.policyHint || "",
+      checksumPreference: root.dataset.checksumPreference || "",
       resumeNamespace: root.dataset.resumeNamespace || "",
       maxBytes: parseInt(root.dataset.maxBytes || "0", 10),
       resultStoreId: root.dataset.resultStoreId || "",

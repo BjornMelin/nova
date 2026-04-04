@@ -2,8 +2,8 @@
 Spec: 0002
 Title: S3 Integration
 Status: Active
-Version: 1.2
-Date: 2026-03-11
+Version: 1.3
+Date: 2026-04-03
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -37,11 +37,17 @@ Validation failures should return contract error envelopes consistent with
 - Default runtime posture MUST set `FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS`
   to `1800`.
 - Clients MUST use progressive `sign-parts` requests rather than wide-batch URL
-  presigning. The canonical batch rule is `min(16, 2 * maxConcurrency)` unless
-  a smaller client override is configured.
+  presigning. The canonical default batch rule is `max(64, 4 * maxConcurrency)`
+  unless a smaller client override is configured.
 - Service MUST expose `POST /v1/transfers/uploads/introspect` so clients can
   list already-uploaded parts and resume multipart uploads without restarting
   from part `1`.
+- `POST /v1/transfers/uploads/initiate` MAY accept additive policy-selection
+  hints such as `workload_class`, `policy_hint`, and
+  `checksum_preference`.
+- `GET /v1/capabilities/transfers` MUST expose the current effective transfer
+  policy envelope, including acceleration, checksum mode, quota limits, and the
+  large-export worker threshold.
 
 ## 3. Browser CORS requirements
 
@@ -53,7 +59,8 @@ The bucket CORS policy MUST allow:
 
 ## 4. Transfer Acceleration
 
-When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`:
+Transfer Acceleration MUST remain opt-in through the effective transfer policy
+envelope. When `accelerate_enabled=true` for the caller:
 
 - SDK clients MUST use accelerate endpoint mode.
 - Bucket naming MUST be DNS-compliant and avoid periods.
@@ -70,8 +77,27 @@ When `FILE_TRANSFER_USE_ACCELERATE_ENDPOINT=true`:
 - Export-copy flows for larger source objects MUST use multipart copy
   (`CreateMultipartUpload`, `UploadPartCopy`, `CompleteMultipartUpload`) and
   MUST abort the multipart copy on failure.
+- Moderate export copies MAY remain inline inside the export workflow task
+  runtime.
+- Larger server-side copies MUST use the internal queued worker lane with
+  durable part state, explicit DLQ handling, and idempotent part-copy workers.
 
-## 7. Traceability
+## 7. Checksum behavior
+
+- The effective transfer policy MUST expose both `checksum_algorithm` and
+  `checksum_mode`.
+- `checksum_mode=none` means the runtime does not require checksum input.
+- `checksum_mode=optional` means clients MAY provide checksums and the runtime
+  MUST preserve compatible signing/completion fields when supplied.
+- `checksum_mode=required` means clients MUST provide checksum material
+  consistent with `checksum_algorithm`:
+  - single-part uploads provide the object checksum at initiate time
+  - multipart uploads provide per-part checksum material during signing and
+    completion
+- The current canonical checksum algorithm is `SHA256` when checksums are
+  enabled.
+
+## 8. Traceability
 
 - [FR-0009](../requirements.md#fr-0009-s3-multipart-correctness-and-acceleration-compatibility)
 - [IR-0004](../requirements.md#ir-0004-browser-compatibility-for-multipart-workflows)

@@ -180,6 +180,9 @@ def S3FileUploader(
     auth_header_element_id: str = "",
     max_concurrency: int = 4,
     sign_batch_size: int | None = None,
+    workload_class: str | None = None,
+    policy_hint: str | None = None,
+    checksum_preference: str | None = None,
     async_exports_enabled: bool = False,
     async_export_min_bytes: int = 0,
     async_export_poll_interval_ms: int = 2000,
@@ -198,6 +201,9 @@ def S3FileUploader(
             ``Authorization`` header value (for example ``Bearer <token>``).
         max_concurrency: Multipart upload worker concurrency.
         sign_batch_size: Optional multipart sign batch size override.
+        workload_class: Optional transfer policy workload selector.
+        policy_hint: Optional transfer policy profile selector.
+        checksum_preference: Optional checksum preference hint.
         async_exports_enabled: Toggle async export workflow initiation.
         async_export_min_bytes: Minimum size to use async flow.
         async_export_poll_interval_ms: Poll interval for async export status.
@@ -217,11 +223,10 @@ def S3FileUploader(
             value=sign_batch_size,
             field_name="sign_batch_size",
         )
-        sign_batch_cap = min(16, max_concurrency * 2)
+        sign_batch_cap = 128
         if sign_batch_size > sign_batch_cap:
             raise ValueError(
-                "sign_batch_size must be less than or equal to "
-                f"min(16, 2 * max_concurrency) ({sign_batch_cap})"
+                "sign_batch_size must be less than or equal to 128"
             )
     min_bytes = _validate_non_negative(
         value=async_export_min_bytes,
@@ -269,6 +274,9 @@ def S3FileUploader(
                 "data-sign-batch-size": (
                     "" if sign_batch_size is None else str(sign_batch_size)
                 ),
+                "data-workload-class": workload_class or "",
+                "data-policy-hint": policy_hint or "",
+                "data-checksum-preference": checksum_preference or "",
                 "data-resume-namespace": component_id,
                 "data-max-bytes": str(max_bytes),
                 "data-accept": accept_value,

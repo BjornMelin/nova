@@ -2,7 +2,7 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import type { AbortUploadData, AbortUploadErrors, AbortUploadResponses, CancelExportData, CancelExportErrors, CancelExportResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateExportData, CreateExportErrors, CreateExportResponses, GetCapabilitiesData, GetCapabilitiesResponses, GetExportData, GetExportErrors, GetExportResponses, GetReleaseInfoData, GetReleaseInfoResponses, GetTransferCapabilitiesData, GetTransferCapabilitiesResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, InitiateUploadData, InitiateUploadErrors, InitiateUploadResponses, IntrospectUploadData, IntrospectUploadErrors, IntrospectUploadResponses, ListExportsData, ListExportsErrors, ListExportsResponses, MetricsSummaryData, MetricsSummaryErrors, MetricsSummaryResponses, PlanResourcesData, PlanResourcesErrors, PlanResourcesResponses, PresignDownloadData, PresignDownloadErrors, PresignDownloadResponses, SignUploadPartsData, SignUploadPartsErrors, SignUploadPartsResponses } from './types.gen.js';
+import type { AbortUploadData, AbortUploadErrors, AbortUploadResponses, CancelExportData, CancelExportErrors, CancelExportResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateExportData, CreateExportErrors, CreateExportResponses, GetCapabilitiesData, GetCapabilitiesResponses, GetExportData, GetExportErrors, GetExportResponses, GetReleaseInfoData, GetReleaseInfoResponses, GetTransferCapabilitiesData, GetTransferCapabilitiesErrors, GetTransferCapabilitiesResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, InitiateUploadData, InitiateUploadErrors, InitiateUploadResponses, IntrospectUploadData, IntrospectUploadErrors, IntrospectUploadResponses, ListExportsData, ListExportsErrors, ListExportsResponses, MetricsSummaryData, MetricsSummaryErrors, MetricsSummaryResponses, PlanResourcesData, PlanResourcesErrors, PlanResourcesResponses, PresignDownloadData, PresignDownloadErrors, PresignDownloadResponses, SignUploadPartsData, SignUploadPartsErrors, SignUploadPartsResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -41,7 +41,7 @@ export const getCapabilities = <ThrowOnError extends boolean = false>(options?: 
  *
  * @returns The response from the `getTransferCapabilities` operation.
  */
-export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
+export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, GetTransferCapabilitiesErrors, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
 
 /**
  * List caller-owned exports with most recent first.

@@ -250,11 +250,18 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     assert props["Environment"]["Variables"][
         "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES"
     ] == str(2 * 1024 * 1024 * 1024)
+    assert props["Environment"]["Variables"][
+        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES"
+    ] == str(50 * 1024 * 1024 * 1024)
     assert (
         props["Environment"]["Variables"][
             "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"
         ]
         == "8"
+    )
+    assert (
+        props["Environment"]["Variables"]["FILE_TRANSFER_CHECKSUM_MODE"]
+        == "none"
     )
     assert props["Environment"]["Variables"]["FILE_TRANSFER_POLICY_ID"] == (
         "default"
@@ -296,6 +303,9 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         2 * 1024 * 1024 * 1024
     )
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == "8"
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS"] == "5"
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_QUEUE_URL"]
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE"]
 
 
 def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
@@ -369,6 +379,71 @@ def test_runtime_stack_adds_transfer_usage_and_policy_resources() -> None:
     assert "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE" in api_function_env
 
 
+def test_runtime_stack_adds_export_copy_worker_resources() -> None:
+    """Runtime stack should provision queued export-copy resources."""
+    bundle = _build_bundle()
+    tables = _resources_of_type(bundle.resources, "AWS::DynamoDB::Table")
+    assert any(
+        logical_id.startswith("ExportCopyPartsTable") for logical_id in tables
+    )
+    export_copy_tables = [
+        resource
+        for logical_id, resource in tables.items()
+        if logical_id.startswith("ExportCopyPartsTable")
+    ]
+    assert len(export_copy_tables) == 1
+    assert export_copy_tables[0]["Properties"]["TimeToLiveSpecification"] == {
+        "AttributeName": "expires_at_epoch",
+        "Enabled": True,
+    }
+    queues = _resources_of_type(bundle.resources, "AWS::SQS::Queue")
+    assert any(
+        logical_id.startswith("ExportCopyWorkerQueue") for logical_id in queues
+    )
+    assert any(
+        logical_id.startswith("ExportCopyWorkerDlq") for logical_id in queues
+    )
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    handlers = {
+        resource["Properties"]["Handler"] for resource in functions.values()
+    }
+    assert "nova_workflows.handlers.prepare_export_copy_handler" in handlers
+    assert (
+        "nova_workflows.handlers.start_queued_export_copy_handler" in handlers
+    )
+    assert "nova_workflows.handlers.poll_queued_export_copy_handler" in handlers
+    assert "nova_workflows.handlers.export_copy_worker_handler" in handlers
+    event_sources = _resources_of_type(
+        bundle.resources,
+        "AWS::Lambda::EventSourceMapping",
+    )
+    assert any(
+        resource["Properties"].get("FunctionResponseTypes")
+        == ["ReportBatchItemFailures"]
+        for resource in event_sources.values()
+    )
+    worker_functions = [
+        resource
+        for resource in functions.values()
+        if resource["Properties"]["Handler"]
+        == "nova_workflows.handlers.export_copy_worker_handler"
+    ]
+    assert len(worker_functions) == 1
+    worker_env = worker_functions[0]["Properties"]["Environment"]["Variables"]
+    assert "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE" in worker_env
+    assert "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL" in worker_env
+    assert "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS" in worker_env
+    alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
+    assert any(
+        logical_id.startswith("ExportCopyWorkerDlqAlarm")
+        for logical_id in alarms
+    )
+    assert any(
+        logical_id.startswith("ExportCopyWorkerQueueAgeAlarm")
+        for logical_id in alarms
+    )
+
+
 def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
     """Runtime stack should wire janitor, Storage Lens, and budget controls."""
     bundle = _build_bundle()
@@ -392,6 +467,20 @@ def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
         logical_id.startswith("StaleMultipartUploadBytesAlarm")
         for logical_id in alarms
     )
+    assert any(
+        logical_id.startswith("ExportCopyWorkerDlqAlarm")
+        for logical_id in alarms
+    )
+    buckets = _resources_of_type(bundle.resources, "AWS::S3::Bucket")
+    file_transfer_buckets = [
+        resource
+        for logical_id, resource in buckets.items()
+        if logical_id.startswith("FileTransferBucket")
+    ]
+    assert len(file_transfer_buckets) == 1
+    assert file_transfer_buckets[0]["Properties"][
+        "AccelerateConfiguration"
+    ] == {"AccelerationStatus": "Enabled"}
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:

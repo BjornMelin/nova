@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from math import ceil
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 from nova_file_api.transfer_config import TransferConfig
 from nova_runtime_support.transfer_policy_document import (
@@ -23,10 +23,22 @@ _MINIMUM_UPLOAD_PART_SIZE_BYTES = 64 * 1024 * 1024
 _MAXIMUM_UPLOAD_PART_SIZE_BYTES = 512 * 1024 * 1024
 _MIN_SIGN_BATCH_SIZE = 32
 _MAX_SIGN_BATCH_SIZE = 128
+SIGN_BATCH_SIZE_HINT_MIN = _MIN_SIGN_BATCH_SIZE
+SIGN_BATCH_SIZE_HINT_MAX = _MAX_SIGN_BATCH_SIZE
 _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT = 200
 _DEFAULT_DAILY_INGRESS_BUDGET_BYTES = 1024 * 1024 * 1024 * 1024
 _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT = 512
 _LOGGER = logging.getLogger(__name__)
+
+ChecksumMode = Literal["none", "optional", "required"]
+_VALID_CHECKSUM_MODES = frozenset(("none", "optional", "required"))
+
+
+def _validated_checksum_mode(value: str) -> ChecksumMode:
+    """Return a validated checksum mode literal."""
+    if value not in _VALID_CHECKSUM_MODES:
+        raise ValueError(f"unsupported checksum mode: {value!r}")
+    return cast(ChecksumMode, value)
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -45,10 +57,12 @@ class TransferPolicy:
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None
+    checksum_mode: ChecksumMode
     resumable_ttl_seconds: int
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int
     sign_requests_per_upload_limit: int
+    large_export_worker_threshold_bytes: int
 
 
 class AppConfigDataClient(Protocol):
@@ -90,11 +104,23 @@ class AppConfigDataClient(Protocol):
 class TransferPolicyProvider(Protocol):
     """Resolve the effective transfer policy for one caller scope."""
 
-    async def resolve(self, *, scope_id: str | None) -> TransferPolicy:
+    async def resolve(
+        self,
+        *,
+        scope_id: str | None,
+        workload_class: str | None = None,
+        policy_hint: str | None = None,
+        checksum_preference: str | None = None,
+    ) -> TransferPolicy:
         """Return the effective transfer policy.
 
         Args:
             scope_id: Caller scope identifier or ``None`` for anonymous use.
+            workload_class: Optional workload selector used to choose one
+                policy profile from the AppConfig document.
+            policy_hint: Optional explicit policy profile selector.
+            checksum_preference: Optional caller checksum preference that can
+                only narrow the effective checksum posture.
 
         Returns:
             TransferPolicy: The resolved policy envelope.
@@ -203,6 +229,7 @@ def resolve_transfer_policy(
     *,
     config: TransferConfig,
     document: TransferPolicyDocument | None = None,
+    checksum_preference: str | None = None,
 ) -> TransferPolicy:
     """Resolve the current transfer policy from static runtime settings."""
     active_multipart_upload_limit = (
@@ -230,9 +257,28 @@ def resolve_transfer_policy(
     )
     sign_batch_size_hint = _bounded_int(
         configured=document.sign_batch_size_hint if document else None,
-        default=max(_MIN_SIGN_BATCH_SIZE, max_concurrency_hint * 4),
+        default=max(64, max_concurrency_hint * 4),
         minimum=_MIN_SIGN_BATCH_SIZE,
         maximum=_MAX_SIGN_BATCH_SIZE,
+    )
+    checksum_mode = _validated_checksum_mode(
+        _effective_checksum_mode(
+            configured=(
+                document.checksum_mode
+                if document and document.checksum_mode is not None
+                else config.checksum_mode
+            ),
+            checksum_preference=checksum_preference,
+        )
+    )
+    checksum_algorithm = _effective_checksum_algorithm(
+        configured=(
+            document.checksum_algorithm
+            if document and document.checksum_algorithm is not None
+            else config.checksum_algorithm
+        ),
+        checksum_mode=checksum_mode,
+        checksum_preference=checksum_preference,
     )
     return TransferPolicy(
         policy_id=_opt_str(document.policy_id if document else None)
@@ -271,11 +317,8 @@ def resolve_transfer_policy(
             if document and document.accelerate_enabled is not None
             else config.use_accelerate_endpoint
         ),
-        checksum_algorithm=(
-            document.checksum_algorithm
-            if document and document.checksum_algorithm is not None
-            else config.checksum_algorithm
-        ),
+        checksum_algorithm=checksum_algorithm,
+        checksum_mode=checksum_mode,
         resumable_ttl_seconds=_bounded_int(
             configured=document.resumable_ttl_seconds if document else None,
             default=config.resumable_window_seconds,
@@ -314,6 +357,16 @@ def resolve_transfer_policy(
                 maximum=sign_requests_per_upload_limit,
             )
         ),
+        large_export_worker_threshold_bytes=_bounded_int(
+            configured=(
+                document.large_export_worker_threshold_bytes
+                if document
+                else None
+            ),
+            default=config.large_export_worker_threshold_bytes,
+            minimum=5 * 1024 * 1024 * 1024,
+            maximum=config.max_upload_bytes,
+        ),
     )
 
 
@@ -333,10 +386,20 @@ class StaticTransferPolicyProvider:
 
     config: TransferConfig
 
-    async def resolve(self, *, scope_id: str | None) -> TransferPolicy:
+    async def resolve(
+        self,
+        *,
+        scope_id: str | None,
+        workload_class: str | None = None,
+        policy_hint: str | None = None,
+        checksum_preference: str | None = None,
+    ) -> TransferPolicy:
         """Resolve the effective static transfer policy."""
-        del scope_id
-        return resolve_transfer_policy(config=self.config)
+        del scope_id, workload_class, policy_hint
+        return resolve_transfer_policy(
+            config=self.config,
+            checksum_preference=checksum_preference,
+        )
 
 
 @dataclass(slots=True)
@@ -346,11 +409,27 @@ class AppConfigTransferPolicyProvider:
     config: TransferConfig
     source: AppConfigTransferPolicySource
 
-    async def resolve(self, *, scope_id: str | None) -> TransferPolicy:
+    async def resolve(
+        self,
+        *,
+        scope_id: str | None,
+        workload_class: str | None = None,
+        policy_hint: str | None = None,
+        checksum_preference: str | None = None,
+    ) -> TransferPolicy:
         """Resolve transfer policy with AppConfig as a best-effort overlay."""
         del scope_id
         document = await resolve_transfer_policy_document(source=self.source)
-        return resolve_transfer_policy(config=self.config, document=document)
+        selected = _select_transfer_policy_document(
+            document=document,
+            workload_class=workload_class,
+            policy_hint=policy_hint,
+        )
+        return resolve_transfer_policy(
+            config=self.config,
+            document=selected,
+            checksum_preference=checksum_preference,
+        )
 
 
 def build_transfer_policy_provider(
@@ -387,6 +466,77 @@ def build_transfer_policy_provider(
             ),
         )
     return StaticTransferPolicyProvider(config=config)
+
+
+def _select_transfer_policy_document(
+    *,
+    document: TransferPolicyDocument | None,
+    workload_class: str | None,
+    policy_hint: str | None,
+) -> TransferPolicyDocument | None:
+    if document is None or not document.profiles:
+        return document
+    hint_key = _normalized_identifier(policy_hint)
+    selected = None
+    if hint_key is not None:
+        selected = document.profiles.get(hint_key)
+    if selected is None:
+        workload_key = _normalized_identifier(workload_class)
+        if workload_key is not None:
+            selected = document.profiles.get(workload_key)
+    if selected is None:
+        return document
+    merged = document.model_dump(exclude_none=True)
+    selected_payload = selected.model_dump(exclude_none=True)
+    merged.pop("profiles", None)
+    selected_payload.pop("profiles", None)
+    merged.update(selected_payload)
+    return TransferPolicyDocument.model_validate(merged)
+
+
+def _effective_checksum_algorithm(
+    *,
+    configured: str | None,
+    checksum_mode: str,
+    checksum_preference: str | None,
+) -> str | None:
+    """Resolve the effective checksum algorithm for uploads.
+
+    ``checksum_preference`` is normalized via :func:`_normalized_identifier`.
+    Returns ``None`` when preference is ``none`` and nothing is configured.
+    Preserves a configured algorithm when preference is ``none``.
+    When ``checksum_mode`` requires checksums but none is configured,
+    returns ``SHA256``.
+    """
+    preference = _normalized_identifier(checksum_preference)
+    if preference == "none" and configured is None:
+        return None
+    if preference == "none" and configured is not None:
+        return configured
+    if checksum_mode != "none" and configured is None:
+        return "SHA256"
+    return configured
+
+
+def _effective_checksum_mode(
+    *,
+    configured: str,
+    checksum_preference: str | None,
+) -> str:
+    """Resolve the effective checksum mode string.
+
+    ``configured`` value ``required`` is always preserved.
+    Preference ``none`` forces mode ``none``. Preference ``strict`` upgrades
+    configured ``none`` to ``required``.
+    """
+    preference = _normalized_identifier(checksum_preference)
+    if configured == "required":
+        return "required"
+    if preference == "none":
+        return "none"
+    if preference == "strict" and configured == "none":
+        return "required"
+    return configured
 
 
 def upload_part_size_bytes(

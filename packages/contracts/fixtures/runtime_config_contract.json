@@ -99,6 +99,24 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "source": "literal",
+        "value": "5"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "source": "literal",
+        "value": "1800"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "source": "literal",
+        "value": "53687091200"
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_MAX_CONCURRENCY",
         "source": "literal",
         "value": "4"
@@ -204,6 +222,24 @@
         "name": "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
         "source": "literal",
         "value": "512"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_CHECKSUM_MODE",
+        "source": "literal",
+        "value": "none"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+        "source": "stack resource",
+        "value": null
       },
       {
         "condition": "always",
@@ -420,8 +456,24 @@
         "env_var": "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES"
       },
       {
+        "cloudformation_parameter": "FileTransferExportCopyWorkerAttempts",
+        "env_var": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS"
+      },
+      {
+        "cloudformation_parameter": "FileTransferExportCopyWorkerLeaseSeconds",
+        "env_var": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS"
+      },
+      {
         "cloudformation_parameter": "FileTransferExportPrefix",
         "env_var": "FILE_TRANSFER_EXPORT_PREFIX"
+      },
+      {
+        "cloudformation_parameter": "FileTransferChecksumMode",
+        "env_var": "FILE_TRANSFER_CHECKSUM_MODE"
+      },
+      {
+        "cloudformation_parameter": "FileTransferLargeExportWorkerThresholdBytes",
+        "env_var": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES"
       },
       {
         "cloudformation_parameter": "FileTransferMultipartThresholdBytes",
@@ -467,7 +519,11 @@
   },
   "extra_runtime_env_vars": [
     "API_RELEASE_ARTIFACT_SHA256",
-    "AWS_DEFAULT_REGION"
+    "AWS_DEFAULT_REGION",
+    "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS"
   ],
   "schema_version": 2,
   "settings": [
@@ -634,6 +690,15 @@
       "type_label": "str | None"
     },
     {
+      "default_repr": "'none'",
+      "env_var": "FILE_TRANSFER_CHECKSUM_MODE",
+      "field_name": "file_transfer_checksum_mode",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "none | optional | required"
+    },
+    {
       "default_repr": "None",
       "env_var": "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
       "field_name": "file_transfer_daily_ingress_budget_bytes",
@@ -677,6 +742,15 @@
       "required_when": null,
       "secret": false,
       "type_label": "str"
+    },
+    {
+      "default_repr": "53687091200",
+      "env_var": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+      "field_name": "file_transfer_large_export_worker_threshold_bytes",
+      "required": false,
+      "required_when": null,
+      "secret": false,
+      "type_label": "int"
     },
     {
       "default_repr": "4",
@@ -990,6 +1064,36 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "source": "literal",
+        "value": "5"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "source": "literal",
+        "value": "1800"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "source": "literal",
+        "value": "53687091200"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
         "name": "EXPORTS_ENABLED",
         "source": "literal",
         "value": "true"
@@ -1022,6 +1126,9 @@
     "handlers": [
       "nova_workflows.handlers.validate_export_handler",
       "nova_workflows.handlers.copy_export_handler",
+      "nova_workflows.handlers.prepare_export_copy_handler",
+      "nova_workflows.handlers.start_queued_export_copy_handler",
+      "nova_workflows.handlers.poll_queued_export_copy_handler",
       "nova_workflows.handlers.finalize_export_handler",
       "nova_workflows.handlers.fail_export_handler"
     ]

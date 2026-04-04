@@ -12,8 +12,10 @@ from pydantic import (
     Field,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
+from nova_file_api.transfer_policy import ChecksumMode
 from nova_runtime_support.export_models import (
     ExportOutput,
     ExportRecord,
@@ -42,13 +44,34 @@ class Principal(BaseModel):
 
 
 class InitiateUploadRequest(BaseModel):
-    """Initiate-upload request model."""
+    """Initiate-upload request model.
+
+    Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
+    are inputs only. The effective persisted transfer policy exposes
+    ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
+    integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
+    client preference; preference is not the same enum as mode mapping and the
+    final mode decision happens server-side.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     filename: str = Field(min_length=1, max_length=512)
     content_type: str | None = Field(default=None, max_length=256)
     size_bytes: int = Field(gt=0)
+    workload_class: str | None = Field(
+        default=None, min_length=1, max_length=128
+    )
+    policy_hint: str | None = Field(default=None, min_length=1, max_length=128)
+    # Client preference (none|standard|strict); server maps to checksum_mode
+    # (SPEC-0002).
+    checksum_preference: str | None = Field(
+        default=None,
+        pattern="^(none|standard|strict)$",
+    )
+    checksum_value: str | None = Field(
+        default=None, min_length=1, max_length=256
+    )
 
 
 class InitiateUploadResponse(BaseModel):
@@ -67,6 +90,7 @@ class InitiateUploadResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
+    checksum_mode: ChecksumMode
     resumable_until: datetime
     url: str | None = None
     upload_id: str | None = None
@@ -85,6 +109,7 @@ class SignPartsRequest(BaseModel):
         max_length=1000,
         json_schema_extra={"uniqueItems": True},
     )
+    checksums_sha256: dict[int, str] | None = None
 
     @field_validator("part_numbers")
     @classmethod
@@ -96,6 +121,26 @@ class SignPartsRequest(BaseModel):
             if number < 1 or number > 10_000:
                 raise ValueError("part_numbers must be between 1 and 10000")
         return value
+
+    @field_validator("checksums_sha256")
+    @classmethod
+    def validate_checksums_sha256(
+        cls, value: dict[int, str] | None
+    ) -> dict[int, str] | None:
+        """Validate optional SHA-256 checksum map shape."""
+        if value is None:
+            return None
+        normalized: dict[int, str] = {}
+        for raw_part_number, checksum in value.items():
+            if raw_part_number < 1 or raw_part_number > 10_000:
+                raise ValueError(
+                    "checksum part numbers must be between 1 and 10000"
+                )
+            stripped = checksum.strip()
+            if not stripped:
+                raise ValueError("checksum values must be non-empty")
+            normalized[int(raw_part_number)] = stripped
+        return normalized
 
 
 class SignPartsResponse(BaseModel):
@@ -144,6 +189,9 @@ class CompletedPart(BaseModel):
 
     part_number: int = Field(ge=1, le=10_000)
     etag: str = Field(min_length=1, max_length=256)
+    checksum_sha256: str | None = Field(
+        default=None, min_length=1, max_length=256
+    )
 
 
 class CompleteUploadRequest(BaseModel):
@@ -154,6 +202,20 @@ class CompleteUploadRequest(BaseModel):
     key: str = Field(min_length=1, max_length=2048)
     upload_id: str = Field(min_length=1, max_length=1024)
     parts: list[CompletedPart] = Field(min_length=1, max_length=10_000)
+
+    @model_validator(mode="after")
+    def validate_checksum_part_sequence(self) -> CompleteUploadRequest:
+        """Require contiguous part numbers when checksum values are present."""
+        if not any(part.checksum_sha256 is not None for part in self.parts):
+            return self
+        actual = [part.part_number for part in self.parts]
+        expected = list(range(1, len(self.parts) + 1))
+        if actual != expected:
+            raise ValueError(
+                "parts must be consecutive and start at 1 when "
+                "checksum_sha256 is provided"
+            )
+        return self
 
 
 class CompleteUploadResponse(BaseModel):
@@ -301,10 +363,12 @@ class TransferCapabilitiesResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
+    checksum_mode: ChecksumMode
     resumable_ttl_seconds: int
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int
     sign_requests_per_upload_limit: int
+    large_export_worker_threshold_bytes: int
 
 
 ResourceKey = Annotated[
