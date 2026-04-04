@@ -156,6 +156,31 @@ and export baseline monitoring. The dashboard includes:
   Storage Lens metric names
 - transfer and export observability dashboard coverage
 
+### Transfer policy rollout
+
+Use the AppConfig deployment created by the runtime stack for any transfer
+policy rollout. Keep the environment-bounded runtime settings as the hard
+ceiling and use AppConfig only to narrow or select the effective policy.
+
+Recommended operator sequence:
+
+1. Publish the updated transfer policy document through the exported AppConfig
+   application, environment, and profile ids.
+2. Use the stack-provided deployment strategy for gradual rollout instead of a
+   full cutover.
+3. Confirm the latest AppConfig deployment reaches `COMPLETE`.
+4. Re-run post-deploy validation and confirm the transfer-capabilities checks
+   still pass against the authoritative `deploy-output.json`.
+5. Watch the observability dashboard, runtime alarms, and transfer spend budget
+   through the bake window before widening the policy scope further.
+
+Rollback:
+
+- If the rollout is still in progress, stop the current AppConfig deployment.
+- If it already completed, redeploy the previous hosted configuration version
+  to the same environment.
+- Re-run post-deploy validation after the revert completes.
+
 ### Storage Lens prerequisite
 
 - The incomplete MPU widgets require S3 Storage Lens advanced metrics with

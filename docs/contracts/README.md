@@ -1,8 +1,8 @@
 # Workflow and release contract schemas
 
 Status: Active
-Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-03-25
+Current repository state: **canonical serverless baseline**
+Last reviewed: 2026-04-04
 
 ## Current machine-readable contract set
 
@@ -18,7 +18,7 @@ These schemas remain the current machine-readable baseline contract artifacts:
 - `browser-live-validation-report.schema.json`
 - `workflow-auth0-tenant-ops-v1.schema.json`
 
-## Approved breaking-change record for wave 2
+## Approved breaking-change record for the current baseline
 
 - `BREAKING-CHANGES-V2.md`
 
@@ -38,6 +38,11 @@ pins the merged deploy commit and validates ancestry between the two.
 Do not treat execute-api hostnames as public runtime authority. When an
 execute-api endpoint appears in deploy-output, it exists only to prove that the
 default endpoint is blocked.
+Post-deploy validation reports must retain both the public HTTPS route checks
+and the transfer-policy envelope assertions. When a reusable workflow caller
+provides a read-only AWS role, the same report also captures live AWS runtime
+checks for concurrency, alarms, AppConfig rollout state, dashboard presence,
+and transfer-budget notification wiring.
 
 ## Authority / canonical references
 

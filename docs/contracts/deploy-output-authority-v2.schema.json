@@ -140,6 +140,10 @@
           "pattern": "^/aws/apigateway/.+$",
           "type": "string"
         },
+        "NovaExportCopyPartsTableName": {
+          "minLength": 1,
+          "type": "string"
+        },
         "NovaExportWorkflowStateMachineArn": {
           "pattern": "^arn:aws:states:[a-z0-9-]+:\\d{12}:stateMachine:.+$",
           "type": "string"
@@ -152,12 +156,44 @@
           "minLength": 1,
           "type": "string"
         },
+        "NovaObservabilityDashboardName": {
+          "minLength": 1,
+          "type": "string"
+        },
         "NovaPublicBaseUrl": {
           "pattern": "^https://.+$",
           "type": "string"
         },
         "NovaRestApiEndpoint": {
           "pattern": "^https://.+\\.execute-api\\..+$",
+          "type": "string"
+        },
+        "NovaStorageLensConfigurationId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaTransferPolicyAppConfigApplicationId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaTransferPolicyAppConfigEnvironmentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaTransferPolicyAppConfigProfileId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaTransferSpendBudgetName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaTransferUsageTableName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "NovaUploadSessionsTableName": {
+          "minLength": 1,
           "type": "string"
         },
         "NovaWafLogGroupName": {

@@ -1626,14 +1626,15 @@ class NovaRuntimeStack(Stack):
             topic=alarm_topic,
         )
         metrics_namespace = "NovaFileApi"
+        storage_lens_configuration_id = _storage_lens_configuration_id(
+            self,
+            deployment_environment=inputs.deployment_environment,
+        )
         s3.CfnStorageLens(
             self,
             "FileTransferStorageLens",
             storage_lens_configuration=s3.CfnStorageLens.StorageLensConfigurationProperty(
-                id=_storage_lens_configuration_id(
-                    self,
-                    deployment_environment=inputs.deployment_environment,
-                ),
+                id=storage_lens_configuration_id,
                 is_enabled=True,
                 account_level=s3.CfnStorageLens.AccountLevelProperty(
                     activity_metrics=s3.CfnStorageLens.ActivityMetricsProperty(
@@ -1659,10 +1660,7 @@ class NovaRuntimeStack(Stack):
             ),
         )
         storage_lens_dimensions = {
-            "configuration_id": _storage_lens_configuration_id(
-                self,
-                deployment_environment=inputs.deployment_environment,
-            ),
+            "configuration_id": storage_lens_configuration_id,
             "metrics_version": "1.0",
             "aws_account_number": Stack.of(self).account,
             "aws_region": Stack.of(self).region,
@@ -1689,11 +1687,12 @@ class NovaRuntimeStack(Stack):
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
         add_alarm_actions(alarms=[stale_mpu_bytes_alarm], topic=alarm_topic)
+        transfer_budget_name = f"nova-transfer-{inputs.deployment_environment}"
         budgets.CfnBudget(
             self,
             "TransferSpendBudget",
             budget=budgets.CfnBudget.BudgetDataProperty(
-                budget_name=f"nova-transfer-{inputs.deployment_environment}",
+                budget_name=transfer_budget_name,
                 budget_type="COST",
                 time_unit="MONTHLY",
                 budget_limit=budgets.CfnBudget.SpendProperty(
@@ -2024,6 +2023,16 @@ class NovaRuntimeStack(Stack):
                 "ExportNovaObservabilityDashboardName",
                 "ObservabilityDashboardName",
                 observability_dashboard.dashboard_name,
+            ),
+            (
+                "ExportNovaStorageLensConfigurationId",
+                "StorageLensConfigurationId",
+                storage_lens_configuration_id,
+            ),
+            (
+                "ExportNovaTransferSpendBudgetName",
+                "TransferSpendBudgetName",
+                transfer_budget_name,
             ),
         ):
             CfnOutput(

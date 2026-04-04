@@ -192,6 +192,11 @@ uv run --package nova-cdk python app.py
   entered base URL. The deploy-output artifact binds the release commit SHA,
   runtime version, `NovaPublicBaseUrl`, stack name, region, and stack outputs
   for incident response and revalidation.
+- The authoritative stack outputs captured in `deploy-output.json` now include
+  the transfer-policy AppConfig ids, upload/session quota table names, export
+  copy part table name, observability dashboard name, Storage Lens
+  configuration id, and transfer spend budget name in addition to the
+  existing ingress, alarm-topic, workflow, and log-group outputs.
 - Optional ingress safeguard overrides:
   `enable_waf`,
   `enable_reserved_concurrency`,

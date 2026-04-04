@@ -37,6 +37,7 @@ def test_post_deploy_validate_workflow_contracts() -> None:
         "deploy_run_id",
         "deploy_repo",
         "deploy_artifact_name",
+        "aws_role_to_assume",
         "report_path",
         "artifact_name",
     ]:
@@ -45,8 +46,11 @@ def test_post_deploy_validate_workflow_contracts() -> None:
     for required in [
         "workflow_call:",
         "validation_status",
+        "aws_runtime_checks_status",
         "deploy_output_json",
         "deploy_output_path",
+        "aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7",
+        "--aws-runtime-checks",
         "scripts.release.download_run_artifact",
         "scripts/release/validate_runtime_release.py",
         "post-deploy-validation-report.json",

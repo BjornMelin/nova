@@ -27,6 +27,11 @@ on:
         required: false
         default: ""
         type: string
+      aws_role_to_assume:
+        description: Optional read-only AWS role ARN used for live runtime observability checks.
+        required: false
+        default: ""
+        type: string
       validation_canonical_paths:
         description: Comma-delimited public canonical paths that must satisfy runtime truth checks.
         required: false
@@ -66,6 +71,7 @@ on:
 permissions:
   actions: read
   contents: read
+  id-token: write
 
 jobs:
   post-deploy-validate:
@@ -76,6 +82,7 @@ jobs:
       deploy_artifact_name: ${{ inputs.deploy_artifact_name }}
       deploy_output_json: ${{ inputs.deploy_output_json }}
       deploy_output_path: ${{ inputs.deploy_output_path }}
+      aws_role_to_assume: ${{ inputs.aws_role_to_assume }}
       validation_canonical_paths: ${{ inputs.validation_canonical_paths }}
       validation_protected_paths: ${{ inputs.validation_protected_paths }}
       validation_cors_preflight_path: ${{ inputs.validation_cors_preflight_path }}

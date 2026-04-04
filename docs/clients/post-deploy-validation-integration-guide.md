@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-29
+Last reviewed: 2026-04-04
 
 ## Purpose
 
@@ -25,6 +25,11 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   - `validation_cors_preflight_path`
   - `validation_cors_origin` when you need to override the origin derived from
     `deploy-output.json`
+- Optional AWS runtime validation input:
+  - `aws_role_to_assume` when the calling repo has an approved read-only role
+    for the deployed Nova account
+  - the caller workflow must also allow `id-token: write`, and the role trust
+    policy must accept the caller repository via GitHub OIDC
 
 ## Step-by-step commands
 
@@ -41,6 +46,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
    use. Prefer a full commit SHA.
 4. Dispatch the workflow with the deploy-output input and review the uploaded
    `post-deploy-validation-report` artifact.
+5. Set `aws_role_to_assume` only when you want the reusable workflow to check
+   live AWS runtime state in addition to the public HTTPS contract.
 
 ## Acceptance checks
 
@@ -68,12 +75,20 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   is the only intended public ingress.
 - `/v1/health/live` and `/v1/health/ready` return `200`.
 - At least one protected route returns `401` or `403` without a bearer token.
-- Reserved concurrency matches the deploy environment policy for the API Lambda
-  and workflow task Lambdas.
+- `GET /v1/capabilities/transfers` returns the effective transfer envelope and
+  the representative upload sizing checks pass in the report.
 - Browser CORS preflight on the protected export route returns the expected
   allow-origin, allow-methods, and allow-headers contract.
-- Browser live-gate artifacts (WS5) follow
-  `docs/contracts/browser-live-validation-report.schema.json`.
+- When `aws_role_to_assume` is configured:
+  - reserved concurrency matches the deploy environment policy for the API
+    Lambda and workflow task Lambdas
+  - runtime CloudWatch alarms are not in `ALARM`
+  - the exported observability dashboard exists
+  - the latest transfer-policy AppConfig deployment is complete
+  - the transfer spend budget includes at least one `ACTUAL` notification
+- Browser live validation remains a separate operator/browser workflow. Use
+  `docs/runbooks/release/browser-live-validation-checklist.md` when you need
+  deployed browser evidence and the WS5 artifact set.
 
 ## Versioning policy references
 

@@ -31,8 +31,10 @@ _STACK_OUTPUT_PROPERTIES: dict[str, dict[str, object]] = {
         "type": "string",
         "pattern": "^arn:aws:states:[a-z0-9-]+:\\d{12}:stateMachine:.+$",
     },
+    "NovaExportCopyPartsTableName": {"type": "string", "minLength": 1},
     "NovaExportsTableName": {"type": "string", "minLength": 1},
     "NovaIdempotencyTableName": {"type": "string", "minLength": 1},
+    "NovaObservabilityDashboardName": {"type": "string", "minLength": 1},
     "NovaPublicBaseUrl": {
         "type": "string",
         "pattern": "^https://.+$",
@@ -41,6 +43,22 @@ _STACK_OUTPUT_PROPERTIES: dict[str, dict[str, object]] = {
         "type": "string",
         "pattern": "^https://.+\\.execute-api\\..+$",
     },
+    "NovaStorageLensConfigurationId": {"type": "string", "minLength": 1},
+    "NovaTransferPolicyAppConfigApplicationId": {
+        "type": "string",
+        "minLength": 1,
+    },
+    "NovaTransferPolicyAppConfigEnvironmentId": {
+        "type": "string",
+        "minLength": 1,
+    },
+    "NovaTransferPolicyAppConfigProfileId": {
+        "type": "string",
+        "minLength": 1,
+    },
+    "NovaTransferSpendBudgetName": {"type": "string", "minLength": 1},
+    "NovaTransferUsageTableName": {"type": "string", "minLength": 1},
+    "NovaUploadSessionsTableName": {"type": "string", "minLength": 1},
     "NovaWafLogGroupName": {
         "type": "string",
         "pattern": "^aws-waf-logs-.+$",

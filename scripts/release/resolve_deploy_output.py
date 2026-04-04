@@ -47,11 +47,20 @@ _REQUIRED_DEPLOY_OUTPUT_FIELDS = (
 _AUTHORITATIVE_STACK_OUTPUT_KEYS = (
     "NovaAlarmTopicArn",
     "NovaApiAccessLogGroupName",
+    "NovaExportCopyPartsTableName",
     "NovaExportWorkflowStateMachineArn",
     "NovaExportsTableName",
     "NovaIdempotencyTableName",
+    "NovaObservabilityDashboardName",
     "NovaPublicBaseUrl",
     "NovaRestApiEndpoint",
+    "NovaStorageLensConfigurationId",
+    "NovaTransferPolicyAppConfigApplicationId",
+    "NovaTransferPolicyAppConfigEnvironmentId",
+    "NovaTransferPolicyAppConfigProfileId",
+    "NovaTransferSpendBudgetName",
+    "NovaTransferUsageTableName",
+    "NovaUploadSessionsTableName",
     "NovaWafLogGroupName",
 )
 

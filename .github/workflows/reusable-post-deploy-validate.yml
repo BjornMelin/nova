@@ -27,6 +27,11 @@ on:
         required: false
         default: ""
         type: string
+      aws_role_to_assume:
+        description: Optional read-only AWS role ARN used for live runtime observability checks.
+        required: false
+        default: ""
+        type: string
       validation_canonical_paths:
         description: Comma-delimited public canonical paths that must satisfy runtime truth checks.
         required: false
@@ -66,6 +71,9 @@ on:
       validation_status:
         description: Validation status from deploy-output-bound runtime truth checks (passed|failed).
         value: ${{ jobs.post-deploy-validate.outputs.validation_status }}
+      aws_runtime_checks_status:
+        description: Status from optional AWS-backed runtime observability checks (passed|failed|skipped).
+        value: ${{ jobs.post-deploy-validate.outputs.aws_runtime_checks_status }}
       report_path:
         description: Report path used when writing the JSON validation output.
         value: ${{ jobs.post-deploy-validate.outputs.report_path }}
@@ -76,6 +84,7 @@ on:
 permissions:
   actions: read
   contents: read
+  id-token: write
 
 jobs:
   post-deploy-validate:
@@ -83,6 +92,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       validation_status: ${{ steps.set-outputs.outputs.validation_status }}
+      aws_runtime_checks_status: ${{ steps.set-outputs.outputs.aws_runtime_checks_status }}
       report_path: ${{ steps.set-outputs.outputs.report_path }}
       artifact_name: ${{ steps.set-outputs.outputs.artifact_name }}
     steps:
@@ -183,9 +193,20 @@ jobs:
           echo "deploy_output_path=${deploy_output_path}" >> "$GITHUB_OUTPUT"
           echo "deploy_output_sha256_path=${deploy_output_sha256_path}" >> "$GITHUB_OUTPUT"
 
+      - name: Configure AWS credentials for live runtime checks
+        if: inputs.aws_role_to_assume != ''
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # aws-actions/configure-aws-credentials@v6.0.0
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ inputs.aws_role_to_assume }}
+          role-session-name: ${{ github.run_id }}
+          unset-current-credentials: true
+
       - id: run-validation
         name: Validate runtime against deploy-output authority
         continue-on-error: true
+        env:
+          AWS_RUNTIME_CHECKS_MODE: ${{ inputs.aws_role_to_assume != '' && 'required' || 'skip' }}
         run: |
           set -euo pipefail
           validation_args=(
@@ -195,6 +216,7 @@ jobs:
             --legacy-404-paths "${{ inputs.validation_legacy_404_paths }}"
             --cors-preflight-path "${{ inputs.validation_cors_preflight_path }}"
             --cors-origin "${{ inputs.validation_cors_origin }}"
+            --aws-runtime-checks "${AWS_RUNTIME_CHECKS_MODE}"
             --report-path "${{ inputs.report_path }}"
           )
           if [[ -n "${{ steps.prepare-deploy-output.outputs.deploy_output_sha256_path }}" ]]; then
@@ -210,15 +232,37 @@ jobs:
           VALIDATION_STEP_OUTCOME: ${{ steps.run-validation.outcome }}
         run: |
           set -euo pipefail
-          if [[ "$VALIDATION_STEP_OUTCOME" == "success" ]]; then
-            echo "validation_status=passed" >> "$GITHUB_OUTPUT"
-          else
-            echo "validation_status=failed" >> "$GITHUB_OUTPUT"
+          validation_status="failed"
+          aws_runtime_checks_status="skipped"
+          if [[ -f "${{ inputs.report_path }}" ]]; then
+            aws_runtime_checks_status="$(
+              uv run python -c 'import json, pathlib, sys
+              report = json.loads(
+                  pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+              )
+              print(report.get("aws_runtime_checks_status", "skipped"))' \
+                "${{ inputs.report_path }}"
+            )"
           fi
+          if [[ "$VALIDATION_STEP_OUTCOME" == "success" ]]; then
+            validation_status="passed"
+          fi
+          echo "validation_status=${validation_status}" >> "$GITHUB_OUTPUT"
+          echo "aws_runtime_checks_status=${aws_runtime_checks_status}" >> "$GITHUB_OUTPUT"
           echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
           echo "artifact_name=${{ inputs.artifact_name }}" >> "$GITHUB_OUTPUT"
 
-      - if: always()
+      - id: report-exists
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ -f "${{ inputs.report_path }}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: always() && steps.report-exists.outputs.exists == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact@v7
         with:
           name: ${{ inputs.artifact_name }}

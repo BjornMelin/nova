@@ -43,6 +43,12 @@
           "pattern": "^$|^[^\\s]+\\.json$",
           "default": ""
         },
+        "aws_role_to_assume": {
+          "type": "string",
+          "description": "Optional read-only AWS role ARN used for live runtime observability checks.",
+          "pattern": "^$|^arn:aws[a-z-]*:iam::\\d{12}:role/.+$",
+          "default": ""
+        },
         "validation_canonical_paths": {
           "type": "string",
           "pattern": "^/.+",
@@ -123,6 +129,7 @@
       "additionalProperties": false,
       "required": [
         "validation_status",
+        "aws_runtime_checks_status",
         "report_path",
         "artifact_name"
       ],
@@ -133,6 +140,15 @@
           "enum": [
             "passed",
             "failed"
+          ]
+        },
+        "aws_runtime_checks_status": {
+          "type": "string",
+          "description": "Status from optional AWS-backed runtime observability checks (passed|failed|skipped).",
+          "enum": [
+            "passed",
+            "failed",
+            "skipped"
           ]
         },
         "report_path": {

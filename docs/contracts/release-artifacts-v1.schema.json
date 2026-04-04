@@ -674,7 +674,8 @@
             "cors_preflight",
             "protected",
             "execute_api_disabled",
-            "legacy_404"
+            "legacy_404",
+            "transfer_capabilities"
           ]
         },
         "path": {
@@ -775,6 +776,33 @@
         }
       }
     },
+    "assertion_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "expected",
+        "actual",
+        "ok"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actual": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      }
+    },
     "post_deploy_validation_report": {
       "type": "object",
       "additionalProperties": false,
@@ -789,7 +817,10 @@
         "cors_allowed_origins",
         "cors_origin",
         "checks",
+        "capability_checks",
         "concurrency_checks",
+        "aws_runtime_checks_status",
+        "aws_runtime_checks",
         "status",
         "failures",
         "deploy_output_sha256",
@@ -853,10 +884,30 @@
             "$ref": "#/$defs/route_check"
           }
         },
+        "capability_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assertion_check"
+          }
+        },
         "concurrency_checks": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/concurrency_check"
+          }
+        },
+        "aws_runtime_checks_status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "skipped"
+          ]
+        },
+        "aws_runtime_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assertion_check"
           }
         },
         "status": {
