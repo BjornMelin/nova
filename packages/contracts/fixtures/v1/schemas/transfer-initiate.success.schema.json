@@ -4,7 +4,7 @@
   "title": "TransferInitiateUploadSuccessResponse",
   "type": "object",
   "additionalProperties": false,
-  "required": ["strategy", "bucket", "key", "session_id", "expires_in_seconds", "policy_id", "policy_version", "max_concurrency_hint", "sign_batch_size_hint", "accelerate_enabled", "resumable_until"],
+  "required": ["strategy", "bucket", "key", "session_id", "expires_in_seconds", "policy_id", "policy_version", "max_concurrency_hint", "sign_batch_size_hint", "accelerate_enabled", "checksum_mode", "resumable_until"],
   "properties": {
     "strategy": { "type": "string", "enum": ["single", "multipart"] },
     "bucket": { "type": "string" },
@@ -17,6 +17,7 @@
     "sign_batch_size_hint": { "type": "integer" },
     "accelerate_enabled": { "type": "boolean" },
     "checksum_algorithm": { "type": ["string", "null"] },
+    "checksum_mode": { "type": "string", "enum": ["none", "optional", "required"] },
     "resumable_until": { "type": "string", "format": "date-time" },
     "url": { "type": ["string", "null"] },
     "upload_id": { "type": ["string", "null"] },

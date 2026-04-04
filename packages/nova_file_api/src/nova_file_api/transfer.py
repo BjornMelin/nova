@@ -81,6 +81,7 @@ class TransferService:
         *,
         config: TransferConfig,
         s3_client: Any,
+        accelerate_s3_client: Any | None = None,
         policy_provider: TransferPolicyProvider | None = None,
         upload_session_repository: UploadSessionRepository | None = None,
         transfer_usage_repository: TransferUsageWindowRepository | None = None,
@@ -90,6 +91,9 @@ class TransferService:
         Args:
             config: Transfer-specific runtime configuration.
             s3_client: Prebuilt async S3 client.
+            accelerate_s3_client: Optional accelerate-mode S3 client used only
+                when the effective transfer policy enables acceleration for
+                presigned upload requests.
             policy_provider: Optional resolver for env/AppConfig transfer
                 policy selection.
             upload_session_repository: Optional upload-session persistence
@@ -99,6 +103,11 @@ class TransferService:
         """
         self.config = config
         self._s3 = s3_client
+        self._accelerate_s3 = (
+            accelerate_s3_client
+            if accelerate_s3_client is not None
+            else s3_client
+        )
         self._policy_provider = (
             policy_provider
             if policy_provider is not None
@@ -132,7 +141,12 @@ class TransferService:
         principal: Principal,
     ) -> InitiateUploadResponse:
         """Initiate single or multipart upload based on policy."""
-        policy = await self.resolve_policy(scope_id=principal.scope_id)
+        policy = await self.resolve_policy(
+            scope_id=principal.scope_id,
+            workload_class=request.workload_class,
+            policy_hint=request.policy_hint,
+            checksum_preference=request.checksum_preference,
+        )
         if request.size_bytes > policy.max_upload_bytes:
             raise invalid_request(
                 "file size exceeds configured upload limit",
@@ -249,15 +263,39 @@ class TransferService:
 
         urls: dict[int, str] = {}
         for part_number in request.part_numbers:
+            params: dict[str, Any] = {
+                "Bucket": self.config.bucket,
+                "Key": request.key,
+                "UploadId": request.upload_id,
+                "PartNumber": part_number,
+            }
+            if session.checksum_mode == "required":
+                checksum_value = (request.checksums_sha256 or {}).get(
+                    part_number
+                )
+                if checksum_value is None:
+                    raise invalid_request(
+                        (
+                            "multipart checksum is required for this "
+                            "upload session"
+                        ),
+                        details={"part_number": part_number},
+                    )
+                if session.checksum_algorithm == "SHA256":
+                    params["ChecksumSHA256"] = checksum_value
+            elif (
+                session.checksum_algorithm == "SHA256"
+                and request.checksums_sha256
+                and part_number in request.checksums_sha256
+            ):
+                params["ChecksumSHA256"] = request.checksums_sha256[part_number]
             urls[part_number] = await self._generate_presigned_url(
                 operation="upload_part",
-                params={
-                    "Bucket": self.config.bucket,
-                    "Key": request.key,
-                    "UploadId": request.upload_id,
-                    "PartNumber": part_number,
-                },
+                params=params,
                 expires_in=self.config.presign_upload_ttl_seconds,
+                s3_client=self._presign_s3_client(
+                    use_accelerate_endpoint=session.accelerate_enabled
+                ),
             )
 
         return SignPartsResponse(
@@ -354,10 +392,26 @@ class TransferService:
                 details={"part_numbers": sorted(duplicate_part_numbers)},
             )
 
-        parts = [
-            {"ETag": part.etag, "PartNumber": part.part_number}
-            for part in sorted(request.parts, key=lambda item: item.part_number)
-        ]
+        parts: list[dict[str, Any]] = []
+        for part in sorted(request.parts, key=lambda item: item.part_number):
+            part_payload: dict[str, Any] = {
+                "ETag": part.etag,
+                "PartNumber": part.part_number,
+            }
+            if session is not None and session.checksum_mode == "required":
+                if session.checksum_algorithm == "SHA256":
+                    if part.checksum_sha256 is None:
+                        raise invalid_request(
+                            (
+                                "multipart checksum is required for this "
+                                "upload session"
+                            ),
+                            details={"part_number": part.part_number},
+                        )
+                    part_payload["ChecksumSHA256"] = part.checksum_sha256
+            elif part.checksum_sha256 is not None:
+                part_payload["ChecksumSHA256"] = part.checksum_sha256
+            parts.append(part_payload)
         expected_size_bytes = 0
         for part in request.parts:
             uploaded = uploaded_parts_by_number.get(part.part_number)
@@ -621,11 +675,30 @@ class TransferService:
         }
         if content_type:
             params["ContentType"] = content_type
+        if policy.checksum_mode == "required":
+            if policy.checksum_algorithm == "SHA256":
+                checksum_value = request.checksum_value
+                if checksum_value is None:
+                    raise invalid_request(
+                        (
+                            "single-part checksum is required for this "
+                            "transfer policy"
+                        ),
+                    )
+                params["ChecksumSHA256"] = checksum_value
+        elif (
+            policy.checksum_algorithm == "SHA256"
+            and request.checksum_value is not None
+        ):
+            params["ChecksumSHA256"] = request.checksum_value
 
         url = await self._generate_presigned_url(
             operation="put_object",
             params=params,
             expires_in=self.config.presign_upload_ttl_seconds,
+            s3_client=self._presign_s3_client(
+                use_accelerate_endpoint=policy.accelerate_enabled
+            ),
         )
         resumable_until = created_at + timedelta(
             seconds=policy.resumable_ttl_seconds
@@ -641,6 +714,7 @@ class TransferService:
             sign_batch_size_hint=policy.sign_batch_size_hint,
             accelerate_enabled=policy.accelerate_enabled,
             checksum_algorithm=policy.checksum_algorithm,
+            checksum_mode=policy.checksum_mode,
             resumable_until=resumable_until,
             url=url,
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
@@ -662,6 +736,7 @@ class TransferService:
                 sign_batch_size_hint=policy.sign_batch_size_hint,
                 accelerate_enabled=policy.accelerate_enabled,
                 checksum_algorithm=policy.checksum_algorithm,
+                checksum_mode=policy.checksum_mode,
                 sign_requests_count=0,
                 sign_requests_limit=policy.sign_requests_per_upload_limit,
                 resumable_until=resumable_until,
@@ -691,8 +766,15 @@ class TransferService:
         }
         if content_type:
             kwargs["ContentType"] = content_type
+        if (
+            policy.checksum_mode != "none"
+            and policy.checksum_algorithm == "SHA256"
+        ):
+            kwargs["ChecksumAlgorithm"] = "SHA256"
         try:
-            output = await self._s3.create_multipart_upload(**kwargs)
+            output = await self._presign_s3_client(
+                use_accelerate_endpoint=policy.accelerate_enabled
+            ).create_multipart_upload(**kwargs)
         except (ClientError, BotoCoreError) as exc:
             raise upstream_s3_error(
                 "failed to initiate multipart upload"
@@ -719,6 +801,7 @@ class TransferService:
             sign_batch_size_hint=policy.sign_batch_size_hint,
             accelerate_enabled=policy.accelerate_enabled,
             checksum_algorithm=policy.checksum_algorithm,
+            checksum_mode=policy.checksum_mode,
             resumable_until=resumable_until,
             upload_id=upload_id,
             part_size_bytes=part_size_bytes,
@@ -742,6 +825,7 @@ class TransferService:
                     sign_batch_size_hint=policy.sign_batch_size_hint,
                     accelerate_enabled=policy.accelerate_enabled,
                     checksum_algorithm=policy.checksum_algorithm,
+                    checksum_mode=policy.checksum_mode,
                     sign_requests_count=0,
                     sign_requests_limit=policy.sign_requests_per_upload_limit,
                     resumable_until=resumable_until,
@@ -768,9 +852,11 @@ class TransferService:
         operation: str,
         params: dict[str, Any],
         expires_in: int,
+        s3_client: Any | None = None,
     ) -> str:
         try:
-            generated = await self._s3.generate_presigned_url(
+            client = self._s3 if s3_client is None else s3_client
+            generated = await client.generate_presigned_url(
                 ClientMethod=operation,
                 Params=params,
                 ExpiresIn=expires_in,
@@ -1146,9 +1232,24 @@ class TransferService:
             return False
         return sessions_ready and usage_ready
 
-    async def resolve_policy(self, *, scope_id: str | None) -> TransferPolicy:
+    async def resolve_policy(
+        self,
+        *,
+        scope_id: str | None,
+        workload_class: str | None = None,
+        policy_hint: str | None = None,
+        checksum_preference: str | None = None,
+    ) -> TransferPolicy:
         """Return the effective transfer policy for one caller scope."""
-        return await self._policy_provider.resolve(scope_id=scope_id)
+        return await self._policy_provider.resolve(
+            scope_id=scope_id,
+            workload_class=workload_class,
+            policy_hint=policy_hint,
+            checksum_preference=checksum_preference,
+        )
+
+    def _presign_s3_client(self, *, use_accelerate_endpoint: bool) -> Any:
+        return self._accelerate_s3 if use_accelerate_endpoint else self._s3
 
     async def _reserve_upload_quota(
         self,

@@ -33,11 +33,13 @@ Canonical sources:
 | FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | file_transfer_active_multipart_upload_limit | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
 | FILE_TRANSFER_CHECKSUM_ALGORITHM | file_transfer_checksum_algorithm | str \| None | no | - | no | `None` |
+| FILE_TRANSFER_CHECKSUM_MODE | file_transfer_checksum_mode | str | no | - | no | `'none'` |
 | FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | file_transfer_daily_ingress_budget_bytes | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | file_transfer_export_copy_max_concurrency | int | no | - | no | `8` |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | file_transfer_export_copy_part_size_bytes | int | no | - | no | `2147483648` |
 | FILE_TRANSFER_EXPORT_PREFIX | file_transfer_export_prefix | str | no | - | no | `'exports/'` |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | file_transfer_large_export_worker_threshold_bytes | int | no | - | no | `53687091200` |
 | FILE_TRANSFER_MAX_CONCURRENCY | file_transfer_max_concurrency | int | no | - | no | `4` |
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | max_upload_bytes | int | no | - | no | `536870912000` |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | file_transfer_multipart_threshold_bytes | int | no | - | no | `104857600` |
@@ -91,7 +93,10 @@ Canonical sources:
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | FileTransferPresignDownloadTtlSeconds |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | FileTransferExportCopyMaxConcurrency |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | FileTransferExportCopyPartSizeBytes |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | FileTransferExportCopyWorkerAttempts |
 | FILE_TRANSFER_EXPORT_PREFIX | FileTransferExportPrefix |
+| FILE_TRANSFER_CHECKSUM_MODE | FileTransferChecksumMode |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | FileTransferLargeExportWorkerThresholdBytes |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | FileTransferMultipartThresholdBytes |
 | FILE_TRANSFER_PART_SIZE_BYTES | FileTransferPartSizeBytes |
 | FILE_TRANSFER_POLICY_ID | FileTransferPolicyId |
@@ -148,6 +153,8 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | literal | always | 900 |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
 | FILE_TRANSFER_MAX_CONCURRENCY | literal | always | 4 |
 | FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | literal | always | 200 |
 | FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | literal | always | 1099511627776 |
@@ -166,6 +173,9 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |
 | FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT | literal | always | 512 |
+| FILE_TRANSFER_CHECKSUM_MODE | literal | always | none |
+| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |
@@ -187,6 +197,10 @@ Task handlers:
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
 | FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
+| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
 | EXPORTS_ENABLED | literal | always | true |
 | EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | false |
@@ -195,4 +209,4 @@ Forbidden workflow task env vars:
 `ACTIVITY_STORE_BACKEND`, `ACTIVITY_ROLLUPS_TABLE`, `ALLOWED_ORIGINS`, `API_RELEASE_ARTIFACT_SHA256`, `EXPORT_WORKFLOW_STATE_MACHINE_ARN`, `IDEMPOTENCY_DYNAMODB_TABLE`, `NOVA_RUNTIME_PROFILE`, `OIDC_AUDIENCE`, `OIDC_ISSUER`, `OIDC_JWKS_URL`
 
 Generated extra runtime env vars intentionally outside `Settings`:
-`API_RELEASE_ARTIFACT_SHA256`, `AWS_DEFAULT_REGION`
+`API_RELEASE_ARTIFACT_SHA256`, `AWS_DEFAULT_REGION`, `FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE`, `FILE_TRANSFER_EXPORT_COPY_QUEUE_URL`, `FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS`

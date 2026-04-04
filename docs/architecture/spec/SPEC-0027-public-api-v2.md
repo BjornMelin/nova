@@ -2,8 +2,8 @@
 SPEC: 0027
 Title: Public API v2
 Status: Implemented
-Version: 1.0
-Date: 2026-03-25
+Version: 1.1
+Date: 2026-04-03
 Related:
   - "[ADR-0023: Hard cut to a single canonical /v1 API surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
@@ -39,6 +39,7 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - inspect multipart state
 - complete multipart upload
 - abort multipart upload
+- inspect effective transfer policy/capability state
 
 ### Exports
 
@@ -59,3 +60,24 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - no hand-built auth/session security schemes
 - use native FastAPI `Security` and `responses=…`
 - keep only minimal OpenAPI post-processing if a real generator gap remains
+
+## Additive transfer contract
+
+- upload initiation MAY accept optional policy-selection hints:
+  - `workload_class`
+  - `policy_hint`
+  - `checksum_preference`
+- upload initiation responses MAY include additive tuning and policy fields such
+  as:
+  - `session_id`
+  - `policy_id`
+  - `policy_version`
+  - `max_concurrency_hint`
+  - `sign_batch_size_hint`
+  - `accelerate_enabled`
+  - `checksum_algorithm`
+  - `checksum_mode`
+  - `resumable_until`
+- `GET /v1/capabilities/transfers` is the canonical public capability surface
+  for current transfer tuning, checksum posture, quota limits, and the
+  large-export worker threshold.

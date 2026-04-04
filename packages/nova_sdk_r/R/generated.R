@@ -32,6 +32,8 @@ nova_get_capabilities <- function(
 
 nova_get_transfer_capabilities <- function(
   client,
+  policy_hint = NULL,
+  workload_class = NULL,
   headers = NULL
 ) {
   nova_api_call(
@@ -39,6 +41,7 @@ nova_get_transfer_capabilities <- function(
     operation_id = "get_transfer_capabilities",
     method = "GET",
     path = "/v1/capabilities/transfers",
+    query = list(policy_hint = policy_hint, workload_class = workload_class),
     headers = headers,
     requires_body = FALSE,
     accepts_body = FALSE

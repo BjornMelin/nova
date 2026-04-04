@@ -13,6 +13,7 @@ from nova_file_api.transfer_policy import (
     resolve_transfer_policy,
     resolve_transfer_policy_document,
 )
+from nova_runtime_support.transfer_policy_document import TransferPolicyDocument
 
 
 class _StubAppConfigClient:
@@ -78,8 +79,10 @@ def _config() -> TransferConfig:
         sign_requests_per_upload_limit=512,
         resumable_window_seconds=7 * 24 * 60 * 60,
         checksum_algorithm=None,
+        checksum_mode="none",
         upload_sessions_table="upload-sessions",
         usage_table="transfer-usage",
+        large_export_worker_threshold_bytes=50 * 1024 * 1024 * 1024,
         policy_appconfig_application="app",
         policy_appconfig_environment="env",
         policy_appconfig_profile="profile",
@@ -175,3 +178,55 @@ async def test_build_provider_strips_appconfig_ids() -> None:
     assert provider.source.application_identifier == "app"
     assert provider.source.environment_identifier == "env"
     assert provider.source.configuration_profile_identifier == "profile"
+
+
+@pytest.mark.anyio
+async def test_resolve_transfer_policy_selects_profile_by_hint() -> None:
+    document = {
+        "policy_id": "default",
+        "profiles": {
+            "remote": {
+                "policy_id": "remote",
+                "max_concurrency_hint": 8,
+                "sign_batch_size_hint": 64,
+                "accelerate_enabled": True,
+                "checksum_mode": "optional",
+                "large_export_worker_threshold_bytes": 25 * 1024 * 1024 * 1024,
+            }
+        },
+    }
+
+    provider = AppConfigTransferPolicyProvider(
+        config=_config(),
+        source=AppConfigTransferPolicySource(
+            client=_StubAppConfigClient(),
+            application_identifier="app",
+            environment_identifier="env",
+            configuration_profile_identifier="profile",
+            minimum_poll_interval_seconds=60,
+        ),
+    )
+    provider.source._cached_document = TransferPolicyDocument.model_validate(
+        document
+    )
+    provider.source._next_refresh_at = datetime.max.replace(tzinfo=UTC)
+
+    policy = await provider.resolve(
+        scope_id="scope-1",
+        policy_hint="remote",
+        checksum_preference="standard",
+    )
+
+    assert policy.policy_id == "remote"
+    assert policy.accelerate_enabled is True
+    assert policy.checksum_mode == "optional"
+
+
+def test_strict_checksum_preference_enables_supported_algorithm() -> None:
+    policy = resolve_transfer_policy(
+        config=_config(),
+        checksum_preference="strict",
+    )
+
+    assert policy.checksum_mode == "required"
+    assert policy.checksum_algorithm == "SHA256"

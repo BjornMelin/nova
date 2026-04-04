@@ -119,6 +119,10 @@ export type CompleteUploadResponse = {
  */
 export type CompletedPart = {
     /**
+     * Checksum Sha256
+     */
+    checksum_sha256?: string | null;
+    /**
      * Etag
      */
     etag: string;
@@ -265,6 +269,16 @@ export type ExportResource = {
 export type ExportStatus = 'queued' | 'validating' | 'copying' | 'finalizing' | 'succeeded' | 'failed' | 'cancelled';
 
 /**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+    /**
+     * Detail
+     */
+    detail?: Array<ValidationError>;
+};
+
+/**
  * HealthResponse
  *
  * Health endpoint response body.
@@ -283,6 +297,14 @@ export type HealthResponse = {
  */
 export type InitiateUploadRequest = {
     /**
+     * Checksum Preference
+     */
+    checksum_preference?: string | null;
+    /**
+     * Checksum Value
+     */
+    checksum_value?: string | null;
+    /**
      * Content Type
      */
     content_type?: string | null;
@@ -291,9 +313,17 @@ export type InitiateUploadRequest = {
      */
     filename: string;
     /**
+     * Policy Hint
+     */
+    policy_hint?: string | null;
+    /**
      * Size Bytes
      */
     size_bytes: number;
+    /**
+     * Workload Class
+     */
+    workload_class?: string | null;
 };
 
 /**
@@ -314,6 +344,10 @@ export type InitiateUploadResponse = {
      * Checksum Algorithm
      */
     checksum_algorithm?: string | null;
+    /**
+     * Checksum Mode
+     */
+    checksum_mode: string;
     /**
      * Expires In Seconds
      */
@@ -524,6 +558,12 @@ export type ResourcePlanResponse = {
  */
 export type SignPartsRequest = {
     /**
+     * Checksums Sha256
+     */
+    checksums_sha256?: {
+        [key: string]: string;
+    } | null;
+    /**
      * Key
      */
     key: string;
@@ -574,9 +614,17 @@ export type TransferCapabilitiesResponse = {
      */
     checksum_algorithm?: string | null;
     /**
+     * Checksum Mode
+     */
+    checksum_mode: string;
+    /**
      * Daily Ingress Budget Bytes
      */
     daily_ingress_budget_bytes: number;
+    /**
+     * Large Export Worker Threshold Bytes
+     */
+    large_export_worker_threshold_bytes: number;
     /**
      * Max Concurrency Hint
      */
@@ -690,6 +738,34 @@ export type UploadedPart = {
     part_number: number;
 };
 
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+    /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Input
+     */
+    input?: unknown;
+    /**
+     * Location
+     */
+    loc: Array<string | number>;
+    /**
+     * Message
+     */
+    msg: string;
+    /**
+     * Error Type
+     */
+    type: string;
+};
+
 export type MetricsSummaryData = {
     body?: never;
     path?: never;
@@ -738,9 +814,27 @@ export type GetCapabilitiesResponse = GetCapabilitiesResponses[keyof GetCapabili
 export type GetTransferCapabilitiesData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Workload Class
+         */
+        workload_class?: string | null;
+        /**
+         * Policy Hint
+         */
+        policy_hint?: string | null;
+    };
     url: '/v1/capabilities/transfers';
 };
+
+export type GetTransferCapabilitiesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTransferCapabilitiesError = GetTransferCapabilitiesErrors[keyof GetTransferCapabilitiesErrors];
 
 export type GetTransferCapabilitiesResponses = {
     /**

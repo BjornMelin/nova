@@ -49,6 +49,17 @@ class InitiateUploadRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=512)
     content_type: str | None = Field(default=None, max_length=256)
     size_bytes: int = Field(gt=0)
+    workload_class: str | None = Field(
+        default=None, min_length=1, max_length=128
+    )
+    policy_hint: str | None = Field(default=None, min_length=1, max_length=128)
+    checksum_preference: str | None = Field(
+        default=None,
+        pattern="^(none|standard|strict)$",
+    )
+    checksum_value: str | None = Field(
+        default=None, min_length=1, max_length=256
+    )
 
 
 class InitiateUploadResponse(BaseModel):
@@ -67,6 +78,7 @@ class InitiateUploadResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
+    checksum_mode: str
     resumable_until: datetime
     url: str | None = None
     upload_id: str | None = None
@@ -85,6 +97,7 @@ class SignPartsRequest(BaseModel):
         max_length=1000,
         json_schema_extra={"uniqueItems": True},
     )
+    checksums_sha256: dict[int, str] | None = None
 
     @field_validator("part_numbers")
     @classmethod
@@ -96,6 +109,26 @@ class SignPartsRequest(BaseModel):
             if number < 1 or number > 10_000:
                 raise ValueError("part_numbers must be between 1 and 10000")
         return value
+
+    @field_validator("checksums_sha256")
+    @classmethod
+    def validate_checksums_sha256(
+        cls, value: dict[int, str] | None
+    ) -> dict[int, str] | None:
+        """Validate optional SHA-256 checksum map shape."""
+        if value is None:
+            return None
+        normalized: dict[int, str] = {}
+        for raw_part_number, checksum in value.items():
+            if raw_part_number < 1 or raw_part_number > 10_000:
+                raise ValueError(
+                    "checksum part numbers must be between 1 and 10000"
+                )
+            stripped = checksum.strip()
+            if not stripped:
+                raise ValueError("checksum values must be non-empty")
+            normalized[int(raw_part_number)] = stripped
+        return normalized
 
 
 class SignPartsResponse(BaseModel):
@@ -144,6 +177,9 @@ class CompletedPart(BaseModel):
 
     part_number: int = Field(ge=1, le=10_000)
     etag: str = Field(min_length=1, max_length=256)
+    checksum_sha256: str | None = Field(
+        default=None, min_length=1, max_length=256
+    )
 
 
 class CompleteUploadRequest(BaseModel):
@@ -301,10 +337,12 @@ class TransferCapabilitiesResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
+    checksum_mode: str
     resumable_ttl_seconds: int
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int
     sign_requests_per_upload_limit: int
+    large_export_worker_threshold_bytes: int
 
 
 ResourceKey = Annotated[

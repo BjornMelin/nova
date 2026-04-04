@@ -107,12 +107,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             else:
                 runtime_settings = app.state.settings
                 session = new_aioboto3_session()
-                s3_config = Config(
-                    s3={
-                        "use_accelerate_endpoint": (
-                            runtime_settings.file_transfer_use_accelerate_endpoint
-                        )
-                    }
+                standard_s3_config = Config(
+                    s3={"use_accelerate_endpoint": False}
+                )
+                accelerate_s3_config = Config(
+                    s3={"use_accelerate_endpoint": True}
                 )
                 requires_dynamodb = (
                     runtime_settings.file_transfer_enabled
@@ -162,7 +161,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(
-                        session.client("s3", config=s3_config)
+                        session.client("s3", config=standard_s3_config)
+                    )
+                    accelerate_s3_client = await stack.enter_async_context(
+                        session.client("s3", config=accelerate_s3_config)
                     )
                     dynamodb_resource = None
                     if requires_dynamodb:
@@ -183,6 +185,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                     runtime_state_kwargs = {
                         "settings": runtime_settings,
                         "s3_client": s3_client,
+                        "accelerate_s3_client": accelerate_s3_client,
                         "dynamodb_resource": dynamodb_resource,
                     }
                     if stepfunctions_client is not None:

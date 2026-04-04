@@ -450,10 +450,53 @@ def _repair_export_resource_output_parser(root: Path) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def _repair_sign_parts_request_checksum_parser(root: Path) -> None:
+    path = root / "models" / "sign_parts_request.py"
+    if not path.exists():
+        return
+
+    content = path.read_text(encoding="utf-8")
+    if 'cast("Mapping[str, Any]", data)' in content:
+        return
+
+    markers = (
+        "SignPartsRequestChecksumsSha256Type0.from_dict(data)",
+        (
+            "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+            "                    data\n"
+            "                )"
+        ),
+        (
+            "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+            "                        data\n"
+            "                    )"
+        ),
+    )
+    for marker in markers:
+        if marker in content:
+            updated = content.replace(
+                marker,
+                (
+                    "SignPartsRequestChecksumsSha256Type0.from_dict(\n"
+                    '                        cast("Mapping[str, Any]", data)\n'
+                    "                    )"
+                ),
+                1,
+            )
+            path.write_text(updated, encoding="utf-8")
+            return
+
+    raise RuntimeError(
+        "expected SignPartsRequest checksum parser snippet not found in "
+        f"{path.relative_to(root)}"
+    )
+
+
 def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
+    _repair_sign_parts_request_checksum_parser(root)
     _repair_relative_imports_to_absolute(root, package_name)
     _repair_blank_model_docstrings(root)
 

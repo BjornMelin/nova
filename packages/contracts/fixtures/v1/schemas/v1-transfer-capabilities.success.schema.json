@@ -13,6 +13,11 @@
     "max_concurrency_hint",
     "sign_batch_size_hint",
     "accelerate_enabled",
+    "checksum_mode",
+    "active_multipart_upload_limit",
+    "daily_ingress_budget_bytes",
+    "sign_requests_per_upload_limit",
+    "large_export_worker_threshold_bytes",
     "resumable_ttl_seconds"
   ],
   "properties": {
@@ -27,6 +32,12 @@
     "sign_batch_size_hint": { "type": "integer", "minimum": 1 },
     "accelerate_enabled": { "type": "boolean" },
     "checksum_algorithm": { "type": ["string", "null"] },
+    "checksum_mode": { "type": "string", "enum": ["none", "optional", "required"] },
     "resumable_ttl_seconds": { "type": "integer", "minimum": 1 }
+    ,
+    "active_multipart_upload_limit": { "type": "integer", "minimum": 1 },
+    "daily_ingress_budget_bytes": { "type": "integer", "minimum": 1 },
+    "sign_requests_per_upload_limit": { "type": "integer", "minimum": 1 },
+    "large_export_worker_threshold_bytes": { "type": "integer", "minimum": 1 }
   }
 }

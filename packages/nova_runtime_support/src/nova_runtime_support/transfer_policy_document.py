@@ -39,3 +39,15 @@ class TransferPolicyDocument(BaseModel):
     active_multipart_upload_limit: int | None = Field(default=None, ge=1)
     daily_ingress_budget_bytes: int | None = Field(default=None, ge=1)
     sign_requests_per_upload_limit: int | None = Field(default=None, ge=1)
+    checksum_mode: str | None = Field(
+        default=None,
+        pattern="^(none|optional|required)$",
+    )
+    large_export_worker_threshold_bytes: int | None = Field(
+        default=None,
+        ge=5 * 1024 * 1024 * 1024,
+    )
+    profiles: dict[str, TransferPolicyDocument] | None = None
+
+
+TransferPolicyDocument.model_rebuild()

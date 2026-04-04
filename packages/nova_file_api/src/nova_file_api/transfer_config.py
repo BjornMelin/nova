@@ -36,8 +36,10 @@ class TransferConfig:
     sign_requests_per_upload_limit: int | None
     resumable_window_seconds: int
     checksum_algorithm: str | None
+    checksum_mode: str
     upload_sessions_table: str | None
     usage_table: str | None
+    large_export_worker_threshold_bytes: int
     policy_appconfig_application: str | None
     policy_appconfig_environment: str | None
     policy_appconfig_profile: str | None
@@ -55,7 +57,7 @@ class TransferConfig:
 
     def sign_batch_size_hint(self) -> int:
         """Return the recommended batch size for presigning multipart parts."""
-        return min(128, max(32, self.max_concurrency * 4))
+        return min(128, max(64, self.max_concurrency * 4))
 
     def resumable_until(self, *, created_at: datetime) -> datetime:
         """Return the session expiry timestamp for one upload."""
@@ -127,8 +129,12 @@ def transfer_config_from_settings(settings: Settings) -> TransferConfig:
             settings.file_transfer_resumable_window_seconds
         ),
         checksum_algorithm=settings.file_transfer_checksum_algorithm,
+        checksum_mode=settings.file_transfer_checksum_mode,
         upload_sessions_table=settings.file_transfer_upload_sessions_table,
         usage_table=settings.file_transfer_usage_table,
+        large_export_worker_threshold_bytes=(
+            settings.file_transfer_large_export_worker_threshold_bytes
+        ),
         policy_appconfig_application=_normalized_optional_identifier(
             settings.file_transfer_policy_appconfig_application
         ),

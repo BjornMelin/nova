@@ -17,6 +17,7 @@ from .export_output import ExportOutput
 from .export_resource import ExportResource
 from .export_status import ExportStatus
 from .health_response import HealthResponse
+from .http_validation_error import HTTPValidationError
 from .initiate_upload_request import InitiateUploadRequest
 from .initiate_upload_response import InitiateUploadResponse
 from .metrics_summary_response import MetricsSummaryResponse
@@ -34,6 +35,9 @@ from .resource_plan_item import ResourcePlanItem
 from .resource_plan_request import ResourcePlanRequest
 from .resource_plan_response import ResourcePlanResponse
 from .sign_parts_request import SignPartsRequest
+from .sign_parts_request_checksums_sha_256_type_0 import (
+    SignPartsRequestChecksumsSha256Type0,
+)
 from .sign_parts_response import SignPartsResponse
 from .sign_parts_response_urls import SignPartsResponseUrls
 from .transfer_capabilities_response import TransferCapabilitiesResponse
@@ -41,6 +45,8 @@ from .upload_introspection_request import UploadIntrospectionRequest
 from .upload_introspection_response import UploadIntrospectionResponse
 from .upload_strategy import UploadStrategy
 from .uploaded_part import UploadedPart
+from .validation_error import ValidationError
+from .validation_error_context import ValidationErrorContext
 
 __all__ = (
     "AbortUploadRequest",
@@ -59,6 +65,7 @@ __all__ = (
     "ExportOutput",
     "ExportResource",
     "ExportStatus",
+    "HTTPValidationError",
     "HealthResponse",
     "InitiateUploadRequest",
     "InitiateUploadResponse",
@@ -75,6 +82,7 @@ __all__ = (
     "ResourcePlanRequest",
     "ResourcePlanResponse",
     "SignPartsRequest",
+    "SignPartsRequestChecksumsSha256Type0",
     "SignPartsResponse",
     "SignPartsResponseUrls",
     "TransferCapabilitiesResponse",
@@ -82,4 +90,6 @@ __all__ = (
     "UploadIntrospectionResponse",
     "UploadStrategy",
     "UploadedPart",
+    "ValidationError",
+    "ValidationErrorContext",
 )

@@ -158,7 +158,9 @@ async def test_v1_health_and_capabilities() -> None:
     assert transfer_caps.status_code == 200
     transfer_policy = transfer_caps.json()
     assert transfer_policy["policy_id"] == "default"
-    assert transfer_policy["sign_batch_size_hint"] >= 32
+    assert transfer_policy["sign_batch_size_hint"] >= 64
+    assert transfer_policy["checksum_mode"] == "none"
+    assert transfer_policy["large_export_worker_threshold_bytes"] > 0
 
 
 @pytest.mark.anyio

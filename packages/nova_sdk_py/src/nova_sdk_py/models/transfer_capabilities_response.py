@@ -21,7 +21,9 @@ class TransferCapabilitiesResponse:
     Attributes:
         accelerate_enabled (bool):
         active_multipart_upload_limit (int):
+        checksum_mode (str):
         daily_ingress_budget_bytes (int):
+        large_export_worker_threshold_bytes (int):
         max_concurrency_hint (int):
         max_upload_bytes (int):
         maximum_part_size_bytes (int):
@@ -38,7 +40,9 @@ class TransferCapabilitiesResponse:
 
     accelerate_enabled: bool
     active_multipart_upload_limit: int
+    checksum_mode: str
     daily_ingress_budget_bytes: int
+    large_export_worker_threshold_bytes: int
     max_concurrency_hint: int
     max_upload_bytes: int
     maximum_part_size_bytes: int
@@ -57,7 +61,13 @@ class TransferCapabilitiesResponse:
 
         active_multipart_upload_limit = self.active_multipart_upload_limit
 
+        checksum_mode = self.checksum_mode
+
         daily_ingress_budget_bytes = self.daily_ingress_budget_bytes
+
+        large_export_worker_threshold_bytes = (
+            self.large_export_worker_threshold_bytes
+        )
 
         max_concurrency_hint = self.max_concurrency_hint
 
@@ -93,7 +103,9 @@ class TransferCapabilitiesResponse:
             {
                 "accelerate_enabled": accelerate_enabled,
                 "active_multipart_upload_limit": active_multipart_upload_limit,
+                "checksum_mode": checksum_mode,
                 "daily_ingress_budget_bytes": daily_ingress_budget_bytes,
+                "large_export_worker_threshold_bytes": large_export_worker_threshold_bytes,
                 "max_concurrency_hint": max_concurrency_hint,
                 "max_upload_bytes": max_upload_bytes,
                 "maximum_part_size_bytes": maximum_part_size_bytes,
@@ -119,7 +131,13 @@ class TransferCapabilitiesResponse:
 
         active_multipart_upload_limit = d.pop("active_multipart_upload_limit")
 
+        checksum_mode = d.pop("checksum_mode")
+
         daily_ingress_budget_bytes = d.pop("daily_ingress_budget_bytes")
+
+        large_export_worker_threshold_bytes = d.pop(
+            "large_export_worker_threshold_bytes"
+        )
 
         max_concurrency_hint = d.pop("max_concurrency_hint")
 
@@ -157,7 +175,9 @@ class TransferCapabilitiesResponse:
         transfer_capabilities_response = cls(
             accelerate_enabled=accelerate_enabled,
             active_multipart_upload_limit=active_multipart_upload_limit,
+            checksum_mode=checksum_mode,
             daily_ingress_budget_bytes=daily_ingress_budget_bytes,
+            large_export_worker_threshold_bytes=large_export_worker_threshold_bytes,
             max_concurrency_hint=max_concurrency_hint,
             max_upload_bytes=max_upload_bytes,
             maximum_part_size_bytes=maximum_part_size_bytes,

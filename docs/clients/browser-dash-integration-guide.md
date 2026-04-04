@@ -152,6 +152,10 @@ Key props:
 - `auth_header_element_id`: the hidden bearer-header node id
 - `async_exports_enabled`: turn on export creation/polling after upload
 - `async_export_min_bytes`: optional threshold for large-file export flows
+- `workload_class`: optional transfer policy selector for the current uploader
+- `policy_hint`: optional transfer policy profile selector
+- `checksum_preference`: optional checksum preference (`none`, `standard`, or
+  `strict`)
 
 The browser helper also consumes additive initiate response hints from Nova:
 
@@ -160,6 +164,9 @@ The browser helper also consumes additive initiate response hints from Nova:
 - `sign_batch_size_hint`
 - `session_id`
 - `resumable_until`
+- `accelerate_enabled`
+- `checksum_algorithm`
+- `checksum_mode`
 
 These values let Nova tune multipart behavior without forcing consumer apps to
 ship hard-coded large-file thresholds.
@@ -167,7 +174,11 @@ ship hard-coded large-file thresholds.
 Clients that preflight the transfer policy surface should also treat
 `active_multipart_upload_limit`, `daily_ingress_budget_bytes`, and
 `sign_requests_per_upload_limit` as the effective quota envelope for the
-current deployed environment.
+current deployed environment. The same capability response also exposes:
+
+- `accelerate_enabled` for policy-scoped Transfer Acceleration
+- `checksum_algorithm` and `checksum_mode` for checksum posture
+- `large_export_worker_threshold_bytes` for the export worker-lane switch point
 
 ## Step 7: compose the layout in one place
 
@@ -191,6 +202,8 @@ layout = html.Div(
             transfers_endpoint_base=f"{nova_base_url}/v1/transfers",
             exports_endpoint_base=f"{nova_base_url}/v1/exports",
             auth_header_element_id="nova-auth-header",
+            workload_class="interactive",
+            checksum_preference="standard",
         ),
     ]
 )
@@ -236,5 +249,8 @@ All SDKs should use the same `public_base_url` authority that came from
 - Keep the browser flow bearer-only; do not switch to cookie transport.
 - Treat `public_base_url` as the public ingress and `execute_api_endpoint` as
   validation evidence only.
+- Let Nova-supplied concurrency, part-size, acceleration, and checksum hints
+  drive the browser uploader unless you have a measured reason to tighten them
+  further in the consumer app.
 - Use `docs/clients/post-deploy-validation-integration-guide.md` when you also
   want automated downstream runtime validation.

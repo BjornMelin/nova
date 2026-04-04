@@ -51,6 +51,7 @@ class UploadSessionRecord:
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None
+    checksum_mode: str
     sign_requests_count: int
     sign_requests_limit: int | None
     resumable_until: datetime
@@ -331,6 +332,7 @@ def _record_to_item(record: UploadSessionRecord) -> dict[str, object]:
         "sign_batch_size_hint": record.sign_batch_size_hint,
         "accelerate_enabled": record.accelerate_enabled,
         "checksum_algorithm": record.checksum_algorithm,
+        "checksum_mode": record.checksum_mode,
         "sign_requests_count": record.sign_requests_count,
         "sign_requests_limit": record.sign_requests_limit,
         "resumable_until": record.resumable_until.isoformat(),
@@ -376,6 +378,7 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
     strategy = UploadStrategy(str(item["strategy"]))
     status = UploadSessionStatus(str(item["status"]))
     checksum_algorithm = _as_str(item.get("checksum_algorithm"))
+    checksum_mode = _as_str(item.get("checksum_mode")) or "none"
     return UploadSessionRecord(
         session_id=str(item["session_id"]),
         upload_id=upload_id,
@@ -392,6 +395,7 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
         sign_batch_size_hint=int(item["sign_batch_size_hint"]),
         accelerate_enabled=_as_bool(item.get("accelerate_enabled")),
         checksum_algorithm=checksum_algorithm,
+        checksum_mode=checksum_mode,
         sign_requests_count=int(item.get("sign_requests_count", 0)),
         sign_requests_limit=_as_int(item.get("sign_requests_limit")),
         resumable_until=_parse_datetime(item["resumable_until"]),
