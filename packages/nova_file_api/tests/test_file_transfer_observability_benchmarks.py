@@ -28,9 +28,9 @@ def test_browser_plan_matches_current_500_gib_defaults() -> None:
         max_concurrency=CURRENT_MAX_CONCURRENCY,
     )
 
-    assert plan.sign_batch_size == 8
+    assert plan.sign_batch_size == 64
     assert plan.total_parts == 4000
-    assert plan.sign_requests == 500
+    assert plan.sign_requests == 63
 
 
 def test_summarize_latency_is_repeatable() -> None:
