@@ -294,6 +294,13 @@ export type HealthResponse = {
  * InitiateUploadRequest
  *
  * Initiate-upload request model.
+ *
+ * Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
+ * are inputs only. The effective persisted transfer policy exposes
+ * ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
+ * integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
+ * client preference; preference is not the same enum as mode—mapping and the
+ * final mode decision happen server-side.
  */
 export type InitiateUploadRequest = {
     /**

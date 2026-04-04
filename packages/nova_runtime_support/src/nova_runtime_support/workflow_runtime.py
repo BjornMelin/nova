@@ -129,7 +129,9 @@ async def workflow_services(
                 resolved_settings.file_transfer_export_copy_worker_attempts
             ),
             queue_url=(
-                resolved_settings.file_transfer_export_copy_queue_url or ""
+                (
+                    resolved_settings.file_transfer_export_copy_queue_url or ""
+                ).strip()
             ),
             s3_client=s3_client,
             sqs_client=sqs_client,
@@ -143,7 +145,10 @@ async def workflow_services(
                     dynamodb_resource,
                 ),
                 enabled=bool(
-                    resolved_settings.file_transfer_export_copy_parts_table
+                    (
+                        resolved_settings.file_transfer_export_copy_parts_table
+                        or ""
+                    ).strip()
                 ),
                 claim_lease_seconds=(
                     resolved_settings.file_transfer_export_copy_worker_lease_seconds

@@ -296,11 +296,17 @@ def _prepared_export_copy(
         raise ValueError(
             "prepared queued export copy state is missing from workflow input"
         )
+    try:
+        strategy = ExportCopyStrategy(workflow_input.copy_strategy)
+    except ValueError as exc:
+        raise ValueError(
+            f"invalid copy_strategy: {workflow_input.copy_strategy}"
+        ) from exc
     return PreparedExportCopy(
         export_key=workflow_input.output.key,
         download_filename=workflow_input.output.download_filename,
         source_size_bytes=workflow_input.source_size_bytes,
         copy_part_size_bytes=workflow_input.copy_part_size_bytes,
         copy_part_count=workflow_input.copy_part_count,
-        strategy=ExportCopyStrategy(workflow_input.copy_strategy),
+        strategy=strategy,
     )

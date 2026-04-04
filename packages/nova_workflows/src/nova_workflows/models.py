@@ -45,15 +45,15 @@ class ExportWorkflowInput(BaseModel):
     created_at: str = Field(min_length=1, max_length=128)
     updated_at: str = Field(min_length=1, max_length=128)
     output: WorkflowOutput | None = None
-    source_size_bytes: int | None = None
+    source_size_bytes: int | None = Field(default=None, ge=1)
     copy_strategy: str | None = Field(default=None, max_length=32)
     copy_export_key: str | None = Field(default=None, max_length=2048)
     copy_upload_id: str | None = Field(default=None, max_length=1024)
-    copy_part_size_bytes: int | None = None
-    copy_part_count: int | None = None
+    copy_part_size_bytes: int | None = Field(default=None, ge=1)
+    copy_part_count: int | None = Field(default=None, ge=1)
     copy_progress_state: str | None = Field(default=None, max_length=32)
-    copy_completed_parts: int | None = None
-    copy_total_parts: int | None = None
+    copy_completed_parts: int | None = Field(default=None, ge=0)
+    copy_total_parts: int | None = Field(default=None, ge=1)
     error: str | None = Field(default=None, max_length=256)
     cause: str | None = Field(default=None, max_length=4000)
 

@@ -62,12 +62,15 @@ def main() -> None:
         parser.error(str(exc))
 
     for file_size_bytes in sizes:
-        plan = build_browser_multipart_plan(
-            file_size_bytes=file_size_bytes,
-            part_size_bytes=args.part_size_bytes,
-            max_concurrency=args.max_concurrency,
-            configured_sign_batch_size=args.configured_sign_batch_size,
-        )
+        try:
+            plan = build_browser_multipart_plan(
+                file_size_bytes=file_size_bytes,
+                part_size_bytes=args.part_size_bytes,
+                max_concurrency=args.max_concurrency,
+                configured_sign_batch_size=args.configured_sign_batch_size,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
         scenarios.append(
             {
                 "file_size_bytes": plan.file_size_bytes,

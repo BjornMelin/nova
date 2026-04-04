@@ -9,7 +9,7 @@ Nova is a serverless file transfer and export orchestration platform.
 
 At a product level, Nova gives browser, Dash, Python, TypeScript, and R clients a typed control plane for secure direct-to-S3 uploads, multipart transfer flows, presigned downloads, and durable export workflows.
 
-At an engineering level, this repository is the canonical monorepo for the Nova runtime, SDKs, contracts, release automation, and AWS infrastructure. The active platform shape is a FastAPI control plane running on AWS Lambda behind API Gateway Regional REST API, with production WAF enabled by default and non-production WAF opt-in, plus S3, DynamoDB, AppConfig, Step Functions, and an internal SQS worker lane for the durable substrate.
+At an engineering level, this repository is the canonical monorepo for the Nova runtime, SDKs, contracts, release automation, and AWS infrastructure. The active platform shape is a FastAPI control plane running on AWS Lambda behind API Gateway Regional REST API, with production WAF enabled by default and non-production WAF opt-in. Backing services include S3, DynamoDB, AppConfig, Step Functions, and an internal SQS worker lane for the durable substrate.
 
 ## Status
 

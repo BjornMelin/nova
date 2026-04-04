@@ -676,6 +676,9 @@ def build_contract_payload() -> dict[str, Any]:
             "handlers": [
                 "nova_workflows.handlers.validate_export_handler",
                 "nova_workflows.handlers.copy_export_handler",
+                "nova_workflows.handlers.prepare_export_copy_handler",
+                "nova_workflows.handlers.start_queued_export_copy_handler",
+                "nova_workflows.handlers.poll_queued_export_copy_handler",
                 "nova_workflows.handlers.finalize_export_handler",
                 "nova_workflows.handlers.fail_export_handler",
             ],

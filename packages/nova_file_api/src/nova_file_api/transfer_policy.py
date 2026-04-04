@@ -23,6 +23,7 @@ _MINIMUM_UPLOAD_PART_SIZE_BYTES = 64 * 1024 * 1024
 _MAXIMUM_UPLOAD_PART_SIZE_BYTES = 512 * 1024 * 1024
 _MIN_SIGN_BATCH_SIZE = 32
 _MAX_SIGN_BATCH_SIZE = 128
+SIGN_BATCH_SIZE_HINT_MIN = _MIN_SIGN_BATCH_SIZE
 _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT = 200
 _DEFAULT_DAILY_INGRESS_BUDGET_BYTES = 1024 * 1024 * 1024 * 1024
 _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT = 512
@@ -484,6 +485,14 @@ def _effective_checksum_algorithm(
     checksum_mode: str,
     checksum_preference: str | None,
 ) -> str | None:
+    """Resolve the effective checksum algorithm for uploads.
+
+    ``checksum_preference`` is normalized via :func:`_normalized_identifier`.
+    Returns ``None`` when preference is ``none`` and nothing is configured.
+    Preserves a configured algorithm when preference is ``none``.
+    When ``checksum_mode`` requires checksums but none is configured,
+    returns ``SHA256``.
+    """
     preference = _normalized_identifier(checksum_preference)
     if preference == "none" and configured is None:
         return None
@@ -499,6 +508,12 @@ def _effective_checksum_mode(
     configured: str,
     checksum_preference: str | None,
 ) -> str:
+    """Resolve the effective checksum mode string.
+
+    ``configured`` value ``required`` is always preserved.
+    Preference ``none`` forces mode ``none``. Preference ``strict`` upgrades
+    configured ``none`` to ``required``.
+    """
     preference = _normalized_identifier(checksum_preference)
     if configured == "required":
         return "required"

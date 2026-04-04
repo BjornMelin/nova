@@ -646,7 +646,9 @@ class NovaRuntimeStack(Stack):
             encryption=sqs.QueueEncryption.SQS_MANAGED,
             enforce_ssl=True,
             receive_message_wait_time=Duration.seconds(20),
-            visibility_timeout=Duration.minutes(30),
+            # Five DLQ attempts must fit under the export state machine timeout
+            # (1h): 5x visibility must leave room for handler work.
+            visibility_timeout=Duration.minutes(10),
         )
         file_bucket = s3.Bucket(
             self,

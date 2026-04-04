@@ -95,10 +95,18 @@ class ExportCopyTaskMessage:
     def from_dict(cls, payload: dict[str, object]) -> ExportCopyTaskMessage:
         """Build one worker message from a decoded JSON payload."""
         return cls(
-            export_id=str(payload["export_id"]),
-            source_key=str(payload["source_key"]),
-            export_key=str(payload["export_key"]),
-            upload_id=str(payload["upload_id"]),
+            export_id=_require_non_empty_str(
+                payload.get("export_id"), field="export_id"
+            ),
+            source_key=_require_non_empty_str(
+                payload.get("source_key"), field="source_key"
+            ),
+            export_key=_require_non_empty_str(
+                payload.get("export_key"), field="export_key"
+            ),
+            upload_id=_require_non_empty_str(
+                payload.get("upload_id"), field="upload_id"
+            ),
             part_number=_coerce_int(payload["part_number"]),
             start_byte=_coerce_int(payload["start_byte"]),
             end_byte=_coerce_int(payload["end_byte"]),
@@ -402,6 +410,18 @@ class LargeExportCopyCoordinator:
                 error="stale_copy_message",
             )
             raise RuntimeError("queued export copy message payload is stale")
+        if (
+            claimed.start_byte != payload.start_byte
+            or claimed.end_byte != payload.end_byte
+        ):
+            await self._parts.mark_failed(
+                export_id=payload.export_id,
+                part_number=payload.part_number,
+                error="invalid_byte_range",
+            )
+            raise RuntimeError(
+                "queued export copy message byte range does not match claim"
+            )
         response = await self._s3.upload_part_copy(
             Bucket=self.bucket,
             CopySource={"Bucket": self.bucket, "Key": payload.source_key},
@@ -662,6 +682,12 @@ def _optional_str(value: object) -> str | None:
     if isinstance(value, str):
         return value
     return None
+
+
+def _require_non_empty_str(value: object, *, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise TypeError(f"{field} must be a non-empty string")
+    return value
 
 
 def _require_non_negative_int(value: object, *, error_message: str) -> int:

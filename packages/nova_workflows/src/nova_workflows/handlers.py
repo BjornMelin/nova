@@ -152,6 +152,11 @@ async def _copy_export(*, event: dict[str, Any]) -> dict[str, Any]:
 
 async def _prepare_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
     workflow_input = ExportWorkflowInput.model_validate(event)
+    _LOGGER.info(
+        "workflow_prepare_export_copy_started",
+        export_id=workflow_input.export_id,
+        request_id=workflow_input.request_id,
+    )
     async with workflow_services(settings=WorkflowSettings()) as services:
         result = await prepare_export_copy(
             workflow_input=workflow_input,
@@ -163,6 +168,11 @@ async def _prepare_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
 
 async def _start_queued_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
     workflow_input = ExportWorkflowInput.model_validate(event)
+    _LOGGER.info(
+        "workflow_start_queued_export_copy_started",
+        export_id=workflow_input.export_id,
+        request_id=workflow_input.request_id,
+    )
     async with workflow_services(settings=WorkflowSettings()) as services:
         result = await start_queued_export_copy(
             workflow_input=workflow_input,
@@ -174,6 +184,11 @@ async def _start_queued_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
 
 async def _poll_queued_export_copy(*, event: dict[str, Any]) -> dict[str, Any]:
     workflow_input = ExportWorkflowInput.model_validate(event)
+    _LOGGER.info(
+        "workflow_poll_queued_export_copy_started",
+        export_id=workflow_input.export_id,
+        request_id=workflow_input.request_id,
+    )
     async with workflow_services(settings=WorkflowSettings()) as services:
         result = await poll_queued_export_copy(
             workflow_input=workflow_input,
