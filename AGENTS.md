@@ -211,53 +211,9 @@ For production context values and additional CDK guidance, see
 
 ## Task Router
 
-Fenced blocks mirror **Commands** for agent gate runners; keep them aligned when
-commands change.
+Use the canonical fenced command blocks in **Commands** above.
 
-### Bootstrap
-
-```bash
-uv sync --locked --all-packages --all-extras --dev
-# npm ci -- only if TS workspace / TS SDK / TS conformance is in scope
-```
-
-### Python verification
-
-```bash
-uv lock --check
-uv run ruff check . && uv run ruff check . --select I && uv run ruff format . --check
-uv run ty check --force-exclude --error-on-warning packages scripts
-uv run mypy
-uv run pytest -q -m runtime_gate
-uv run pytest -q -m "not runtime_gate and not generated_smoke"
-uv run pytest -q -m generated_smoke
-```
-
-### Contracts and generators
-
-```bash
-uv run python scripts/contracts/export_openapi.py --check
-uv run python scripts/release/generate_runtime_config_contract.py --check
-uv run python scripts/release/generate_clients.py --check
-uv run python scripts/release/generate_python_clients.py --check
-```
-
-### TypeScript SDK and conformance (after `npm ci` when needed)
-
-```bash
-npm run build:typescript:sdk-graph
-npm run -w @nova/sdk typecheck && npm run -w @nova/sdk build
-npm run -w @nova/contracts-ts-conformance typecheck
-npm run -w @nova/contracts-ts-conformance verify
-uv run pytest -q scripts/release/tests/test_typescript_sdk_contracts.py
-uv run python scripts/conformance/check_typescript_module_policy.py
-```
-
-### Infra
-
-```bash
-bash scripts/checks/run_infra_contracts.sh
-```
+Task Router keeps the routing map only so command changes have one authority.
 
 ## Task routing
 
