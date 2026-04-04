@@ -9,6 +9,9 @@ from typing import (
 
 from attrs import define as _attrs_define
 
+from nova_sdk_py.models.transfer_capabilities_response_checksum_mode import (
+    TransferCapabilitiesResponseChecksumMode,
+)
 from nova_sdk_py.types import UNSET, Unset
 
 T = TypeVar("T", bound="TransferCapabilitiesResponse")
@@ -21,7 +24,7 @@ class TransferCapabilitiesResponse:
     Attributes:
         accelerate_enabled (bool):
         active_multipart_upload_limit (int):
-        checksum_mode (str):
+        checksum_mode (TransferCapabilitiesResponseChecksumMode):
         daily_ingress_budget_bytes (int):
         large_export_worker_threshold_bytes (int):
         max_concurrency_hint (int):
@@ -40,7 +43,7 @@ class TransferCapabilitiesResponse:
 
     accelerate_enabled: bool
     active_multipart_upload_limit: int
-    checksum_mode: str
+    checksum_mode: TransferCapabilitiesResponseChecksumMode
     daily_ingress_budget_bytes: int
     large_export_worker_threshold_bytes: int
     max_concurrency_hint: int
@@ -61,7 +64,7 @@ class TransferCapabilitiesResponse:
 
         active_multipart_upload_limit = self.active_multipart_upload_limit
 
-        checksum_mode = self.checksum_mode
+        checksum_mode = self.checksum_mode.value
 
         daily_ingress_budget_bytes = self.daily_ingress_budget_bytes
 
@@ -131,7 +134,9 @@ class TransferCapabilitiesResponse:
 
         active_multipart_upload_limit = d.pop("active_multipart_upload_limit")
 
-        checksum_mode = d.pop("checksum_mode")
+        checksum_mode = TransferCapabilitiesResponseChecksumMode(
+            d.pop("checksum_mode")
+        )
 
         daily_ingress_budget_bytes = d.pop("daily_ingress_budget_bytes")
 

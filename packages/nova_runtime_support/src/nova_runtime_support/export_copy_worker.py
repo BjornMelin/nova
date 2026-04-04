@@ -121,6 +121,7 @@ class SqsClient(Protocol):
 
     async def send_message_batch(self, **kwargs: object) -> dict[str, object]:
         """Publish a batch of messages."""
+        ...
 
 
 class LargeExportCopyCoordinator:
@@ -142,7 +143,25 @@ class LargeExportCopyCoordinator:
         export_copy_part_repository: ExportCopyPartRepository,
         metrics: ExportMetrics,
     ) -> None:
-        """Initialize the queued export-copy coordinator and its backends."""
+        """Initialize the queued export-copy coordinator and its backends.
+
+        Args:
+            bucket: Target S3 bucket for uploads and export objects.
+            upload_prefix: Prefix for scoped upload keys.
+            export_prefix: Prefix for export object keys.
+            copy_part_size_bytes: Preferred multipart part size for copies.
+            worker_threshold_bytes: Byte size threshold for the worker lane.
+            max_attempts: Maximum part-copy attempts before failing the export.
+            queue_url: SQS queue URL for part-copy work items.
+            s3_client: Async S3 client for head, multipart, and copy operations.
+            sqs_client: Async SQS client for publishing worker messages.
+            export_repository: Durable export record store.
+            export_copy_part_repository: Per-part copy state store.
+            metrics: EMF metrics sink for worker observability.
+
+        Raises:
+            None.
+        """
         self.bucket = bucket
         self.upload_prefix = _normalize_prefix(upload_prefix)
         self.export_prefix = _normalize_prefix(export_prefix)
@@ -161,7 +180,18 @@ class LargeExportCopyCoordinator:
         *,
         export: ExportRecord,
     ) -> PreparedExportCopy:
-        """Resolve copy strategy and durable planning metadata."""
+        """Resolve copy strategy and durable planning metadata.
+
+        Args:
+            export: Export record to plan against.
+
+        Returns:
+            Prepared sizes, keys, part counts, and inline vs worker strategy.
+
+        Raises:
+            ValueError: If the source object is missing or invalid.
+            RuntimeError: If S3 head-object or planning fails unexpectedly.
+        """
         self._assert_upload_scope(
             key=export.source_key, scope_id=export.scope_id
         )
@@ -205,7 +235,20 @@ class LargeExportCopyCoordinator:
         export: ExportRecord,
         prepared: PreparedExportCopy,
     ) -> QueuedExportCopyState:
-        """Create the destination MPU, persist part state, and enqueue work."""
+        """Create the destination MPU, persist part state, and enqueue work.
+
+        Args:
+            export: Current export row (expected status compatible with update).
+            prepared: Output of :meth:`prepare` for this export.
+
+        Returns:
+            Queued state including MPU id and part sizing.
+
+        Raises:
+            RuntimeError: If the queue is not configured, updates race, or
+                manifest creation fails.
+            ValueError: If the source object cannot be read.
+        """
         if not self.queue_url.strip():
             raise RuntimeError("export copy queue url is not configured")
         existing_state = _queued_state_from_export(export)
@@ -260,6 +303,14 @@ class LargeExportCopyCoordinator:
             if latest is not None:
                 latest_state = _queued_state_from_export(latest)
                 if latest_state is not None:
+                    await self._ensure_manifest(
+                        export=latest,
+                        source_size_bytes=(
+                            latest.source_size_bytes
+                            or prepared.source_size_bytes
+                        ),
+                        state=latest_state,
+                    )
                     return latest_state
             raise RuntimeError(
                 "export copy state changed before queued work could start"
@@ -279,7 +330,21 @@ class LargeExportCopyCoordinator:
         export_key: str,
         download_filename: str,
     ) -> ExportCopyPollResult:
-        """Return queued-copy progress and finalize the MPU when complete."""
+        """Return queued-copy progress and finalize the MPU when complete.
+
+        Args:
+            export: Latest export row (for cancellation and metrics).
+            upload_id: Destination multipart upload id.
+            export_key: Destination object key for the export copy.
+            download_filename: Filename to expose when the copy completes.
+
+        Returns:
+            Poll snapshot with counts; ``state`` is ``ready`` when complete.
+
+        Raises:
+            RuntimeError: If part state is missing, parts fail permanently, or
+                completion fails.
+        """
         if export.status == ExportStatus.CANCELLED:
             await self._abort_multipart_upload(
                 upload_id=upload_id,
@@ -369,7 +434,17 @@ class LargeExportCopyCoordinator:
         *,
         messages: list[tuple[str, ExportCopyTaskMessage]],
     ) -> list[str]:
-        """Process one SQS batch and return the failed message identifiers."""
+        """Process one SQS batch and return the failed message identifiers.
+
+        Args:
+            messages: Pairs of SQS message id and decoded payload.
+
+        Returns:
+            Message ids that should be retried or sent to the DLQ.
+
+        Raises:
+            None. Per-message failures are captured and returned for retry.
+        """
         failures: list[str] = []
         for message_id, payload in messages:
             try:

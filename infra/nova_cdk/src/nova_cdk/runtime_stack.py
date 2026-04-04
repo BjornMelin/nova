@@ -629,6 +629,9 @@ class NovaRuntimeStack(Stack):
             point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
+        export_copy_worker_attempts = 5
+        export_copy_worker_lease_seconds = 30 * 60
+        export_copy_max_concurrency = 8
         export_copy_dlq = sqs.Queue(
             self,
             "ExportCopyWorkerDlq",
@@ -641,14 +644,15 @@ class NovaRuntimeStack(Stack):
             "ExportCopyWorkerQueue",
             dead_letter_queue=sqs.DeadLetterQueue(
                 queue=export_copy_dlq,
-                max_receive_count=5,
+                max_receive_count=export_copy_worker_attempts,
             ),
             encryption=sqs.QueueEncryption.SQS_MANAGED,
             enforce_ssl=True,
             receive_message_wait_time=Duration.seconds(20),
-            # Five DLQ attempts must fit under the export state machine timeout
-            # (1h): 5x visibility must leave room for handler work.
-            visibility_timeout=Duration.minutes(10),
+            # Visibility covers handler work; matches worker lease seconds.
+            visibility_timeout=Duration.seconds(
+                export_copy_worker_lease_seconds
+            ),
         )
         file_bucket = s3.Bucket(
             self,
@@ -766,12 +770,18 @@ class NovaRuntimeStack(Stack):
             "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
                 2 * 1024 * 1024 * 1024
             ),
-            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": "8",
+            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": str(
+                export_copy_max_concurrency
+            ),
             "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES": str(
                 50 * 1024 * 1024 * 1024
             ),
-            "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS": "5",
-            "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS": str(30 * 60),
+            "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS": str(
+                export_copy_worker_attempts
+            ),
+            "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS": str(
+                export_copy_worker_lease_seconds
+            ),
             "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": (
                 export_copy_parts_table.table_name
             ),
@@ -1019,7 +1029,7 @@ class NovaRuntimeStack(Stack):
                 batch_size=10,
                 max_batching_window=Duration.seconds(5),
                 report_batch_item_failures=True,
-                max_concurrency=8,
+                max_concurrency=export_copy_max_concurrency,
             )
         )
         upload_sessions_table.grant_read_write_data(reconcile_transfer_state_fn)
@@ -1206,11 +1216,19 @@ class NovaRuntimeStack(Stack):
                 validate_task.next(prepare_copy_task).next(
                     copy_strategy_choice.when(
                         sfn.Condition.string_equals(
+                            "$.copy_progress_state",
+                            "cancelled",
+                        ),
+                        export_cancelled,
+                    )
+                    .when(
+                        sfn.Condition.string_equals(
                             "$.copy_strategy",
                             "worker",
                         ),
                         queued_copy_chain,
-                    ).otherwise(
+                    )
+                    .otherwise(
                         copy_task.next(finalize_inline_task).next(
                             export_completed
                         )
@@ -1397,7 +1415,7 @@ class NovaRuntimeStack(Stack):
             metric=cloudwatch.MathExpression(
                 expression=(
                     "validate + prepare + copy + start + poll + "
-                    "finalize_inline + finalize_queued + fail + worker"
+                    "finalize + fail + worker"
                 ),
                 period=Duration.minutes(5),
                 using_metrics={
@@ -1416,10 +1434,7 @@ class NovaRuntimeStack(Stack):
                     "poll": poll_queued_copy_fn.metric_throttles(
                         period=Duration.minutes(5)
                     ),
-                    "finalize_inline": finalize_fn.metric_throttles(
-                        period=Duration.minutes(5)
-                    ),
-                    "finalize_queued": finalize_fn.metric_throttles(
+                    "finalize": finalize_fn.metric_throttles(
                         period=Duration.minutes(5)
                     ),
                     "worker": export_copy_worker_fn.metric_throttles(

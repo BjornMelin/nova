@@ -14,6 +14,7 @@ from pydantic import (
     field_validator,
 )
 
+from nova_file_api.transfer_policy import ChecksumMode
 from nova_runtime_support.export_models import (
     ExportOutput,
     ExportRecord,
@@ -48,7 +49,7 @@ class InitiateUploadRequest(BaseModel):
     are inputs only. The effective persisted transfer policy exposes
     ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
     integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-    client preference; preference is not the same enum as mode—mapping and the
+    client preference; preference is not the same enum as mode mapping and the
     final mode decision happen server-side.
     """
 
@@ -88,7 +89,7 @@ class InitiateUploadResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
-    checksum_mode: str
+    checksum_mode: ChecksumMode
     resumable_until: datetime
     url: str | None = None
     upload_id: str | None = None
@@ -347,7 +348,7 @@ class TransferCapabilitiesResponse(BaseModel):
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None = None
-    checksum_mode: str
+    checksum_mode: ChecksumMode
     resumable_ttl_seconds: int
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int

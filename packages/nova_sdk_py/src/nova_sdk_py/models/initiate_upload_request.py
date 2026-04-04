@@ -22,7 +22,7 @@ class InitiateUploadRequest:
     are inputs only. The effective persisted transfer policy exposes
     ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
     integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-    client preference; preference is not the same enum as mode—mapping and the
+    client preference; preference is not the same enum as mode mapping and the
     final mode decision happen server-side.
 
         Attributes:

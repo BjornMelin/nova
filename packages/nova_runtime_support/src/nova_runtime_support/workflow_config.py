@@ -148,6 +148,23 @@ class WorkflowSettings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def require_export_copy_worker_when_exports_enabled(
+        self,
+    ) -> WorkflowSettings:
+        """Require queued copy backends when durable exports are enabled."""
+        if not self.exports_enabled:
+            return self
+        table = (self.file_transfer_export_copy_parts_table or "").strip()
+        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        if not table or not queue:
+            raise ValueError(
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must be configured when "
+                "EXPORTS_ENABLED=true"
+            )
+        return self
+
 
 def export_transfer_config_from_settings(
     settings: WorkflowSettings,

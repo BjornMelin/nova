@@ -120,6 +120,10 @@ async def prepare_export_copy(
     )
     if not updated_ok:
         latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return workflow_input.model_copy(
+                update={"copy_progress_state": "cancelled"}
+            )
         if latest is None or latest.status != ExportStatus.CANCELLED:
             raise RuntimeError(
                 "export copy planning changed before state could persist"
@@ -146,9 +150,15 @@ async def start_queued_export_copy(
     large_copy_service: ExportCopyCoordinator,
 ) -> ExportWorkflowInput:
     """Create the worker-lane MPU, persist part state, and enqueue work."""
+    if workflow_input.copy_progress_state == "cancelled":
+        return workflow_input
     export = await export_service.repository.get(workflow_input.export_id)
     if export is None:
         raise LookupError("export not found")
+    if export.status == ExportStatus.CANCELLED:
+        return workflow_input.model_copy(
+            update={"copy_progress_state": "cancelled"}
+        )
     if workflow_input.output is None:
         raise ValueError(
             "workflow output is required before queueing copy work"
@@ -181,6 +191,10 @@ async def start_queued_export_copy(
     )
     if not updated_ok:
         latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return workflow_input.model_copy(
+                update={"copy_progress_state": "cancelled"}
+            )
         if latest is None or latest.status != ExportStatus.CANCELLED:
             raise RuntimeError(
                 "export copy metadata changed before queued state could persist"

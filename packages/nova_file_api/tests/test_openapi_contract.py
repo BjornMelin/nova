@@ -239,6 +239,12 @@ def test_openapi_schema_generation_smoke() -> None:
     schema = app.openapi()
     assert isinstance(schema, dict)
     assert schema.get("openapi") == "3.1.0"
+    assert (
+        schema["components"]["schemas"]["HTTPValidationError"]["properties"][
+            "detail"
+        ]["maxItems"]
+        == 256
+    )
 
 
 def test_openapi_declares_bearer_auth_scheme() -> None:

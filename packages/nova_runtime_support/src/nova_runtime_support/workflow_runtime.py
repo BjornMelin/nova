@@ -91,6 +91,20 @@ async def workflow_services(
 ) -> AsyncIterator[WorkflowServices]:
     """Build workflow task services from the current environment."""
     resolved_settings = WorkflowSettings() if settings is None else settings
+    export_copy_parts_table = (
+        resolved_settings.file_transfer_export_copy_parts_table or ""
+    ).strip()
+    export_copy_queue_url = (
+        resolved_settings.file_transfer_export_copy_queue_url or ""
+    ).strip()
+    if resolved_settings.exports_enabled and (
+        not export_copy_parts_table or not export_copy_queue_url
+    ):
+        raise ValueError(
+            "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
+            "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must be configured when "
+            "EXPORTS_ENABLED=true"
+        )
     session = new_aioboto3_session()
     s3_config = Config(
         s3={
@@ -128,28 +142,17 @@ async def workflow_services(
             max_attempts=(
                 resolved_settings.file_transfer_export_copy_worker_attempts
             ),
-            queue_url=(
-                (
-                    resolved_settings.file_transfer_export_copy_queue_url or ""
-                ).strip()
-            ),
+            queue_url=export_copy_queue_url,
             s3_client=s3_client,
             sqs_client=sqs_client,
             export_repository=export_service.repository,
             export_copy_part_repository=build_export_copy_part_repository(
-                table_name=(
-                    resolved_settings.file_transfer_export_copy_parts_table
-                ),
+                table_name=export_copy_parts_table,
                 dynamodb_resource=cast(
                     ExportCopyPartsDynamoResource | None,
                     dynamodb_resource,
                 ),
-                enabled=bool(
-                    (
-                        resolved_settings.file_transfer_export_copy_parts_table
-                        or ""
-                    ).strip()
-                ),
+                enabled=bool(export_copy_parts_table),
                 claim_lease_seconds=(
                     resolved_settings.file_transfer_export_copy_worker_lease_seconds
                 ),

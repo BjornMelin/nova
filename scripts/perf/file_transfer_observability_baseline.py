@@ -62,7 +62,18 @@ def browser_sign_batch_size(
     max_concurrency: int,
     configured_sign_batch_size: int | None = None,
 ) -> int:
-    """Mirror the current `file_transfer.js` batching rule."""
+    """Mirror the current `file_transfer.js` batching rule.
+
+    Args:
+        max_concurrency: Maximum number of concurrent browser uploads.
+        configured_sign_batch_size: Optional explicit batch size override.
+
+    Returns:
+        The sign batch size to use for multipart signing requests.
+
+    Raises:
+        ValueError: If any input constraint is violated.
+    """
     if max_concurrency <= 0:
         raise ValueError("max_concurrency must be > 0")
     if (

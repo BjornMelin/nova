@@ -223,6 +223,47 @@ async def test_resolve_transfer_policy_selects_profile_by_hint() -> None:
     assert policy.large_export_worker_threshold_bytes == 25 * 1024 * 1024 * 1024
 
 
+@pytest.mark.anyio
+async def test_resolve_policy_falls_back_to_workload_when_hint_unknown() -> (
+    None
+):
+    document = {
+        "policy_id": "default",
+        "profiles": {
+            "batch": {
+                "policy_id": "batch",
+                "max_concurrency_hint": 4,
+                "checksum_mode": "required",
+            }
+        },
+    }
+
+    provider = AppConfigTransferPolicyProvider(
+        config=_config(),
+        source=AppConfigTransferPolicySource(
+            client=_StubAppConfigClient(),
+            application_identifier="app",
+            environment_identifier="env",
+            configuration_profile_identifier="profile",
+            minimum_poll_interval_seconds=60,
+        ),
+    )
+    provider.source._cached_document = TransferPolicyDocument.model_validate(
+        document
+    )
+    provider.source._next_refresh_at = datetime.max.replace(tzinfo=UTC)
+
+    policy = await provider.resolve(
+        scope_id="scope-1",
+        workload_class="batch",
+        policy_hint="does-not-exist",
+        checksum_preference="standard",
+    )
+
+    assert policy.policy_id == "batch"
+    assert policy.checksum_mode == "required"
+
+
 def test_strict_checksum_preference_enables_supported_algorithm() -> None:
     policy = resolve_transfer_policy(
         config=_config(),

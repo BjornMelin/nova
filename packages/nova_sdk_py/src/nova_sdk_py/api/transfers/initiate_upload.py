@@ -100,7 +100,7 @@ def sync_detailed(
             are inputs only. The effective persisted transfer policy exposes
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode—mapping and the
+            client preference; preference is not the same enum as mode mapping and the
             final mode decision happen server-side.
 
     Raises:
@@ -141,7 +141,7 @@ def sync(
             are inputs only. The effective persisted transfer policy exposes
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode—mapping and the
+            client preference; preference is not the same enum as mode mapping and the
             final mode decision happen server-side.
 
     Raises:
@@ -177,7 +177,7 @@ async def asyncio_detailed(
             are inputs only. The effective persisted transfer policy exposes
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode—mapping and the
+            client preference; preference is not the same enum as mode mapping and the
             final mode decision happen server-side.
 
     Raises:
@@ -216,7 +216,7 @@ async def asyncio(
             are inputs only. The effective persisted transfer policy exposes
             ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
             integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode—mapping and the
+            client preference; preference is not the same enum as mode mapping and the
             final mode decision happen server-side.
 
     Raises:

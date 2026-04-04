@@ -144,7 +144,7 @@ Run from repository root unless the task needs otherwise.
 
 ```bash
 uv sync --locked --all-packages --all-extras --dev
-# npm ci  — only if TS workspace / TS SDK / TS conformance is in scope
+# npm ci -- only if TS workspace / TS SDK / TS conformance is in scope
 ```
 
 ### Python verification
@@ -218,7 +218,7 @@ commands change.
 
 ```bash
 uv sync --locked --all-packages --all-extras --dev
-# npm ci  — only if TS workspace / TS SDK / TS conformance is in scope
+# npm ci -- only if TS workspace / TS SDK / TS conformance is in scope
 ```
 
 ### Python verification

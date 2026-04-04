@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from math import ceil
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 from nova_file_api.transfer_config import TransferConfig
 from nova_runtime_support.transfer_policy_document import (
@@ -29,6 +29,8 @@ _DEFAULT_DAILY_INGRESS_BUDGET_BYTES = 1024 * 1024 * 1024 * 1024
 _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT = 512
 _LOGGER = logging.getLogger(__name__)
 
+ChecksumMode = Literal["none", "optional", "required"]
+
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class TransferPolicy:
@@ -46,7 +48,7 @@ class TransferPolicy:
     sign_batch_size_hint: int
     accelerate_enabled: bool
     checksum_algorithm: str | None
-    checksum_mode: str
+    checksum_mode: ChecksumMode
     resumable_ttl_seconds: int
     active_multipart_upload_limit: int
     daily_ingress_budget_bytes: int
@@ -250,13 +252,16 @@ def resolve_transfer_policy(
         minimum=_MIN_SIGN_BATCH_SIZE,
         maximum=_MAX_SIGN_BATCH_SIZE,
     )
-    checksum_mode = _effective_checksum_mode(
-        configured=(
-            document.checksum_mode
-            if document and document.checksum_mode is not None
-            else config.checksum_mode
+    checksum_mode = cast(
+        ChecksumMode,
+        _effective_checksum_mode(
+            configured=(
+                document.checksum_mode
+                if document and document.checksum_mode is not None
+                else config.checksum_mode
+            ),
+            checksum_preference=checksum_preference,
         ),
-        checksum_preference=checksum_preference,
     )
     checksum_algorithm = _effective_checksum_algorithm(
         configured=(
@@ -463,12 +468,14 @@ def _select_transfer_policy_document(
 ) -> TransferPolicyDocument | None:
     if document is None or not document.profiles:
         return document
-    selected_key = _normalized_identifier(
-        policy_hint
-    ) or _normalized_identifier(workload_class)
-    if selected_key is None:
-        return document
-    selected = document.profiles.get(selected_key)
+    hint_key = _normalized_identifier(policy_hint)
+    selected = None
+    if hint_key is not None:
+        selected = document.profiles.get(hint_key)
+    if selected is None:
+        workload_key = _normalized_identifier(workload_class)
+        if workload_key is not None:
+            selected = document.profiles.get(workload_key)
     if selected is None:
         return document
     merged = document.model_dump(exclude_none=True)

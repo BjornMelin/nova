@@ -299,7 +299,7 @@ export type HealthResponse = {
  * are inputs only. The effective persisted transfer policy exposes
  * ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
  * integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
- * client preference; preference is not the same enum as mode—mapping and the
+ * client preference; preference is not the same enum as mode mapping and the
  * final mode decision happen server-side.
  */
 export type InitiateUploadRequest = {
@@ -354,7 +354,7 @@ export type InitiateUploadResponse = {
     /**
      * Checksum Mode
      */
-    checksum_mode: string;
+    checksum_mode: 'none' | 'optional' | 'required';
     /**
      * Expires In Seconds
      */
@@ -623,7 +623,7 @@ export type TransferCapabilitiesResponse = {
     /**
      * Checksum Mode
      */
-    checksum_mode: string;
+    checksum_mode: 'none' | 'optional' | 'required';
     /**
      * Daily Ingress Budget Bytes
      */

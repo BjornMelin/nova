@@ -49,6 +49,40 @@ _CORS_ALLOWED_HEADERS = [
 _CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
 _CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
 
+# Cap HTTPValidationError.detail[] (FastAPI how-to: extending-openapi).
+_HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS = 256
+
+
+def _patch_http_validation_error_detail_max_items(
+    schema: dict[str, Any],
+) -> None:
+    """Add maxItems to ``HTTPValidationError.detail`` when present."""
+    detail = (
+        schema.get("components", {})
+        .get("schemas", {})
+        .get("HTTPValidationError", {})
+        .get("properties", {})
+        .get("detail")
+    )
+    if isinstance(detail, dict) and detail.get("type") == "array":
+        detail["maxItems"] = _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS
+
+
+def _install_openapi_override(*, app: FastAPI) -> None:
+    """Install the documented FastAPI OpenAPI override on one app instance."""
+    original_openapi = app.openapi
+
+    def custom_openapi() -> dict[str, Any]:
+        schema = app.openapi_schema
+        if schema is not None:
+            return schema
+        schema = original_openapi()
+        _patch_http_validation_error_detail_max_items(schema)
+        app.openapi_schema = schema
+        return schema
+
+    app.__dict__["openapi"] = custom_openapi
+
 
 async def _close_authenticator(*, app: FastAPI) -> None:
     """Close the app authenticator when it exposes an async close hook."""
@@ -222,6 +256,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         middleware=_cors_middleware(settings=settings),
     )
     app.state.settings = settings
+    _install_openapi_override(app=app)
 
     app.include_router(ops_router)
     app.include_router(transfer_router)

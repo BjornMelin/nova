@@ -497,7 +497,13 @@ def _repair_sign_parts_request_checksum_parser(root: Path) -> None:
     )
 
 
-def _repair_validation_error_context_docstrings(root: Path) -> None:
+def _ensure_validation_error_context_file(root: Path) -> None:
+    """Rewrite ``validation_error_context.py`` when codegen output is wrong.
+
+    The attrs model is emitted without a module docstring; this helper writes
+    the full file when the expected marker is missing (not a docstring-only
+    edit).
+    """
     path = root / "models" / "validation_error_context.py"
     if not path.exists():
         return
@@ -510,7 +516,10 @@ def _repair_validation_error_context_docstrings(root: Path) -> None:
     if "class ValidationErrorContext" not in content:
         return
     path.write_text(
-        '''from __future__ import annotations
+        '''\
+"""Context for HTTP validation error payloads (additionalProperties)."""
+
+from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, TypeVar
@@ -522,14 +531,26 @@ T = TypeVar("T", bound="ValidationErrorContext")
 
 @_attrs_define
 class ValidationErrorContext:
-    """Hold arbitrary key/value pairs returned alongside validation errors."""
+    """Hold arbitrary key/value pairs returned alongside validation errors.
+
+    Attributes:
+        additional_properties: Extra response members preserved from the
+            decoded payload.
+    """
 
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize additional properties to a plain ``dict``."""
+        """Serialize additional properties to a plain ``dict``.
+
+        Returns:
+            Mapping of preserved validation-error context values.
+
+        Raises:
+            None.
+        """
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -538,7 +559,17 @@ class ValidationErrorContext:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        """Build an instance from a decoded mapping (all keys preserved)."""
+        """Build an instance from a decoded mapping.
+
+        Args:
+            src_dict: Decoded mapping containing arbitrary context members.
+
+        Returns:
+            New ``ValidationErrorContext`` containing all supplied keys.
+
+        Raises:
+            None.
+        """
 
         d = dict(src_dict)
         validation_error_context = cls()
@@ -548,27 +579,66 @@ class ValidationErrorContext:
 
     @property
     def additional_keys(self) -> list[str]:
-        """Return keys present in ``additional_properties``."""
+        """Return keys present in ``additional_properties``.
+
+        Returns:
+            Ordered list of preserved context keys.
+        """
 
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:
-        """Return the value for ``key`` from ``additional_properties``."""
+        """Return the value for ``key`` from ``additional_properties``.
+
+        Args:
+            key: Context key to retrieve.
+
+        Returns:
+            Stored value for ``key``.
+
+        Raises:
+            KeyError: If ``key`` is not present.
+        """
 
         return self.additional_properties[key]
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """Set ``key`` on ``additional_properties``."""
+        """Set ``key`` on ``additional_properties``.
+
+        Args:
+            key: Context key to update.
+            value: Value to store for ``key``.
+
+        Returns:
+            None.
+        """
 
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:
-        """Remove ``key`` from ``additional_properties``."""
+        """Remove ``key`` from ``additional_properties``.
+
+        Args:
+            key: Context key to remove.
+
+        Returns:
+            None.
+
+        Raises:
+            KeyError: If ``key`` is not present.
+        """
 
         del self.additional_properties[key]
 
     def __contains__(self, key: str) -> bool:
-        """Return whether ``key`` exists in ``additional_properties``."""
+        """Return whether ``key`` exists in ``additional_properties``.
+
+        Args:
+            key: Context key to test.
+
+        Returns:
+            ``True`` when ``key`` is present, else ``False``.
+        """
 
         return key in self.additional_properties
 ''',
@@ -581,7 +651,7 @@ def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
     _repair_sign_parts_request_checksum_parser(root)
-    _repair_validation_error_context_docstrings(root)
+    _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
     _repair_blank_model_docstrings(root)
 
