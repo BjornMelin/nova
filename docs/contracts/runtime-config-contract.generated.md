@@ -33,7 +33,7 @@ Canonical sources:
 | FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | file_transfer_active_multipart_upload_limit | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_BUCKET | file_transfer_bucket | str | no | - | no | `''` |
 | FILE_TRANSFER_CHECKSUM_ALGORITHM | file_transfer_checksum_algorithm | str \| None | no | - | no | `None` |
-| FILE_TRANSFER_CHECKSUM_MODE | file_transfer_checksum_mode | str | no | - | no | `'none'` |
+| FILE_TRANSFER_CHECKSUM_MODE | file_transfer_checksum_mode | none \| optional \| required | no | - | no | `'none'` |
 | FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | file_transfer_daily_ingress_budget_bytes | int \| None | no | - | no | `None` |
 | FILE_TRANSFER_ENABLED | file_transfer_enabled | bool | no | - | no | `True` |
 | FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | file_transfer_export_copy_max_concurrency | int | no | - | no | `8` |

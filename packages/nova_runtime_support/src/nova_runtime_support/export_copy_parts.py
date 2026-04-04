@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import secrets
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -51,19 +53,23 @@ class ExportCopyPartRepository(Protocol):
 
     async def create_many(self, records: list[ExportCopyPartRecord]) -> None:
         """Persist one queued copy manifest."""
+        ...
 
     async def get(
         self, *, export_id: str, part_number: int
     ) -> ExportCopyPartRecord | None:
         """Return one queued copy part record."""
+        ...
 
     async def list_for_export(
         self, *, export_id: str
     ) -> list[ExportCopyPartRecord]:
         """Return all queued copy parts for one export."""
+        ...
 
     async def update(self, record: ExportCopyPartRecord) -> None:
         """Replace one queued copy part record."""
+        ...
 
     async def claim(
         self,
@@ -75,35 +81,52 @@ class ExportCopyPartRepository(Protocol):
         export_key: str,
     ) -> ExportCopyPartRecord | None:
         """Claim one queued or failed part for copy work."""
+        ...
 
     async def mark_copied(
         self, *, export_id: str, part_number: int, etag: str
     ) -> ExportCopyPartRecord | None:
         """Mark one copy part as copied."""
+        ...
 
     async def mark_failed(
         self, *, export_id: str, part_number: int, error: str
     ) -> ExportCopyPartRecord | None:
         """Mark one copy part as failed and increment the attempt count."""
+        ...
 
     async def healthcheck(self) -> bool:
         """Return whether the repository is ready."""
+        ...
+
+
+_DYNAMO_BATCH_WRITE_MAX = 25
+_BATCH_WRITE_UNPROCESSED_MAX_ATTEMPTS = 10
 
 
 class DynamoTable(Protocol):
-    """Subset of DynamoDB table operations used by copy-part repositories."""
+    """Subset of DynamoDB table operations used by copy-part repositories.
+
+    Bulk inserts use the low-level client's ``batch_write_item`` (via
+    ``table.meta.client``) when present; otherwise ``create_many`` falls back to
+    ``put_item`` per record.
+    """
 
     async def put_item(self, **kwargs: object) -> dict[str, object]:
         """Create or replace one item."""
+        ...
 
     async def get_item(self, **kwargs: object) -> dict[str, object]:
         """Read one item."""
+        ...
 
     async def query(self, **kwargs: object) -> dict[str, object]:
         """Query items by partition key."""
+        ...
 
     async def update_item(self, **kwargs: object) -> dict[str, object]:
         """Apply one conditional item update."""
+        ...
 
 
 class DynamoResource(Protocol):
@@ -111,6 +134,7 @@ class DynamoResource(Protocol):
 
     def Table(self, table_name: str) -> DynamoTable:
         """Return one table object."""
+        ...
 
 
 def export_copy_part_counts(
@@ -288,7 +312,18 @@ class DynamoExportCopyPartRepository:
 
     async def create_many(self, records: list[ExportCopyPartRecord]) -> None:
         """Persist one manifest of queued copy-part records in DynamoDB."""
+        if not records:
+            return
         table = await self._resolve_table()
+        items = [_record_to_item(record) for record in records]
+        client = _dynamo_batch_write_client(table)
+        if client is not None:
+            await _batch_write_put_items(
+                table_name=self.table_name,
+                client=client,
+                items=items,
+            )
+            return
         for record in records:
             await table.put_item(Item=_record_to_item(record))
 
@@ -310,13 +345,20 @@ class DynamoExportCopyPartRepository:
     ) -> list[ExportCopyPartRecord]:
         """List queued copy-part records for one export from DynamoDB."""
         table = await self._resolve_table()
-        response = await table.query(
-            KeyConditionExpression="#export_id = :export_id",
-            ExpressionAttributeNames={"#export_id": "export_id"},
-            ExpressionAttributeValues={":export_id": export_id},
-            ScanIndexForward=True,
-        )
-        items = cast(list[dict[str, Any]], response.get("Items", []))
+        query_kwargs: dict[str, Any] = {
+            "KeyConditionExpression": "#export_id = :export_id",
+            "ExpressionAttributeNames": {"#export_id": "export_id"},
+            "ExpressionAttributeValues": {":export_id": export_id},
+            "ScanIndexForward": True,
+        }
+        items: list[dict[str, Any]] = []
+        while True:
+            response = await table.query(**query_kwargs)
+            items.extend(cast(list[dict[str, Any]], response.get("Items", [])))
+            last_key = response.get("LastEvaluatedKey")
+            if last_key is None:
+                break
+            query_kwargs["ExclusiveStartKey"] = last_key
         return [_item_to_record(item) for item in items]
 
     async def update(self, record: ExportCopyPartRecord) -> None:
@@ -526,6 +568,65 @@ def build_export_copy_part_repository(
     return MemoryExportCopyPartRepository(
         claim_lease_seconds=claim_lease_seconds
     )
+
+
+def _dynamo_batch_write_client(table: object) -> object | None:
+    """Return the DynamoDB client exposing ``batch_write_item`` when present."""
+    meta = getattr(table, "meta", None)
+    client = getattr(meta, "client", None) if meta is not None else None
+    if client is None:
+        return None
+    if not callable(getattr(client, "batch_write_item", None)):
+        return None
+    return cast(object, client)
+
+
+async def _batch_write_put_items(
+    *,
+    table_name: str,
+    client: object,
+    items: list[dict[str, object]],
+) -> None:
+    """Write items in chunks of up to 25 via ``batch_write_item``."""
+    batch_write_item = cast(
+        Callable[..., Any],
+        cast(Any, client).batch_write_item,
+    )
+    for start in range(0, len(items), _DYNAMO_BATCH_WRITE_MAX):
+        chunk = items[start : start + _DYNAMO_BATCH_WRITE_MAX]
+        request_items: dict[str, object] = {
+            table_name: [{"PutRequest": {"Item": item}} for item in chunk]
+        }
+        await _retry_unprocessed_batch_write(
+            batch_write_item=batch_write_item,
+            request_items=request_items,
+        )
+
+
+async def _retry_unprocessed_batch_write(
+    *,
+    batch_write_item: Callable[..., Any],
+    request_items: dict[str, object],
+) -> None:
+    """Flush one batch request, retrying unprocessed items with backoff."""
+    current: dict[str, object] | None = request_items
+    attempt = 0
+    while current:
+        response = await batch_write_item(RequestItems=current)
+        response_dict = cast(dict[str, Any], response)
+        unprocessed = response_dict.get("UnprocessedItems") or {}
+        if not unprocessed:
+            return
+        attempt += 1
+        if attempt >= _BATCH_WRITE_UNPROCESSED_MAX_ATTEMPTS:
+            raise RuntimeError(
+                "DynamoDB batch_write_item still has unprocessed items after "
+                f"{_BATCH_WRITE_UNPROCESSED_MAX_ATTEMPTS} attempts"
+            )
+        jitter_ms = secrets.randbelow(50)
+        delay = min(0.05 * (2**attempt), 2.0) + jitter_ms / 1000.0
+        await asyncio.sleep(delay)
+        current = cast(dict[str, object], unprocessed)
 
 
 def _record_to_item(record: ExportCopyPartRecord) -> dict[str, object]:

@@ -334,7 +334,7 @@
     return payload;
   }
 
-  async function uploadMultipart(config, file, initiated) {
+  async function uploadMultipart(config, file, initiated, storedMultipartState) {
     var base = config.transfersEndpointBase;
     var key = initiated.key;
     var uploadId = initiated.upload_id;
@@ -482,14 +482,21 @@
           initiated.checksum_algorithm === "SHA256" &&
           initiated.checksum_mode !== "none"
         ) {
+          var checksumResults = await Promise.all(
+            partNumbers.map(function (checksumPartNumber) {
+              var checksumStart = (checksumPartNumber - 1) * partSize;
+              var checksumEnd = Math.min(file.size, checksumStart + partSize);
+              return sha256Base64FromBlob(file.slice(checksumStart, checksumEnd)).then(
+                function (digest) {
+                  return { partNumber: checksumPartNumber, digest: digest };
+                }
+              );
+            })
+          );
           checksumsSha256 = {};
-          for (var checksumIndex = 0; checksumIndex < partNumbers.length; checksumIndex += 1) {
-            var checksumPartNumber = partNumbers[checksumIndex];
-            var checksumStart = (checksumPartNumber - 1) * partSize;
-            var checksumEnd = Math.min(file.size, checksumStart + partSize);
-            checksumsSha256[String(checksumPartNumber)] = await sha256Base64FromBlob(
-              file.slice(checksumStart, checksumEnd)
-            );
+          for (var checksumIndex = 0; checksumIndex < checksumResults.length; checksumIndex += 1) {
+            var checksumResult = checksumResults[checksumIndex];
+            checksumsSha256[String(checksumResult.partNumber)] = checksumResult.digest;
           }
         }
 
@@ -710,6 +717,7 @@
 
     var initiated = null;
     var transferCapabilities = null;
+    var checksumValue = null;
     var resumedMultipart =
       storedMultipartState &&
       typeof storedMultipartState.upload_id === "string" &&
@@ -732,7 +740,6 @@
       setProgress(config.progressStoreId, 0, "Resuming upload…");
     } else {
       transferCapabilities = await fetchTransferCapabilities(config);
-      var checksumValue = null;
       var shouldUseSingleChecksum =
         transferCapabilities &&
         file.size < transferCapabilities.multipart_threshold_bytes &&
@@ -754,8 +761,10 @@
       var singleUploadHeaders =
         initiated.checksum_algorithm === "SHA256" &&
         transferCapabilities &&
-        shouldApplyChecksum(config, transferCapabilities)
-          ? { "x-amz-checksum-sha256": await sha256Base64FromBlob(file) }
+        shouldApplyChecksum(config, transferCapabilities) &&
+        typeof checksumValue === "string" &&
+        checksumValue
+          ? { "x-amz-checksum-sha256": checksumValue }
           : null;
       await putObject(initiated.url, file, contentType, singleUploadHeaders);
       clearMultipartState(storageKey);
@@ -766,7 +775,7 @@
       );
     } else if (initiated.strategy === "multipart") {
       try {
-        await uploadMultipart(config, file, initiated);
+        await uploadMultipart(config, file, initiated, storedMultipartState);
       } catch (error) {
         var resumeMissingMultipart =
           resumedMultipart && isMultipartNotFoundError(error);
@@ -801,6 +810,7 @@
             );
           }
           clearMultipartState(storageKey);
+          storedMultipartState = null;
           storageKey = multipartStateStorageKey(config, file);
           initiated = await postJson(
             config.transfersEndpointBase + "/uploads/initiate",
@@ -811,7 +821,7 @@
             await putObject(initiated.url, file, contentType, null);
             clearMultipartState(storageKey);
           } else if (initiated.strategy === "multipart") {
-            await uploadMultipart(config, file, initiated);
+            await uploadMultipart(config, file, initiated, storedMultipartState);
           } else {
             throw new Error("unknown strategy");
           }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -205,9 +206,11 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="FILE_TRANSFER_CHECKSUM_ALGORITHM",
     )
-    file_transfer_checksum_mode: str = Field(
-        default="none",
-        validation_alias="FILE_TRANSFER_CHECKSUM_MODE",
+    file_transfer_checksum_mode: Literal["none", "optional", "required"] = (
+        Field(
+            default="none",
+            validation_alias="FILE_TRANSFER_CHECKSUM_MODE",
+        )
     )
     file_transfer_upload_sessions_table: str | None = Field(
         default=None,

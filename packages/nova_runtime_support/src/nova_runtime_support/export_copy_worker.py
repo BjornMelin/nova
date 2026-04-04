@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import math
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -21,7 +23,6 @@ from nova_runtime_support.export_copy_parts import (
 from nova_runtime_support.export_models import ExportRecord, ExportStatus
 from nova_runtime_support.export_runtime import ExportMetrics, ExportRepository
 
-_COPY_OBJECT_MAX_BYTES = 5_000_000_000
 _SQS_BATCH_SIZE = 10
 _COPY_PART_RECORD_TTL_SECONDS = 14 * 24 * 60 * 60
 
@@ -619,15 +620,25 @@ def _normalize_prefix(prefix: str) -> str:
 
 
 def _sanitize_filename(filename: str) -> str:
-    base_name = Path(filename).name
-    cleaned = "".join(
-        character
-        for character in base_name
-        if character.isalnum() or character in {".", "-", "_"}
-    )
-    if not cleaned:
-        return "file"
-    return cleaned[:255]
+    base_name = unicodedata.normalize("NFC", Path(filename).name)
+    allowed_punct = frozenset({".", "-", "_", " "})
+    out: list[str] = []
+    for ch in base_name:
+        if ch in "/\\":
+            continue
+        if unicodedata.category(ch) == "Cc":
+            continue
+        if ch in allowed_punct:
+            out.append(ch)
+            continue
+        cat = unicodedata.category(ch)
+        if ch.isalnum() or cat.startswith(("L", "M", "N")):
+            out.append(ch)
+            continue
+    merged = re.sub(r"\s+", " ", "".join(out)).strip()
+    if len(merged) > 255:
+        merged = merged[:255]
+    return merged if merged else "file"
 
 
 def _new_export_key(

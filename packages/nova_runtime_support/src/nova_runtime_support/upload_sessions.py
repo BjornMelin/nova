@@ -15,6 +15,10 @@ from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
+_ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES = frozenset(
+    {"none", "optional", "required"}
+)
+
 
 class UploadStrategy(StrEnum):
     """Upload strategy options returned by initiate endpoint."""
@@ -344,6 +348,22 @@ def _record_to_item(record: UploadSessionRecord) -> dict[str, object]:
     }
 
 
+def _parse_checksum_mode(item: dict[str, Any]) -> str:
+    raw = item.get("checksum_mode")
+    if raw is None:
+        return "none"
+    if not isinstance(raw, str):
+        raise TypeError(
+            "upload session checksum_mode must be a string when present"
+        )
+    if raw not in _ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES:
+        raise ValueError(
+            "upload session checksum_mode must be one of "
+            f"{sorted(_ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES)}"
+        )
+    return raw
+
+
 def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
     def _as_str(value: object) -> str | None:
         return value if isinstance(value, str) else None
@@ -378,7 +398,7 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
     strategy = UploadStrategy(str(item["strategy"]))
     status = UploadSessionStatus(str(item["status"]))
     checksum_algorithm = _as_str(item.get("checksum_algorithm"))
-    checksum_mode = _as_str(item.get("checksum_mode")) or "none"
+    checksum_mode = _parse_checksum_mode(item)
     return UploadSessionRecord(
         session_id=str(item["session_id"]),
         upload_id=upload_id,

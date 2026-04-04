@@ -37,6 +37,22 @@ def test_workflow_settings_allow_missing_exports_table_when_disabled() -> None:
     assert settings.exports_dynamodb_table is None
 
 
+def test_workflow_settings_require_export_copy_worker_backends_together() -> (
+    None
+):
+    """Copy-parts table and worker queue must be configured together."""
+    with pytest.raises(
+        ValidationError,
+        match="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+    ):
+        WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": False,
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": "parts-table",
+            }
+        )
+
+
 def test_build_export_service_uses_dynamo_repository() -> None:
     """Workflow runtime assembly should always build a Dynamo repository."""
     service = _build_export_service(

@@ -135,6 +135,19 @@ class WorkflowSettings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def validate_export_copy_worker_backends_pair(self) -> WorkflowSettings:
+        """Require copy-parts table and worker queue together."""
+        table = (self.file_transfer_export_copy_parts_table or "").strip()
+        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        if bool(table) != bool(queue):
+            raise ValueError(
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must both be configured "
+                "together (or both omitted)"
+            )
+        return self
+
 
 def export_transfer_config_from_settings(
     settings: WorkflowSettings,

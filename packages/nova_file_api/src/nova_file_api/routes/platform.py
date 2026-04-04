@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Annotated, cast
 
 import structlog
@@ -167,16 +168,28 @@ async def _resolve_capabilities_policy(
     workload_class: str | None = None,
     policy_hint: str | None = None,
 ) -> TransferPolicy:
+    """Resolve the effective transfer policy for the capabilities endpoint."""
     resolver = getattr(transfer_service, "resolve_policy", None)
     if callable(resolver):
-        return cast(
-            TransferPolicy,
-            await resolver(
+        resolve_fn = cast(
+            Callable[..., Awaitable[TransferPolicy]],
+            resolver,
+        )
+        try:
+            result = await resolve_fn(
                 scope_id=None,
                 workload_class=workload_class,
                 policy_hint=policy_hint,
-            ),
-        )
+            )
+        except TypeError:
+            try:
+                result = await resolve_fn(
+                    scope_id=None,
+                    policy_hint=policy_hint,
+                )
+            except TypeError:
+                result = await resolve_fn(scope_id=None)
+        return result
     return resolve_transfer_policy(
         config=transfer_config_from_settings(settings)
     )

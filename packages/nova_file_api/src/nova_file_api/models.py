@@ -42,7 +42,15 @@ class Principal(BaseModel):
 
 
 class InitiateUploadRequest(BaseModel):
-    """Initiate-upload request model."""
+    """Initiate-upload request model.
+
+    Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
+    are inputs only. The effective persisted transfer policy exposes
+    ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
+    integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
+    client preference; preference is not the same enum as mode—mapping and the
+    final mode decision happen server-side.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -53,6 +61,8 @@ class InitiateUploadRequest(BaseModel):
         default=None, min_length=1, max_length=128
     )
     policy_hint: str | None = Field(default=None, min_length=1, max_length=128)
+    # Client preference (none|standard|strict); server maps to checksum_mode
+    # (SPEC-0002).
     checksum_preference: str | None = Field(
         default=None,
         pattern="^(none|standard|strict)$",

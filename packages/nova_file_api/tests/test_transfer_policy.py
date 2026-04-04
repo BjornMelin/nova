@@ -220,6 +220,7 @@ async def test_resolve_transfer_policy_selects_profile_by_hint() -> None:
     assert policy.policy_id == "remote"
     assert policy.accelerate_enabled is True
     assert policy.checksum_mode == "optional"
+    assert policy.large_export_worker_threshold_bytes == 25 * 1024 * 1024 * 1024
 
 
 def test_strict_checksum_preference_enables_supported_algorithm() -> None:

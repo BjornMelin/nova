@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
+import unicodedata
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -308,17 +310,25 @@ class S3ExportTransferService:
 
 
 def _sanitize_filename(filename: str) -> str:
-    base_name = Path(filename).name
-    cleaned = "".join(
-        character
-        for character in base_name
-        if character.isalnum() or character in {".", "-", "_"}
-    )
-    if not cleaned:
-        return "file"
-    if len(cleaned) > 255:
-        return cleaned[:255]
-    return cleaned
+    base_name = unicodedata.normalize("NFC", Path(filename).name)
+    allowed_punct = frozenset({".", "-", "_", " "})
+    out: list[str] = []
+    for ch in base_name:
+        if ch in "/\\":
+            continue
+        if unicodedata.category(ch) == "Cc":
+            continue
+        if ch in allowed_punct:
+            out.append(ch)
+            continue
+        cat = unicodedata.category(ch)
+        if ch.isalnum() or cat.startswith(("L", "M", "N")):
+            out.append(ch)
+            continue
+    merged = re.sub(r"\s+", " ", "".join(out)).strip()
+    if len(merged) > 255:
+        merged = merged[:255]
+    return merged if merged else "file"
 
 
 def _normalize_prefix(prefix: str) -> str:
