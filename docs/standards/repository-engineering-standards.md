@@ -168,7 +168,7 @@ Always-run repo baseline:
 - `uv run python scripts/release/generate_runtime_config_contract.py --check`
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
-- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
+- `npx aws-cdk@2.1117.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
 - workspace Python build verification for package/app units
 - `packages/nova_file_api`, `packages/nova_dash_bridge`, and
   `packages/nova_runtime_support` build verification

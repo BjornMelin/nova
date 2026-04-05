@@ -12,7 +12,7 @@ uv sync --locked --all-packages --all-extras --dev
 uv run pytest -q -m runtime_gate
 uv run pytest -q -m "not runtime_gate and not generated_smoke"
 uv run pytest -q -m generated_smoke
-npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
+npx aws-cdk@2.1117.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
   -c account=111111111111 \
   -c region=us-west-2 \
   -c api_domain_name=api.dev.example.com \

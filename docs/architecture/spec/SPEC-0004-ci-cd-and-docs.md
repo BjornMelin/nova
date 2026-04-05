@@ -51,7 +51,7 @@ Canonical baseline:
 - `uv run python scripts/release/generate_runtime_config_contract.py --check`
 - `uv run python scripts/release/generate_clients.py --check`
 - `uv run python scripts/release/generate_python_clients.py --check`
-- `npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
+- `npx aws-cdk@2.1117.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" …`
 - workspace package/app build verification (`uv build` per workspace unit)
 - unified `Nova CI` workflow gate (`.github/workflows/ci.yml`) covering:
   - `quality-gates` (Python 3.13 primary lane)
