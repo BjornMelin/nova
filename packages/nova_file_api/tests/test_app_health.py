@@ -14,7 +14,7 @@ from nova_file_api.exports import (
     MemoryExportRepository,
 )
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import (
     RuntimeDeps,

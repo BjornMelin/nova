@@ -15,7 +15,7 @@ from nova_file_api.errors import (
     unauthorized,
 )
 from nova_file_api.models import Principal
-from nova_runtime_support import (
+from nova_runtime_support.auth_claims import (
     build_async_jwt_verifier,
     normalized_principal_claims,
 )

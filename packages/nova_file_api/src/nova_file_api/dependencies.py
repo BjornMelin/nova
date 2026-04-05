@@ -21,6 +21,16 @@ from nova_file_api.activity import (
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
+from nova_file_api.export_runtime import (
+    DynamoExportRepository,
+    DynamoResource,
+    ExportPublisher,
+    ExportRepository,
+    MemoryExportPublisher,
+    MemoryExportRepository,
+    StepFunctionsClient,
+    StepFunctionsExportPublisher,
+)
 from nova_file_api.exports import (
     ExportService,
 )
@@ -28,7 +38,6 @@ from nova_file_api.idempotency import (
     DynamoResource as IdempotencyDynamoResource,
     IdempotencyStore,
 )
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ActivityStoreBackend,
     Principal,
@@ -39,24 +48,15 @@ from nova_file_api.transfer_policy import (
     AppConfigDataClient,
     build_transfer_policy_provider,
 )
-from nova_runtime_support.export_runtime import (
-    DynamoExportRepository,
-    DynamoResource,
-    ExportPublisher,
-    ExportRepository,
-    MemoryExportPublisher,
-    MemoryExportRepository,
-    StepFunctionsClient,
-    StepFunctionsExportPublisher,
-)
-from nova_runtime_support.transfer_usage import (
+from nova_file_api.transfer_usage import (
     DynamoResource as TransferUsageDynamoResource,
-    build_transfer_usage_repository,
+    build_transfer_usage_window_repository,
 )
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.upload_sessions import (
     DynamoResource as UploadSessionDynamoResource,
     build_upload_session_repository,
 )
+from nova_runtime_support.metrics import MetricsCollector
 
 _APPLICATION_STATE_NOT_INITIALIZED = "application state is not initialized"
 _MSG_EXPORTS_DYNAMODB_TABLE_REQUIRED = (
@@ -288,7 +288,7 @@ def build_transfer_service(
         ),
         enabled=settings.file_transfer_enabled,
     )
-    transfer_usage_repository = build_transfer_usage_repository(
+    transfer_usage_repository = build_transfer_usage_window_repository(
         table_name=settings.file_transfer_usage_table,
         dynamodb_resource=cast(
             TransferUsageDynamoResource | None,

@@ -15,13 +15,15 @@ from pydantic import (
     model_validator,
 )
 
-from nova_file_api.transfer_policy import ChecksumMode
-from nova_runtime_support.export_models import (
+from nova_file_api.export_models import (
+    ExportDownloadFilename,
     ExportOutput,
     ExportRecord,
     ExportStatus,
+    ExportStorageKey,
 )
-from nova_runtime_support.upload_sessions import UploadStrategy
+from nova_file_api.transfer_policy import ChecksumMode
+from nova_file_api.upload_sessions import UploadStrategy
 
 
 class ActivityStoreBackend(StrEnum):
@@ -273,14 +275,10 @@ class CreateExportRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    source_key: str = Field(
-        min_length=1,
-        max_length=2048,
+    source_key: ExportStorageKey = Field(
         description="Storage key of the source object to export.",
     )
-    filename: str = Field(
-        min_length=1,
-        max_length=512,
+    filename: ExportDownloadFilename = Field(
         description="Client-facing filename to preserve in the export.",
     )
 
@@ -291,8 +289,8 @@ class ExportResource(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     export_id: str
-    source_key: str = Field(min_length=1, max_length=2048)
-    filename: str = Field(min_length=1, max_length=512)
+    source_key: ExportStorageKey
+    filename: ExportDownloadFilename
     status: ExportStatus
     output: ExportOutput | None = None
     error: str | None = None

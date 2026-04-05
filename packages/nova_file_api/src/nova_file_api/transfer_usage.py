@@ -503,20 +503,6 @@ def build_transfer_usage_window_repository(
     )
 
 
-def build_transfer_usage_repository(
-    *,
-    table_name: str | None,
-    dynamodb_resource: DynamoResource | None,
-    enabled: bool,
-) -> TransferUsageWindowRepository:
-    """Backward-compatible wrapper for the transfer usage repository."""
-    return build_transfer_usage_window_repository(
-        table_name=table_name,
-        dynamodb_resource=dynamodb_resource,
-        enabled=enabled,
-    )
-
-
 def _daily_window_key(now: datetime) -> str:
     return f"daily#{_as_utc(now).strftime('%Y%m%d')}"
 

@@ -12,6 +12,16 @@ def test_workflows_do_not_cross_api_boundary() -> None:
     ]
     target_module = "nova_" + "file_api"
     target_prefix = f"{target_module}."
+    allowed_modules = {
+        "nova_file_api.export_copy_parts",
+        "nova_file_api.export_copy_worker",
+        "nova_file_api.export_models",
+        "nova_file_api.export_runtime",
+        "nova_file_api.export_transfer",
+        "nova_file_api.transfer_reconciliation",
+        "nova_file_api.transfer_usage",
+        "nova_file_api.upload_sessions",
+    }
     violations: list[str] = []
 
     for root in scan_roots:
@@ -25,15 +35,23 @@ def test_workflows_do_not_cross_api_boundary() -> None:
                     violations.extend(
                         f"{path.relative_to(package_root)} imports {alias.name}"
                         for alias in node.names
-                        if alias.name == target_module
-                        or alias.name.startswith(target_prefix)
+                        if (
+                            alias.name == target_module
+                            or (
+                                alias.name.startswith(target_prefix)
+                                and alias.name not in allowed_modules
+                            )
+                        )
                     )
                 if (
                     isinstance(node, ast.ImportFrom)
                     and node.module is not None
                     and (
                         node.module == target_module
-                        or node.module.startswith(target_prefix)
+                        or (
+                            node.module.startswith(target_prefix)
+                            and node.module not in allowed_modules
+                        )
                     )
                 ):
                     violations.append(

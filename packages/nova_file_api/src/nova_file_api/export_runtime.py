@@ -13,7 +13,7 @@ from typing import Protocol, cast
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_runtime_support.export_models import (
+from nova_file_api.export_models import (
     ExportOutput,
     ExportRecord,
     ExportStatus,

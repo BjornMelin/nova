@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Storage keys and filenames shared across API, persistence, and workflows.
+ExportStorageKey = Annotated[str, Field(min_length=1, max_length=2048)]
+ExportDownloadFilename = Annotated[str, Field(min_length=1, max_length=512)]
+
+# Workflow payload identifiers shared across Step Functions task boundaries.
+ExportWorkflowId = Annotated[str, Field(min_length=1, max_length=128)]
+ExportWorkflowScopeId = Annotated[str, Field(min_length=1, max_length=256)]
 
 
 class ExportStatus(StrEnum):
@@ -32,14 +41,10 @@ class ExportOutput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    key: str = Field(
-        min_length=1,
-        max_length=2048,
-        description="Storage key for the exported object.",
+    key: ExportStorageKey = Field(
+        description="Storage key for the exported object."
     )
-    download_filename: str = Field(
-        min_length=1,
-        max_length=512,
+    download_filename: ExportDownloadFilename = Field(
         description="Filename presented to clients when downloading.",
     )
 
@@ -52,8 +57,8 @@ class ExportRecord(BaseModel):
     export_id: str
     scope_id: str
     request_id: str | None = None
-    source_key: str = Field(min_length=1, max_length=2048)
-    filename: str = Field(min_length=1, max_length=512)
+    source_key: ExportStorageKey
+    filename: ExportDownloadFilename
     status: ExportStatus
     output: ExportOutput | None = None
     error: str | None = None
@@ -61,9 +66,7 @@ class ExportRecord(BaseModel):
     cancel_requested_at: datetime | None = None
     source_size_bytes: int | None = Field(default=None, ge=0)
     copy_strategy: CopyStrategy | None = None
-    copy_export_key: str | None = Field(
-        default=None, min_length=1, max_length=2048
-    )
+    copy_export_key: ExportStorageKey | None = None
     copy_upload_id: str | None = Field(
         default=None, min_length=1, max_length=1024
     )

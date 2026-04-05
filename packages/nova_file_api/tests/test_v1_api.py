@@ -12,7 +12,6 @@ from nova_file_api.exports import (
     MemoryExportPublisher,
     MemoryExportRepository,
 )
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ExportRecord,
     ExportStatus,
@@ -21,6 +20,7 @@ from nova_file_api.models import (
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import (
     RuntimeDeps,

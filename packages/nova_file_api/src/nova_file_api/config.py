@@ -10,6 +10,18 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import ActivityStoreBackend
+from nova_runtime_support.file_transfer_shared_settings import (
+    FileTransferSharedEnvFields,
+)
+from nova_runtime_support.transfer_limits import (
+    DEFAULT_POLICY_ID,
+    DEFAULT_POLICY_VERSION,
+    MULTIPART_THRESHOLD_MIN_BYTES,
+    RESUMABLE_TTL_MAX_SECONDS,
+    RESUMABLE_TTL_MIN_SECONDS,
+    TARGET_UPLOAD_PART_COUNT_MAX,
+    TARGET_UPLOAD_PART_COUNT_MIN,
+)
 
 _MSG_PRODUCTION_CORS_REQUIRES_ALLOWED_ORIGINS = (
     "ALLOWED_ORIGINS must be configured for production deployments"
@@ -78,7 +90,7 @@ def _parse_string_tuple(value: object) -> tuple[str, ...]:
     )
 
 
-class Settings(BaseSettings):
+class Settings(FileTransferSharedEnvFields, BaseSettings):
     """Runtime settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
@@ -110,22 +122,6 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="FILE_TRANSFER_ENABLED",
     )
-    file_transfer_bucket: str = Field(
-        default="",
-        validation_alias="FILE_TRANSFER_BUCKET",
-    )
-    file_transfer_upload_prefix: str = Field(
-        default="uploads/",
-        validation_alias="FILE_TRANSFER_UPLOAD_PREFIX",
-    )
-    file_transfer_export_prefix: str = Field(
-        default="exports/",
-        validation_alias="FILE_TRANSFER_EXPORT_PREFIX",
-    )
-    file_transfer_tmp_prefix: str = Field(
-        default="tmp/",
-        validation_alias="FILE_TRANSFER_TMP_PREFIX",
-    )
     file_transfer_presign_upload_ttl_seconds: int = Field(
         default=1800,
         validation_alias="FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
@@ -141,44 +137,20 @@ class Settings(BaseSettings):
     file_transfer_multipart_threshold_bytes: int = Field(
         default=100 * 1024 * 1024,
         validation_alias="FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
-        ge=5 * 1024 * 1024,
-    )
-    file_transfer_part_size_bytes: int = Field(
-        default=128 * 1024 * 1024,
-        validation_alias="FILE_TRANSFER_PART_SIZE_BYTES",
-        ge=5 * 1024 * 1024,
-        le=5 * 1024 * 1024 * 1024,
-    )
-    file_transfer_export_copy_part_size_bytes: int = Field(
-        default=2 * 1024 * 1024 * 1024,
-        validation_alias="FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
-        ge=1 * 1024 * 1024 * 1024,
-        le=5 * 1024 * 1024 * 1024,
-    )
-    file_transfer_export_copy_max_concurrency: int = Field(
-        default=8,
-        validation_alias="FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
-        ge=1,
-        le=32,
-    )
-    file_transfer_max_concurrency: int = Field(
-        default=4,
-        validation_alias="FILE_TRANSFER_MAX_CONCURRENCY",
-        ge=1,
-        le=32,
+        ge=MULTIPART_THRESHOLD_MIN_BYTES,
     )
     file_transfer_target_upload_part_count: int = Field(
         default=2000,
         validation_alias="FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
-        ge=1,
-        le=10_000,
+        ge=TARGET_UPLOAD_PART_COUNT_MIN,
+        le=TARGET_UPLOAD_PART_COUNT_MAX,
     )
     file_transfer_policy_id: str = Field(
-        default="default",
+        default=DEFAULT_POLICY_ID,
         validation_alias="FILE_TRANSFER_POLICY_ID",
     )
     file_transfer_policy_version: str = Field(
-        default="2026-04-03",
+        default=DEFAULT_POLICY_VERSION,
         validation_alias="FILE_TRANSFER_POLICY_VERSION",
     )
     file_transfer_active_multipart_upload_limit: int | None = Field(
@@ -199,8 +171,8 @@ class Settings(BaseSettings):
     file_transfer_resumable_window_seconds: int = Field(
         default=7 * 24 * 60 * 60,
         validation_alias="FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
-        ge=60,
-        le=30 * 24 * 60 * 60,
+        ge=RESUMABLE_TTL_MIN_SECONDS,
+        le=RESUMABLE_TTL_MAX_SECONDS,
     )
     file_transfer_checksum_algorithm: str | None = Field(
         default=None,
@@ -211,23 +183,6 @@ class Settings(BaseSettings):
             default="none",
             validation_alias="FILE_TRANSFER_CHECKSUM_MODE",
         )
-    )
-    file_transfer_upload_sessions_table: str | None = Field(
-        default=None,
-        validation_alias="FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
-    )
-    file_transfer_usage_table: str | None = Field(
-        default=None,
-        validation_alias="FILE_TRANSFER_USAGE_TABLE",
-    )
-    file_transfer_use_accelerate_endpoint: bool = Field(
-        default=False,
-        validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
-    )
-    file_transfer_large_export_worker_threshold_bytes: int = Field(
-        default=50 * 1024 * 1024 * 1024,
-        validation_alias="FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
-        ge=5 * 1024 * 1024 * 1024,
     )
     file_transfer_policy_appconfig_application: str | None = Field(
         default=None,
@@ -411,11 +366,14 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_multipart_upload_capacity(self) -> Settings:
         """Ensure max upload bytes can be represented with multipart parts."""
-        max_supported_upload_bytes = self.file_transfer_part_size_bytes * 10_000
+        max_supported_upload_bytes = (
+            self.file_transfer_part_size_bytes * TARGET_UPLOAD_PART_COUNT_MAX
+        )
         if self.max_upload_bytes > max_supported_upload_bytes:
             raise ValueError(
                 "FILE_TRANSFER_MAX_UPLOAD_BYTES must be less than or equal to "
-                "FILE_TRANSFER_PART_SIZE_BYTES * 10000"
+                "FILE_TRANSFER_PART_SIZE_BYTES * "
+                f"{TARGET_UPLOAD_PART_COUNT_MAX}"
             )
         return self
 

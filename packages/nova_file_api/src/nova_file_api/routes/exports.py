@@ -18,7 +18,6 @@ from nova_file_api.errors import forbidden
 from nova_file_api.exports import ExportService
 from nova_file_api.guarded_mutation import run_guarded_mutation
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     CreateExportRequest,
     ErrorEnvelope,
@@ -41,7 +40,8 @@ from nova_file_api.routes.common import (
     emit_request_metric,
     validated_idempotency_key,
 )
-from nova_runtime_support import request_id_from_request
+from nova_runtime_support.http import request_id_from_request
+from nova_runtime_support.metrics import MetricsCollector
 
 exports_router = APIRouter(
     prefix="/v1",

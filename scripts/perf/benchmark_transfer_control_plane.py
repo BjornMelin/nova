@@ -41,10 +41,10 @@ from nova_file_api.exports import (
     MemoryExportPublisher,
     MemoryExportRepository,
 )
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import Principal
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_runtime_support.metrics import MetricsCollector
 from scripts.perf.file_transfer_observability_baseline import (
     CURRENT_MAX_UPLOAD_BYTES,
     summarize_latency,

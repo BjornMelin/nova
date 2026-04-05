@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Any, cast
 
 import pytest
 import structlog
@@ -17,7 +18,6 @@ from structlog.testing import CapturingLogger
 from nova_runtime_support.http import (
     CanonicalErrorSpec,
     RequestContextASGIMiddleware,
-    RequestContextFastAPI,
     canonical_error_spec_from_error,
     register_fastapi_exception_handlers,
 )
@@ -80,7 +80,8 @@ def _internal_error_spec(_: Exception) -> CanonicalErrorSpec:
 
 def _build_test_app() -> FastAPI:
     """Create a FastAPI app using the shared middleware and handlers."""
-    app = RequestContextFastAPI()
+    app = FastAPI()
+    app.add_middleware(cast(Any, RequestContextASGIMiddleware))
     register_fastapi_exception_handlers(
         app,
         domain_error_type=DemoError,
@@ -166,6 +167,29 @@ def test_shared_middleware_generates_request_id_when_missing() -> None:
     request_id = response.headers["X-Request-Id"]
     assert request_id
     assert response.json() == {"request_id": request_id}
+
+
+def test_shared_middleware_clears_stale_contextvars_before_binding() -> None:
+    """Request-scoped context should not inherit stale pre-bound values."""
+    structlog.contextvars.bind_contextvars(leaked="stale")
+    app = _build_test_app()
+
+    @app.get("/context")
+    async def context() -> dict[str, str]:
+        return {
+            key: str(value)
+            for key, value in structlog.contextvars.get_contextvars().items()
+        }
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/context",
+            headers={"X-Request-Id": "req-context"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"request_id": "req-context"}
+    structlog.contextvars.clear_contextvars()
 
 
 def test_shared_handlers_attach_request_id_to_domain_errors() -> None:
@@ -314,10 +338,8 @@ async def test_request_context_middleware_skips_info_after_error(
     assert {call.method_name for call in logger.calls} == {"exception"}
 
 
-def test_request_context_fastapi_initializes_request_context_wrapper_once(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Reuse one ASGI middleware instance in FastAPI constructor."""
+def test_request_context_asgi_middleware_registers_with_fastapi_once() -> None:
+    """FastAPI should construct the ASGI middleware once when registered."""
     init_count = 0
 
     class _CountingMiddleware(RequestContextASGIMiddleware):
@@ -326,11 +348,8 @@ def test_request_context_fastapi_initializes_request_context_wrapper_once(
             init_count += 1
             super().__init__(app)
 
-    monkeypatch.setattr(
-        "nova_runtime_support.http.RequestContextASGIMiddleware",
-        _CountingMiddleware,
-    )
-    app = RequestContextFastAPI()
+    app = FastAPI()
+    app.add_middleware(cast(Any, _CountingMiddleware))
 
     @app.get("/ping")
     async def ping() -> dict[str, str]:

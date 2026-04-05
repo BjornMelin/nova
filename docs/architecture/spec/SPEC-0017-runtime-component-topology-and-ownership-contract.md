@@ -23,7 +23,7 @@ cross-package boundaries for the Nova monorepo.
 | Path | Canonical ownership |
 | --- | --- |
 | `packages/nova_file_api/` | File-transfer routes, export routes, capability/release endpoints, health/readiness, metrics summary, transfer/export/idempotency/activity orchestration, and canonical ASGI entrypoint |
-| `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, and async JWT verifier construction |
+| `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, shared metrics/logging setup, and shared transfer config contracts |
 | `packages/nova_dash_bridge/` | Browser/Dash uploader assets and component helpers over canonical Nova HTTP routes |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
 
@@ -31,31 +31,40 @@ cross-package boundaries for the Nova monorepo.
 
 1. Runtime HTTP contract ownership stays in the runtime packages plus
    `packages/contracts/openapi/**`.
-2. `nova_dash_bridge` is an adapter package. It may:
+2. `packages/nova_file_api/` owns the transfer/export/session/quota/copy domain
+   modules and persistence helpers used by both the API runtime and workflow
+   task handlers.
+3. `nova_dash_bridge` is an adapter package. It may:
    - ship packaged browser assets
    - render Dash component shells for browser-backed transfer flows
    - forward bearer auth context into canonical Nova HTTP requests
    - call canonical Nova services through generated or thin HTTP clients
-3. `nova_dash_bridge` must not:
+4. `nova_dash_bridge` must not:
    - provide FastAPI or Flask transfer-route adapters
    - define alternate endpoint paths
    - redefine Nova error envelopes
    - become the source of truth for auth policy or storage rules
    - recreate an in-process runtime seam inside the bridge package
-4. Runtime packages own process bootstrap; release-only service Dockerfiles must
+5. `packages/nova_workflows/` owns workflow settings and runtime assembly. It
+   may import pure transfer/export domain modules from `nova_file_api`, but it
+   must not import the API app factory, route modules, or shared HTTP
+   transport glue.
+6. Runtime packages own process bootstrap; release-only service Dockerfiles must
    stay outside workspace package paths so container-only edits do not trigger
    package version planning.
 
 ## 4. Runtime interaction contract
 
 1. `nova_file_api` may depend on `packages/contracts` artifacts.
-2. `nova_dash_bridge` depends on canonical runtime contracts through
+2. `nova_workflows` may depend on pure `nova_file_api` domain/runtime modules
+   for export execution, but not on API transport or route surfaces.
+3. `nova_dash_bridge` depends on canonical runtime contracts through
    generated Python SDK packages or direct HTTP integration, not on handwritten
    contract forks or direct runtime-internal imports.
-3. Standalone FastAPI apps that need canonical Nova request-id/error-envelope
+4. Standalone FastAPI apps that need canonical Nova request-id/error-envelope
    behavior must install `nova_runtime_support` directly; `nova_dash_bridge`
    does not own an embedded FastAPI route surface.
-4. Route literals remain governed by the canonical route-authority specs; this
+5. Route literals remain governed by the canonical route-authority specs; this
    spec governs where those routes are implemented and owned.
 
 ## 5. SDK and bridge relationship

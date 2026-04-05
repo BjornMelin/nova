@@ -25,7 +25,7 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
     UploadSessionStatus,
@@ -58,6 +58,9 @@ class _FakeS3Client:
         self.upload_part_copy_wait_event: asyncio.Event | None = None
         self.max_upload_part_copy_in_flight = 0
         self._upload_part_copy_in_flight = 0
+        self.presign_wait_event: asyncio.Event | None = None
+        self.max_presign_in_flight = 0
+        self._presign_in_flight = 0
 
     async def generate_presigned_url(
         self,
@@ -66,14 +69,24 @@ class _FakeS3Client:
         Params: dict[str, Any],
         ExpiresIn: int,
     ) -> str:
-        self.calls.append(
-            {
-                "ClientMethod": ClientMethod,
-                "Params": Params,
-                "ExpiresIn": ExpiresIn,
-            }
+        self._presign_in_flight += 1
+        self.max_presign_in_flight = max(
+            self.max_presign_in_flight,
+            self._presign_in_flight,
         )
-        return "https://example.local/presigned"
+        try:
+            if self.presign_wait_event is not None:
+                await self.presign_wait_event.wait()
+            self.calls.append(
+                {
+                    "ClientMethod": ClientMethod,
+                    "Params": Params,
+                    "ExpiresIn": ExpiresIn,
+                }
+            )
+            return "https://example.local/presigned"
+        finally:
+            self._presign_in_flight -= 1
 
     async def head_object(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
@@ -231,7 +244,7 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
     params = fake_s3.calls[0]["Params"]
     assert (
         params["ResponseContentDisposition"]
-        == 'attachment; filename="reportfinal.csv"'
+        == 'attachment; filename="report final.csv"'
     )
 
 
@@ -797,6 +810,61 @@ async def test_sign_parts_includes_checksum_header_when_required() -> None:
     )
 
     assert fake_s3.calls[-1]["Params"]["ChecksumSHA256"] == "part-checksum"
+
+
+@pytest.mark.anyio
+async def test_sign_parts_presigns_multiple_parts_concurrently() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+        FILE_TRANSFER_SIGN_BATCH_SIZE_HINT=10,
+    )
+    fake_s3 = _FakeS3Client()
+    fake_s3.presign_wait_event = asyncio.Event()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    sign_task = asyncio.create_task(
+        service.sign_parts(
+            request=SignPartsRequest(
+                key=initiated.key,
+                upload_id=initiated.upload_id or "",
+                part_numbers=[1, 2, 3],
+            ),
+            principal=_principal(),
+        )
+    )
+    try:
+        for _ in range(100):
+            if fake_s3.max_presign_in_flight >= 3:
+                break
+            await asyncio.sleep(0)
+
+        assert fake_s3.max_presign_in_flight == 3
+        fake_s3.presign_wait_event.set()
+        response = await sign_task
+    finally:
+        if (
+            fake_s3.presign_wait_event is not None
+            and not fake_s3.presign_wait_event.is_set()
+        ):
+            fake_s3.presign_wait_event.set()
+        if not sign_task.done():
+            sign_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sign_task
+
+    presign_calls = [
+        c for c in fake_s3.calls if c.get("ClientMethod") == "upload_part"
+    ]
+    assert len(presign_calls) == 3
+    assert set(response.urls.keys()) == {1, 2, 3}
 
 
 @pytest.mark.anyio

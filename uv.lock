@@ -1180,6 +1180,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "types-aiobotocore-s3" },
     { name = "types-python-dateutil" },
     { name = "types-pyyaml" },
 ]
@@ -1204,6 +1205,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.15.7" },
     { name = "ty", specifier = ">=0.0.25" },
+    { name = "types-aiobotocore-s3", specifier = "~=2.25.1" },
     { name = "types-python-dateutil", specifier = ">=2.9.0.20250516" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
 ]
@@ -1275,23 +1277,17 @@ name = "nova-runtime-support"
 version = "0.1.0"
 source = { editable = "packages/nova_runtime_support" }
 dependencies = [
-    { name = "aioboto3" },
-    { name = "botocore" },
     { name = "fastapi" },
     { name = "oidc-jwt-verifier" },
     { name = "pydantic" },
-    { name = "pydantic-settings" },
     { name = "structlog" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "aioboto3", specifier = ">=15.5.0,<16" },
-    { name = "botocore", specifier = ">=1.40.0,<2" },
     { name = "fastapi", specifier = ">=0.135.2" },
     { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
     { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
 
@@ -1317,6 +1313,9 @@ name = "nova-workflows"
 version = "0.1.0"
 source = { editable = "packages/nova_workflows" }
 dependencies = [
+    { name = "aioboto3" },
+    { name = "botocore" },
+    { name = "nova-file-api" },
     { name = "nova-runtime-support" },
     { name = "pydantic" },
     { name = "structlog" },
@@ -1324,6 +1323,9 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aioboto3", specifier = ">=15.5.0,<16" },
+    { name = "botocore", specifier = ">=1.40.0,<2" },
+    { name = "nova-file-api", editable = "packages/nova_file_api" },
     { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "structlog", specifier = ">=25.5.0" },
@@ -1950,6 +1952,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7e/e6/44e073787aa57cd71c151f44855232feb0f748428fd5242d7366e3c4ae8b/typer-0.23.0.tar.gz", hash = "sha256:d8378833e47ada5d3d093fa20c4c63427cc4e27127f6b349a6c359463087d8cc", size = 120181, upload-time = "2026-02-11T15:22:18.637Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/ed/d6fca788b51d0d4640c4bc82d0e85bad4b49809bca36bf4af01b4dcb66a7/typer-0.23.0-py3-none-any.whl", hash = "sha256:79f4bc262b6c37872091072a3cb7cb6d7d79ee98c0c658b4364bdcde3c42c913", size = 56668, upload-time = "2026-02-11T15:22:21.075Z" },
+]
+
+[[package]]
+name = "types-aiobotocore-s3"
+version = "2.25.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/c6/9bb91a44eed1114690edb15d8251f32392e355dfa0a5b8e1c190b4cf89a4/types_aiobotocore_s3-2.25.2.tar.gz", hash = "sha256:678aa425491af19bd6d011d59ecdbbb7ae7e95800efddcf4fd559ab72c94e194", size = 75955, upload-time = "2025-11-12T01:52:06.536Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b4/0a/d0d9faefd7caa8536eb97647c38c711e73ab83341a65119d08c2cb20957d/types_aiobotocore_s3-2.25.2-py3-none-any.whl", hash = "sha256:151301e84bb2f1cbf30f0d1ef791bb75c141cfbfe47b93fd317b7f1ba3eb35e4", size = 83626, upload-time = "2025-11-12T01:52:04.763Z" },
 ]
 
 [[package]]

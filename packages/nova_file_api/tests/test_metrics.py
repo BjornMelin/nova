@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 
 def test_emit_emf_writes_valid_payload_with_bounded_dimensions() -> None:

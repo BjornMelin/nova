@@ -63,6 +63,7 @@ class RequestContextASGIMiddleware:
         request = StarletteRequest(scope)
         request_id = _request_id_from_headers(request.headers)
         request.state.request_id = request_id
+        structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=request_id)
 
         logger = structlog.get_logger("http")
@@ -104,27 +105,7 @@ class RequestContextASGIMiddleware:
                     outcome="ok" if status_code < 400 else "error",
                     latency_ms=round(latency_ms, 3),
                 )
-            structlog.contextvars.unbind_contextvars("request_id")
-
-
-class RequestContextFastAPI(FastAPI):
-    """FastAPI application wrapper that applies request context at the edge."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Set up shared request-context middleware."""
-        super().__init__(*args, **kwargs)
-        self._request_context_middleware = RequestContextASGIMiddleware(
-            super().__call__,
-        )
-
-    async def __call__(
-        self,
-        scope: Scope,
-        receive: Receive,
-        send: Send,
-    ) -> None:
-        """Run the FastAPI app inside the shared request-context wrapper."""
-        await self._request_context_middleware(scope, receive, send)
+            structlog.contextvars.clear_contextvars()
 
 
 def register_fastapi_exception_handlers(
@@ -229,15 +210,19 @@ def _json_error_response(
     spec: CanonicalErrorSpec,
 ) -> JSONResponse:
     """Serialize one canonical error response for the current request."""
+    request_id = request_id_from_request(request=request)
+    headers = dict(spec.headers)
+    if request_id and _REQUEST_ID_HEADER not in headers:
+        headers[_REQUEST_ID_HEADER] = request_id
     return JSONResponse(
         status_code=spec.status_code,
         content=canonical_error_content(
             code=spec.code,
             message=spec.message,
             details=spec.details,
-            request_id=request_id_from_request(request=request),
+            request_id=request_id,
         ),
-        headers=dict(spec.headers),
+        headers=headers,
     )
 
 

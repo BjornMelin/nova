@@ -11,8 +11,8 @@ from typing import Any, Protocol, cast
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_runtime_support.transfer_usage import TransferUsageWindowRepository
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.transfer_usage import TransferUsageWindowRepository
+from nova_file_api.upload_sessions import (
     UploadSessionRecord,
     UploadSessionRepository,
     UploadSessionStatus,

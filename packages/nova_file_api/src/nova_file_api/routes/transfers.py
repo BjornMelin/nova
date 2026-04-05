@@ -15,7 +15,6 @@ from nova_file_api.dependencies import (
     TransferServiceDep,
 )
 from nova_file_api.guarded_mutation import run_guarded_mutation
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -47,6 +46,7 @@ from nova_file_api.routes.common import (
     emit_request_metric,
     validated_idempotency_key,
 )
+from nova_runtime_support.metrics import MetricsCollector
 
 transfer_router = APIRouter(
     prefix="/v1/transfers",

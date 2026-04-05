@@ -9,6 +9,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from nova_file_api.config import Settings
 
+from nova_runtime_support.transfer_limits import (
+    CLIENT_UPLOAD_MAX_PART_SIZE_BYTES,
+    CLIENT_UPLOAD_MIN_PART_SIZE_BYTES,
+    EXPORT_COPY_POLICY_MAX_PART_SIZE_BYTES,
+    EXPORT_COPY_POLICY_MIN_PART_SIZE_BYTES,
+    SIGN_BATCH_SIZE_HINT_MAX,
+)
+
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class TransferConfig:
@@ -51,13 +59,16 @@ class TransferConfig:
             size_bytes=size_bytes,
             preferred_part_size_bytes=self.part_size_bytes,
             target_part_count=self.target_upload_part_count,
-            minimum_part_size_bytes=64 * 1024 * 1024,
-            maximum_part_size_bytes=512 * 1024 * 1024,
+            minimum_part_size_bytes=CLIENT_UPLOAD_MIN_PART_SIZE_BYTES,
+            maximum_part_size_bytes=CLIENT_UPLOAD_MAX_PART_SIZE_BYTES,
         )
 
     def sign_batch_size_hint(self) -> int:
         """Return the recommended batch size for presigning multipart parts."""
-        return min(128, max(64, self.max_concurrency * 4))
+        return min(
+            SIGN_BATCH_SIZE_HINT_MAX,
+            max(64, self.max_concurrency * 4),
+        )
 
     def resumable_until(self, *, created_at: datetime) -> datetime:
         """Return the session expiry timestamp for one upload."""
@@ -74,8 +85,8 @@ class TransferConfig:
             size_bytes=size_bytes,
             preferred_part_size_bytes=self.export_copy_part_size_bytes,
             target_part_count=max(1, self.export_copy_max_concurrency * 2),
-            minimum_part_size_bytes=1 * 1024 * 1024 * 1024,
-            maximum_part_size_bytes=5 * 1024 * 1024 * 1024,
+            minimum_part_size_bytes=EXPORT_COPY_POLICY_MIN_PART_SIZE_BYTES,
+            maximum_part_size_bytes=EXPORT_COPY_POLICY_MAX_PART_SIZE_BYTES,
         )
 
 

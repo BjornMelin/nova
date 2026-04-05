@@ -7,13 +7,18 @@ import re
 import unicodedata
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-_MAX_MULTIPART_PARTS = 10_000
-_MIN_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024
-_MAX_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024
+from nova_runtime_support.transfer_limits import (
+    COPY_OBJECT_MAX_BYTES,
+    S3_MULTIPART_MAX_PART_SIZE_BYTES,
+    S3_MULTIPART_MAX_PARTS,
+    S3_MULTIPART_MIN_PART_SIZE_BYTES,
+)
 
 
-def _sanitize_filename(filename: str) -> str:
+def sanitize_filename(filename: str) -> str:
+    """Return one safe filename segment for S3 keys and Content-Disposition."""
     base_name = unicodedata.normalize("NFC", Path(filename).name)
     allowed_punct = frozenset({".", "-", "_", " "})
     out: list[str] = []
@@ -35,27 +40,29 @@ def _sanitize_filename(filename: str) -> str:
     return merged if merged else "file"
 
 
-def _multipart_copy_part_size_bytes(
+def multipart_copy_part_size_bytes(
     *,
     source_size_bytes: int,
     preferred_part_size_bytes: int,
 ) -> int:
+    """Compute MPU part size for server-side multipart copy."""
     return min(
-        _MAX_MULTIPART_PART_SIZE_BYTES,
+        S3_MULTIPART_MAX_PART_SIZE_BYTES,
         max(
             preferred_part_size_bytes,
-            _MIN_MULTIPART_PART_SIZE_BYTES,
-            math.ceil(source_size_bytes / _MAX_MULTIPART_PARTS),
+            S3_MULTIPART_MIN_PART_SIZE_BYTES,
+            math.ceil(source_size_bytes / S3_MULTIPART_MAX_PARTS),
         ),
     )
 
 
-def _multipart_copy_create_upload_kwargs(
+def multipart_copy_create_upload_kwargs(
     *,
     bucket: str,
     key: str,
     source_object: dict[str, Any],
 ) -> dict[str, Any]:
+    """Build kwargs for CreateMultipartUpload from a source object."""
     kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
     for field in (
         "CacheControl",
@@ -75,6 +82,24 @@ def _multipart_copy_create_upload_kwargs(
     return kwargs
 
 
+def build_export_object_key(
+    *,
+    export_prefix: str,
+    scope_id: str,
+    export_id: str,
+    filename: str,
+) -> str:
+    """Build a stable export object key for a pre-sanitized filename."""
+    stable_export_id = "".join(
+        character
+        for character in export_id.strip()
+        if character.isalnum() or character in {"-", "_"}
+    )
+    if not stable_export_id:
+        stable_export_id = uuid4().hex
+    return f"{export_prefix}{scope_id}/{stable_export_id}/{filename}"
+
+
 def _source_checksum_algorithm(
     source_object: dict[str, Any],
 ) -> str | None:
@@ -89,3 +114,12 @@ def _source_checksum_algorithm(
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return None
+
+
+__all__ = [
+    "COPY_OBJECT_MAX_BYTES",
+    "build_export_object_key",
+    "multipart_copy_create_upload_kwargs",
+    "multipart_copy_part_size_bytes",
+    "sanitize_filename",
+]

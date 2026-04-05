@@ -7,24 +7,23 @@ import json
 from contextlib import AsyncExitStack
 from typing import Any, cast
 
+import aioboto3
 import structlog
 from botocore.config import Config
 
-from nova_runtime_support.aws import new_aioboto3_session
-from nova_runtime_support.export_copy_worker import ExportCopyTaskMessage
-from nova_runtime_support.transfer_reconciliation import (
+from nova_file_api.export_copy_worker import ExportCopyTaskMessage
+from nova_file_api.transfer_reconciliation import (
     TransferReconciliationConfig,
     TransferReconciliationService,
 )
-from nova_runtime_support.transfer_usage import (
+from nova_file_api.transfer_usage import (
     DynamoResource as TransferUsageDynamoResource,
-    build_transfer_usage_repository,
+    build_transfer_usage_window_repository,
 )
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.upload_sessions import (
     DynamoResource as UploadSessionDynamoResource,
     build_upload_session_repository,
 )
-from nova_runtime_support.workflow_config import WorkflowSettings
 from nova_workflows.models import ExportWorkflowInput
 from nova_workflows.runtime import export_services, workflow_services
 from nova_workflows.tasks import (
@@ -36,6 +35,7 @@ from nova_workflows.tasks import (
     start_queued_export_copy,
     validate_export,
 )
+from nova_workflows.workflow_config import WorkflowSettings
 
 _LOGGER = structlog.get_logger("nova_workflows.handlers")
 
@@ -232,7 +232,7 @@ async def _fail_export(*, event: dict[str, Any]) -> dict[str, Any]:
 async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
     del event
     settings = WorkflowSettings()
-    session = new_aioboto3_session()
+    session = aioboto3.Session()
     s3_config = Config(
         s3={
             "use_accelerate_endpoint": (
@@ -255,7 +255,7 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
             ),
             enabled=True,
         )
-        transfer_usage_repository = build_transfer_usage_repository(
+        transfer_usage_repository = build_transfer_usage_window_repository(
             table_name=settings.file_transfer_usage_table,
             dynamodb_resource=cast(
                 TransferUsageDynamoResource | None,

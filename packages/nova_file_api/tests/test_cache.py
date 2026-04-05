@@ -7,7 +7,7 @@ from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import build_runtime_deps, build_test_app
 
@@ -151,8 +151,8 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
         app.state.idempotency_store = object()
 
     monkeypatch.setattr(
-        app_module,
-        "new_aioboto3_session",
+        app_module.aioboto3,
+        "Session",
         lambda: _FakeSession(),
     )
     monkeypatch.setattr(
@@ -212,8 +212,8 @@ async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
         app.state.idempotency_store = object()
 
     monkeypatch.setattr(
-        app_module,
-        "new_aioboto3_session",
+        app_module.aioboto3,
+        "Session",
         lambda: _FakeSession(),
     )
     monkeypatch.setattr(
@@ -244,8 +244,8 @@ async def test_runtime_app_lifespan_rejects_partial_appconfig_configuration(
     import nova_file_api.app as app_module
 
     monkeypatch.setattr(
-        app_module,
-        "new_aioboto3_session",
+        app_module.aioboto3,
+        "Session",
         lambda: _FakeSession(),
     )
 
