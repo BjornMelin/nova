@@ -211,7 +211,7 @@ Toolchain baseline notes:
 - Current runtime dependency floors are manifest-owned authority:
   `anyio>=4.13.0`, `fastapi>=0.135.3`, `pydantic-settings>=2.13.1`, and
   `mangum>=0.21.0` in `nova-file-api`, `fastapi>=0.135.3` in
-  `nova-runtime-support`, `dash>=4.1.0,<5.0.0` in `nova-dash-bridge`,
+  `nova-runtime-support`, `dash>=3.0.0,<5.0.0` in `nova-dash-bridge`,
   the `attrs>=25.4.0,<26.0` compatibility window in `nova-sdk-py` while the
   current CDK/jsii toolchain still caps `attrs<26`, and the async AWS
   compatibility hold `aioboto3>=15.5.0,<16` plus

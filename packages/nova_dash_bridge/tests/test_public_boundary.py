@@ -53,7 +53,7 @@ def test_browser_only_packaging_contract() -> None:
 
     assert dependencies == []
     assert set(extras) == {"dash"}
-    assert extras["dash"] == ["dash>=4.1.0,<5.0.0"]
+    assert extras["dash"] == ["dash>=3.0.0,<5.0.0"]
 
 
 def test_public_exports_are_browser_only() -> None:

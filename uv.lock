@@ -1247,7 +1247,7 @@ dash = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "dash", marker = "extra == 'dash'", specifier = ">=4.1.0,<5.0.0" }]
+requires-dist = [{ name = "dash", marker = "extra == 'dash'", specifier = ">=3.0.0,<5.0.0" }]
 provides-extras = ["dash"]
 
 [[package]]
