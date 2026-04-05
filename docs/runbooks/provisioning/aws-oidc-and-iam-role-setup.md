@@ -101,5 +101,5 @@ should be removed after the AWS-native release path is verified.
 3. The CodeBuild release role can deploy the runtime stacks and only pass the
    approved CloudFormation execution roles.
 4. The CloudFormation execution roles are trusted only by CloudFormation and
-   own the Route 53/API Gateway/WAF/Lambda/Step Functions mutations for the
-   runtime stacks.
+   own the Route 53/API Gateway/WAF/Lambda/Step Functions/AppConfig/SNS/SQS/
+   budgets mutations for the runtime stacks.

@@ -34,6 +34,14 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from nova_runtime_support.transfer_limits import (
+    DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT,
+    DEFAULT_DAILY_INGRESS_BUDGET_BYTES,
+    DEFAULT_POLICY_ID,
+    DEFAULT_POLICY_VERSION,
+    DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT,
+    DEFAULT_TARGET_UPLOAD_PART_COUNT,
+)
 from nova_runtime_support.transfer_policy_document import (
     TransferPolicyDocument,
 )
@@ -51,6 +59,9 @@ from .ingress import create_regional_rest_ingress
 from .observability import add_alarm_actions, create_alarm_topic
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+_APPCONFIG_MANAGED_BY_TAG_KEY = "NovaManagedBy"
+_APPCONFIG_MANAGED_BY_TAG_VALUE = "nova-runtime-stack"
+_APPCONFIG_ENVIRONMENT_TAG_KEY = "NovaDeploymentEnvironment"
 
 
 def _parse_allowed_origins(raw: object | None) -> list[str]:
@@ -198,11 +209,11 @@ def _storage_lens_configuration_id(
 def _default_transfer_policy_document() -> TransferPolicyDocument:
     """Return the default AppConfig transfer policy payload."""
     return TransferPolicyDocument(
-        policy_id="default",
-        policy_version="2026-04-03",
+        policy_id=DEFAULT_POLICY_ID,
+        policy_version=DEFAULT_POLICY_VERSION,
         max_upload_bytes=536_870_912_000,
         multipart_threshold_bytes=100 * 1024 * 1024,
-        target_upload_part_count=2000,
+        target_upload_part_count=DEFAULT_TARGET_UPLOAD_PART_COUNT,
         upload_part_size_bytes=128 * 1024 * 1024,
         max_concurrency_hint=4,
         sign_batch_size_hint=64,
@@ -210,11 +221,118 @@ def _default_transfer_policy_document() -> TransferPolicyDocument:
         checksum_algorithm=None,
         checksum_mode="none",
         resumable_ttl_seconds=7 * 24 * 60 * 60,
-        active_multipart_upload_limit=200,
-        daily_ingress_budget_bytes=1024 * 1024 * 1024 * 1024,
-        sign_requests_per_upload_limit=512,
+        active_multipart_upload_limit=DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT,
+        daily_ingress_budget_bytes=DEFAULT_DAILY_INGRESS_BUDGET_BYTES,
+        sign_requests_per_upload_limit=DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT,
         large_export_worker_threshold_bytes=50 * 1024 * 1024 * 1024,
     )
+
+
+def _appconfig_resource_tags(
+    deployment_environment: str,
+) -> list[dict[str, str]]:
+    """Return stable tags for runtime-managed AppConfig resources."""
+    return [
+        {
+            "key": _APPCONFIG_MANAGED_BY_TAG_KEY,
+            "value": _APPCONFIG_MANAGED_BY_TAG_VALUE,
+        },
+        {
+            "key": _APPCONFIG_ENVIRONMENT_TAG_KEY,
+            "value": deployment_environment,
+        },
+    ]
+
+
+def _runtime_alarm_name(
+    *,
+    deployment_environment: str,
+    suffix: str,
+) -> str:
+    """Return one stable CloudWatch alarm name."""
+    return f"nova-{deployment_environment}-{suffix}"
+
+
+def _runtime_alarm_names(deployment_environment: str) -> dict[str, str]:
+    """Return the CloudWatch alarm names used by the runtime stack."""
+    return {
+        "api_lambda_errors": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="api-lambda-errors",
+        ),
+        "api_lambda_throttles": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="api-lambda-throttles",
+        ),
+        "api_gateway_5xx": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="api-gateway-5xx",
+        ),
+        "api_latency": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="api-gateway-latency",
+        ),
+        "workflow_task_throttles": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="workflow-task-throttles",
+        ),
+        "export_workflow_failures": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="export-workflow-failures",
+        ),
+        "export_workflow_timeouts": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="export-workflow-timeouts",
+        ),
+        "exports_table_throttles": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="exports-table-throttles",
+        ),
+        "upload_sessions_table_throttles": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="upload-sessions-table-throttles",
+        ),
+        "transfer_usage_table_throttles": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="transfer-usage-table-throttles",
+        ),
+        "upload_sessions_stale": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="upload-sessions-stale",
+        ),
+        "export_copy_worker_dlq": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="export-copy-worker-dlq",
+        ),
+        "export_copy_worker_queue_age": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="export-copy-worker-queue-age",
+        ),
+        "stale_multipart_upload_bytes": _runtime_alarm_name(
+            deployment_environment=deployment_environment,
+            suffix="stale-multipart-upload-bytes",
+        ),
+    }
+
+
+def _export_copy_worker_queue_name(deployment_environment: str) -> str:
+    """Return the stable queued export-copy worker queue name."""
+    return f"nova-export-copy-worker-{deployment_environment}"
+
+
+def _export_copy_worker_dlq_name(deployment_environment: str) -> str:
+    """Return the stable queued export-copy worker DLQ name."""
+    return f"nova-export-copy-worker-dlq-{deployment_environment}"
+
+
+def _observability_dashboard_name(deployment_environment: str) -> str:
+    """Return the stable CloudWatch dashboard name."""
+    return f"nova-runtime-observability-{deployment_environment}"
+
+
+def _transfer_spend_budget_name(deployment_environment: str) -> str:
+    """Return the stable transfer budget name."""
+    return f"nova-transfer-{deployment_environment}"
 
 
 def _parse_bool_flag(
@@ -632,9 +750,17 @@ class NovaRuntimeStack(Stack):
         export_copy_worker_attempts = 5
         export_copy_worker_lease_seconds = 30 * 60
         export_copy_max_concurrency = 8
+        if inputs.workflow_reserved_concurrency is not None:
+            export_copy_max_concurrency = min(
+                export_copy_max_concurrency,
+                inputs.workflow_reserved_concurrency,
+            )
         export_copy_dlq = sqs.Queue(
             self,
             "ExportCopyWorkerDlq",
+            queue_name=_export_copy_worker_dlq_name(
+                inputs.deployment_environment
+            ),
             retention_period=Duration.days(14),
             encryption=sqs.QueueEncryption.SQS_MANAGED,
             enforce_ssl=True,
@@ -642,6 +768,9 @@ class NovaRuntimeStack(Stack):
         export_copy_queue = sqs.Queue(
             self,
             "ExportCopyWorkerQueue",
+            queue_name=_export_copy_worker_queue_name(
+                inputs.deployment_environment
+            ),
             dead_letter_queue=sqs.DeadLetterQueue(
                 queue=export_copy_dlq,
                 max_receive_count=export_copy_worker_attempts,
@@ -696,6 +825,7 @@ class NovaRuntimeStack(Stack):
             "TransferPolicyApplication",
             name=f"nova-transfer-policy-{inputs.deployment_environment}",
             description="Nova transfer control-plane policy",
+            tags=_appconfig_resource_tags(inputs.deployment_environment),
         )
         transfer_policy_environment = appconfig.CfnEnvironment(
             self,
@@ -703,6 +833,7 @@ class NovaRuntimeStack(Stack):
             application_id=transfer_policy_application.ref,
             name=inputs.deployment_environment,
             description="Nova runtime environment",
+            tags=_appconfig_resource_tags(inputs.deployment_environment),
         )
         transfer_policy_profile = appconfig.CfnConfigurationProfile(
             self,
@@ -710,14 +841,15 @@ class NovaRuntimeStack(Stack):
             application_id=transfer_policy_application.ref,
             location_uri="hosted",
             name="transfer-policy",
+            tags=_appconfig_resource_tags(inputs.deployment_environment),
             type="AWS.Freeform",
             validators=[
-                {
-                    "Type": "JSON_SCHEMA",
-                    "Content": json.dumps(
+                appconfig.CfnConfigurationProfile.ValidatorsProperty(
+                    type="JSON_SCHEMA",
+                    content=json.dumps(
                         TransferPolicyDocument.model_json_schema()
                     ),
-                }
+                )
             ],
         )
         transfer_policy_version = appconfig.CfnHostedConfigurationVersion(
@@ -740,6 +872,7 @@ class NovaRuntimeStack(Stack):
             growth_factor=50,
             growth_type="LINEAR",
             replicate_to="NONE",
+            tags=_appconfig_resource_tags(inputs.deployment_environment),
         )
         transfer_policy_deployment = appconfig.CfnDeployment(
             self,
@@ -750,6 +883,7 @@ class NovaRuntimeStack(Stack):
             deployment_strategy_id=transfer_policy_strategy.ref,
             description="Deploy Nova transfer policy",
             environment_id=transfer_policy_environment.ref,
+            tags=_appconfig_resource_tags(inputs.deployment_environment),
         )
         transfer_policy_deployment.node.add_dependency(transfer_policy_version)
         transfer_policy_deployment.node.add_dependency(
@@ -1359,16 +1493,11 @@ class NovaRuntimeStack(Stack):
             self,
             deployment_environment=inputs.deployment_environment,
         )
-        alarm_topic.add_to_resource_policy(
-            iam.PolicyStatement(
-                principals=[iam.ServicePrincipal("budgets.amazonaws.com")],
-                actions=["sns:Publish"],
-                resources=[alarm_topic.topic_arn],
-            )
-        )
+        alarm_names = _runtime_alarm_names(inputs.deployment_environment)
         api_lambda_errors_alarm = cloudwatch.Alarm(
             self,
             "ApiLambdaErrorsAlarm",
+            alarm_name=alarm_names["api_lambda_errors"],
             metric=api_function.metric_errors(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
@@ -1378,6 +1507,7 @@ class NovaRuntimeStack(Stack):
         api_lambda_throttles_alarm = cloudwatch.Alarm(
             self,
             "ApiLambdaThrottlesAlarm",
+            alarm_name=alarm_names["api_lambda_throttles"],
             metric=api_function.metric_throttles(
                 period=Duration.minutes(5),
             ),
@@ -1389,6 +1519,7 @@ class NovaRuntimeStack(Stack):
         api_gateway_5xx_alarm = cloudwatch.Alarm(
             self,
             "ApiGateway5xxAlarm",
+            alarm_name=alarm_names["api_gateway_5xx"],
             metric=ingress.rest_api.metric_server_error(
                 period=Duration.minutes(5),
             ),
@@ -1400,6 +1531,7 @@ class NovaRuntimeStack(Stack):
         api_latency_alarm = cloudwatch.Alarm(
             self,
             "ApiGatewayLatencyAlarm",
+            alarm_name=alarm_names["api_latency"],
             metric=ingress.rest_api.metric_latency(
                 period=Duration.minutes(5),
                 statistic="p95",
@@ -1412,6 +1544,7 @@ class NovaRuntimeStack(Stack):
         workflow_task_throttles_alarm = cloudwatch.Alarm(
             self,
             "WorkflowTaskThrottlesAlarm",
+            alarm_name=alarm_names["workflow_task_throttles"],
             metric=cloudwatch.MathExpression(
                 expression=(
                     "validate + prepare + copy + start + poll + "
@@ -1453,6 +1586,7 @@ class NovaRuntimeStack(Stack):
         export_workflow_failures_alarm = cloudwatch.Alarm(
             self,
             "ExportWorkflowFailuresAlarm",
+            alarm_name=alarm_names["export_workflow_failures"],
             metric=state_machine.metric_failed(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
@@ -1462,6 +1596,7 @@ class NovaRuntimeStack(Stack):
         export_workflow_timeouts_alarm = cloudwatch.Alarm(
             self,
             "ExportWorkflowTimeoutsAlarm",
+            alarm_name=alarm_names["export_workflow_timeouts"],
             metric=state_machine.metric_timed_out(period=Duration.minutes(5)),
             threshold=1,
             evaluation_periods=1,
@@ -1471,6 +1606,7 @@ class NovaRuntimeStack(Stack):
         exports_table_throttles_alarm = cloudwatch.Alarm(
             self,
             "ExportsTableThrottlesAlarm",
+            alarm_name=alarm_names["exports_table_throttles"],
             metric=cloudwatch.MathExpression(
                 expression="get_item + put_item + query",
                 period=Duration.minutes(5),
@@ -1503,6 +1639,7 @@ class NovaRuntimeStack(Stack):
         upload_sessions_table_throttles_alarm = cloudwatch.Alarm(
             self,
             "UploadSessionsTableThrottlesAlarm",
+            alarm_name=alarm_names["upload_sessions_table_throttles"],
             metric=cloudwatch.MathExpression(
                 expression="get_item + put_item + query",
                 period=Duration.minutes(5),
@@ -1537,6 +1674,7 @@ class NovaRuntimeStack(Stack):
         transfer_usage_table_throttles_alarm = cloudwatch.Alarm(
             self,
             "TransferUsageTableThrottlesAlarm",
+            alarm_name=alarm_names["transfer_usage_table_throttles"],
             metric=cloudwatch.MathExpression(
                 expression="get_item + update_item",
                 period=Duration.minutes(5),
@@ -1565,6 +1703,7 @@ class NovaRuntimeStack(Stack):
         upload_sessions_stale_alarm = cloudwatch.Alarm(
             self,
             "UploadSessionsStaleAlarm",
+            alarm_name=alarm_names["upload_sessions_stale"],
             metric=cloudwatch.Metric(
                 namespace="NovaFileApi",
                 metric_name="upload_sessions_stale",
@@ -1583,6 +1722,7 @@ class NovaRuntimeStack(Stack):
         export_copy_worker_dlq_alarm = cloudwatch.Alarm(
             self,
             "ExportCopyWorkerDlqAlarm",
+            alarm_name=alarm_names["export_copy_worker_dlq"],
             metric=export_copy_dlq.metric_approximate_number_of_messages_visible(
                 period=Duration.minutes(5)
             ),
@@ -1596,6 +1736,7 @@ class NovaRuntimeStack(Stack):
         export_copy_worker_queue_age_alarm = cloudwatch.Alarm(
             self,
             "ExportCopyWorkerQueueAgeAlarm",
+            alarm_name=alarm_names["export_copy_worker_queue_age"],
             metric=export_copy_queue.metric_approximate_age_of_oldest_message(
                 period=Duration.minutes(5)
             ),
@@ -1670,6 +1811,7 @@ class NovaRuntimeStack(Stack):
         stale_mpu_bytes_alarm = cloudwatch.Alarm(
             self,
             "StaleMultipartUploadBytesAlarm",
+            alarm_name=alarm_names["stale_multipart_upload_bytes"],
             metric=cloudwatch.Metric(
                 namespace="AWS/S3/Storage-Lens",
                 metric_name="IncompleteMPUStorageBytesOlderThan7Days",
@@ -1687,7 +1829,9 @@ class NovaRuntimeStack(Stack):
             treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
         )
         add_alarm_actions(alarms=[stale_mpu_bytes_alarm], topic=alarm_topic)
-        transfer_budget_name = f"nova-transfer-{inputs.deployment_environment}"
+        transfer_budget_name = _transfer_spend_budget_name(
+            inputs.deployment_environment
+        )
         budgets.CfnBudget(
             self,
             "TransferSpendBudget",
@@ -1737,8 +1881,8 @@ class NovaRuntimeStack(Stack):
         observability_dashboard = cloudwatch.Dashboard(
             self,
             "NovaRuntimeObservabilityDashboard",
-            dashboard_name=(
-                f"nova-runtime-observability-{inputs.deployment_environment}"
+            dashboard_name=_observability_dashboard_name(
+                inputs.deployment_environment
             ),
         )
         api_concurrency_metric = api_function.metric(

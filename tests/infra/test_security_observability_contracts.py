@@ -31,15 +31,15 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     alarms = resources_of_type(resources, "AWS::CloudWatch::Alarm")
 
     assert alarms
-    topics = resources_of_type(resources, "AWS::SNS::Topic")
-    assert len(topics) == 1
-    topic_logical_id = next(iter(topics))
+    topic_ensures = resources_of_type(resources, "Custom::AWS")
+    assert len(topic_ensures) == 1
+    topic_logical_id = next(iter(topic_ensures))
     topic_output = template_json["Outputs"]["ExportNovaAlarmTopicArn"]["Value"]
-    assert topic_output == {"Ref": topic_logical_id}
+    assert topic_output == {"Fn::GetAtt": [topic_logical_id, "TopicArn"]}
     for resource in alarms.values():
         alarm_actions = resource["Properties"]["AlarmActions"]
         assert alarm_actions
-        assert alarm_actions == [{"Ref": topic_logical_id}]
+        assert alarm_actions == [{"Fn::GetAtt": [topic_logical_id, "TopicArn"]}]
 
     outputs = template_json["Outputs"]
     assert "ExportNovaAlarmTopicArn" in outputs
@@ -70,9 +70,8 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
         == "aws-waf-logs-nova-rest-api-dev"
     )
 
-    assert next(iter(topics.values()))["Properties"]["TopicName"] == (
-        "nova-runtime-alarms-dev"
-    )
+    topic_ensure = next(iter(topic_ensures.values()))["Properties"]
+    assert "nova-runtime-alarms-dev" in topic_ensure["Create"]
 
     topic_policies = resources_of_type(resources, "AWS::SNS::TopicPolicy")
     assert len(topic_policies) == 1
@@ -81,13 +80,11 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     ]
     statements = policy_document["Statement"]
     assert any(
-        statement["Principal"]["Service"] == "cloudwatch.amazonaws.com"
+        statement["Principal"]["Service"]
+        == ["budgets.amazonaws.com", "cloudwatch.amazonaws.com"]
         and statement["Action"] == "sns:Publish"
         for statement in statements
     )
-
-    custom_resources = resources_of_type(resources, "Custom::AWS")
-    assert not custom_resources
 
 
 def test_runtime_stack_adds_transfer_observability_dashboard() -> None:
@@ -171,7 +168,7 @@ def test_runtime_stack_adds_alarm_topic_email_subscriptions() -> None:
     assert endpoints == {"ops@example.com", "dev@example.com"}
     for resource in subscriptions.values():
         assert resource["Properties"]["Protocol"] == "email"
-        assert "Ref" in resource["Properties"]["TopicArn"]
+        assert "Fn::GetAtt" in resource["Properties"]["TopicArn"]
 
 
 def test_runtime_stack_filters_waf_logs_to_security_relevant_actions() -> None:

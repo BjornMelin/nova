@@ -146,8 +146,9 @@ uv run --package nova-cdk python app.py
   - one CloudFormation execution role for the prod runtime stack
   - both roles are trusted only by `cloudformation.amazonaws.com`
   - both roles attach a curated runtime-service policy set (CloudFormation,
-    API Gateway, Lambda, Step Functions, DynamoDB, S3, logs, EventBridge, WAF)
-    plus scoped IAM role-management actions for Nova runtime roles
+    API Gateway, Lambda, Step Functions, DynamoDB, S3, SNS, SQS, AppConfig,
+    budgets, CloudWatch, Route 53, logs, EventBridge, WAF) plus scoped IAM
+    role-management actions for Nova runtime roles
   - if `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
     `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` are both provided explicitly, the app
     skips `NovaReleaseSupportStack` and uses those role ARNs directly
