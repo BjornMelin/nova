@@ -118,9 +118,9 @@ uv run --package nova-cdk python app.py
 - Provide `api_domain_name` and `certificate_arn` for every synth, diff, and
   deploy. The canonical public ingress is one Regional REST API custom domain,
   and the default `execute-api` endpoint stays disabled.
-- Provide `hosted_zone_id` and `hosted_zone_name` for every runtime synth and
-  deploy so the stack can create the Route 53 alias record for the canonical
-  API custom domain.
+- Provide `hosted_zone_id` and `hosted_zone_name` for every runtime synth,
+  diff, and deploy so the stack can create the Route 53 alias record for the
+  canonical API custom domain.
 - Provide `api_lambda_artifact_bucket`, `api_lambda_artifact_key`, and
   `api_lambda_artifact_sha256` for every synth, diff, and deploy. CDK consumes
   an immutable API Lambda zip artifact from the release pipeline and no longer

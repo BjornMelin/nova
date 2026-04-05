@@ -22,7 +22,8 @@ cross-package boundaries for the Nova monorepo.
 
 | Path | Canonical ownership |
 | --- | --- |
-| `packages/nova_file_api/` | File-transfer routes, export routes, capability/release endpoints, health/readiness, metrics summary, transfer/export/idempotency/activity orchestration, and canonical ASGI entrypoint |
+| `packages/nova_file_api/` | File-transfer routes, export routes, capability/release endpoints, health/readiness, metrics summary, canonical ASGI entrypoint, and the transfer/export/session/quota/copy domain modules and persistence helpers consumed by API and workflow runtimes |
+| `packages/nova_workflows/` | Workflow settings, task-handler runtime assembly, and export orchestration over pure `nova_file_api` domain modules |
 | `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, shared metrics/logging setup, and shared transfer config contracts |
 | `packages/nova_dash_bridge/` | Browser/Dash uploader assets and component helpers over canonical Nova HTTP routes |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |

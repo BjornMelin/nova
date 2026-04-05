@@ -135,6 +135,8 @@ def test_release_support_stack_includes_runtime_service_permissions() -> None:
     assert '"Action": "budgets:*"' not in template_json
     assert '"Action": "cloudwatch:*"' not in template_json
     assert '"Action": "route53:*"' not in template_json
+    assert '"sns:*"' not in template_json
+    assert '"sqs:*"' not in template_json
 
 
 def test_release_support_stack_synthesizes_without_hosted_zone_input() -> None:

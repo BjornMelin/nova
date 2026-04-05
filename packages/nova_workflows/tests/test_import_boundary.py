@@ -16,11 +16,8 @@ def test_workflows_do_not_cross_api_boundary() -> None:
         "nova_file_api.export_copy_parts",
         "nova_file_api.export_copy_worker",
         "nova_file_api.export_models",
-        "nova_file_api.export_runtime",
         "nova_file_api.export_transfer",
-        "nova_file_api.transfer_reconciliation",
-        "nova_file_api.transfer_usage",
-        "nova_file_api.upload_sessions",
+        "nova_file_api.workflow_facade",
     }
     violations: list[str] = []
 

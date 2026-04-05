@@ -363,7 +363,7 @@
     var batchSize = Number.isFinite(hintedBatchSize) && hintedBatchSize > 0
       ? clampPositiveInt(hintedBatchSize, 32, 128)
       : configuredBatchSize > 0
-        ? configuredBatchSize
+        ? clampPositiveInt(configuredBatchSize, 32, 128)
         : clampPositiveInt(
           Math.max(64, maxConcurrency * 4),
           32,

@@ -23,6 +23,11 @@ DomainErrorT = TypeVar("DomainErrorT", bound=Exception)
 _REQUEST_ID_HEADER = "X-Request-Id"
 
 
+def _headers_include_request_id(headers: Mapping[str, str]) -> bool:
+    want = _REQUEST_ID_HEADER.lower()
+    return any(key.lower() == want for key in headers)
+
+
 @dataclass(slots=True)
 class CanonicalErrorSpec:
     """Describe one canonical Nova error response."""
@@ -212,7 +217,7 @@ def _json_error_response(
     """Serialize one canonical error response for the current request."""
     request_id = request_id_from_request(request=request)
     headers = dict(spec.headers)
-    if request_id and _REQUEST_ID_HEADER not in headers:
+    if request_id and not _headers_include_request_id(headers):
         headers[_REQUEST_ID_HEADER] = request_id
     return JSONResponse(
         status_code=spec.status_code,

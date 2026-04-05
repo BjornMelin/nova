@@ -30,6 +30,8 @@ def parse_positive_int(
     err: Callable[[str], Exception],
 ) -> int:
     """Parse a strictly positive int from common S3 wire shapes."""
+    if isinstance(value, bool):
+        raise err(error_message)
     if isinstance(value, int) and value > 0:
         return value
     if isinstance(value, str):
@@ -49,6 +51,8 @@ def parse_non_negative_int(
     err: Callable[[str], Exception],
 ) -> int:
     """Parse a non-negative int from common S3 wire shapes."""
+    if isinstance(value, bool):
+        raise err(error_message)
     if isinstance(value, int) and value >= 0:
         return value
     if isinstance(value, str):

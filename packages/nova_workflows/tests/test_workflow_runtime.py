@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from nova_file_api.export_models import ExportRecord, ExportStatus
-from nova_file_api.export_runtime import (
+from nova_file_api.workflow_facade import (
     DynamoExportRepository,
     MemoryExportRepository,
     NoopExportMetrics,

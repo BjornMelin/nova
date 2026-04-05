@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from nova_file_api.s3_coercion import normalize_prefix
 from nova_runtime_support.transfer_limits import (
     COPY_OBJECT_MAX_BYTES,
     S3_MULTIPART_MAX_PART_SIZE_BYTES,
@@ -18,7 +19,16 @@ from nova_runtime_support.transfer_limits import (
 
 
 def sanitize_filename(filename: str) -> str:
-    """Return one safe filename segment for S3 keys and Content-Disposition."""
+    """Return one safe filename segment for S3 keys and Content-Disposition.
+
+    Args:
+        filename: Original filename or path segment from the caller.
+
+    Returns:
+        A sanitized filename segment (no path separators or control characters,
+        whitespace collapsed, length capped at 255). Falls back to ``file`` when
+        the result would otherwise be empty.
+    """
     base_name = unicodedata.normalize("NFC", Path(filename).name)
     allowed_punct = frozenset({".", "-", "_", " "})
     out: list[str] = []
@@ -89,7 +99,28 @@ def build_export_object_key(
     export_id: str,
     filename: str,
 ) -> str:
-    """Build a stable export object key for a pre-sanitized filename."""
+    """Build a stable export object key for a pre-sanitized filename.
+
+    Args:
+        export_prefix: S3 key prefix; normalized to end with a single ``/``.
+        scope_id: Tenant or scope identifier.
+        export_id: Export identifier (filtered to alphanumeric, hyphen,
+            underscore).
+        filename: Pre-sanitized filename (use :func:`sanitize_filename` first);
+            must be non-empty and must not contain path separators.
+
+    Returns:
+        S3 object key ``{prefix}{scope_id}/{export_id}/{filename}``.
+
+    Raises:
+        ValueError: If ``filename`` is empty or contains path separators.
+    """
+    normalized_prefix = normalize_prefix(export_prefix)
+    name = filename.strip()
+    if not name:
+        raise ValueError("filename must be non-empty")
+    if "/" in name or "\\" in name:
+        raise ValueError("filename must not contain path separators")
     stable_export_id = "".join(
         character
         for character in export_id.strip()
@@ -97,7 +128,7 @@ def build_export_object_key(
     )
     if not stable_export_id:
         stable_export_id = uuid4().hex
-    return f"{export_prefix}{scope_id}/{stable_export_id}/{filename}"
+    return f"{normalized_prefix}{scope_id}/{stable_export_id}/{name}"
 
 
 def _source_checksum_algorithm(

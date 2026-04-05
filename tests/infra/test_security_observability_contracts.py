@@ -80,8 +80,17 @@ def test_runtime_stack_wires_alarm_actions_to_one_sns_topic() -> None:
     ]
     statements = policy_document["Statement"]
     assert any(
-        statement["Principal"]["Service"]
-        == ["budgets.amazonaws.com", "cloudwatch.amazonaws.com"]
+        (
+            set(
+                statement["Principal"]["Service"]
+                if isinstance(statement["Principal"]["Service"], list)
+                else [statement["Principal"]["Service"]]
+            )
+            == {
+                "budgets.amazonaws.com",
+                "cloudwatch.amazonaws.com",
+            }
+        )
         and statement["Action"] == "sns:Publish"
         for statement in statements
     )

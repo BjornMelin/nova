@@ -361,13 +361,64 @@ class NovaReleaseSupportStack(Stack):
             )
         role.add_to_policy(
             iam.PolicyStatement(
-                actions=["sns:*"],
+                actions=[
+                    "sns:CreateTopic",
+                    "sns:DeleteTopic",
+                    "sns:GetSubscriptionAttributes",
+                    "sns:GetTopicAttributes",
+                    "sns:ListSubscriptionsByTopic",
+                    "sns:SetSubscriptionAttributes",
+                    "sns:SetTopicAttributes",
+                    "sns:Subscribe",
+                    "sns:TagResource",
+                    "sns:Unsubscribe",
+                    "sns:UntagResource",
+                ],
                 resources=[sns_topic_arn],
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
-                actions=["sqs:*"],
+                actions=["sns:ListTopics"],
+                resources=["*"],
+            )
+        )
+        sqs_queue_names = [
+            queue_arn.rsplit(":", maxsplit=1)[-1]
+            for queue_arn in sqs_queue_arns
+        ]
+        for queue_name in sqs_queue_names:
+            role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=["sqs:CreateQueue"],
+                    resources=["*"],
+                    conditions={"StringEquals": {"sqs:QueueName": queue_name}},
+                )
+            )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sqs:ListQueues"],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "sqs:AddPermission",
+                    "sqs:ChangeMessageVisibility",
+                    "sqs:DeleteMessage",
+                    "sqs:DeleteQueue",
+                    "sqs:GetQueueAttributes",
+                    "sqs:GetQueueUrl",
+                    "sqs:ListQueueTags",
+                    "sqs:PurgeQueue",
+                    "sqs:ReceiveMessage",
+                    "sqs:RemovePermission",
+                    "sqs:SendMessage",
+                    "sqs:SetQueueAttributes",
+                    "sqs:TagQueue",
+                    "sqs:UntagQueue",
+                ],
                 resources=sqs_queue_arns,
             )
         )

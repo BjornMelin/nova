@@ -15,11 +15,11 @@ from nova_file_api.export_models import (
     ExportRecord,
     ExportStatus,
 )
-from nova_file_api.export_runtime import WorkflowExportStateService
 from nova_file_api.export_transfer import (
     ExportCopyResult,
     ExportTransferService,
 )
+from nova_file_api.workflow_facade import WorkflowExportStateService
 from nova_workflows.models import ExportWorkflowInput, WorkflowOutput
 
 

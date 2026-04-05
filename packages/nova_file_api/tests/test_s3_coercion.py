@@ -40,6 +40,8 @@ def test_parse_positive_int() -> None:
         parse_positive_int("0", error_message="bad", err=err)
     with pytest.raises(ValueError, match="bad"):
         parse_positive_int("nope", error_message="bad", err=err)
+    with pytest.raises(ValueError, match="bad"):
+        parse_positive_int(True, error_message="bad", err=err)
 
 
 def test_parse_non_negative_int() -> None:
@@ -51,6 +53,8 @@ def test_parse_non_negative_int() -> None:
 
     with pytest.raises(ValueError, match="bad"):
         parse_non_negative_int(-1, error_message="bad", err=err)
+    with pytest.raises(ValueError, match="bad"):
+        parse_non_negative_int(False, error_message="bad", err=err)
 
 
 def test_copy_part_etag() -> None:
