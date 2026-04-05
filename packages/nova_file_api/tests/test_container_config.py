@@ -5,6 +5,7 @@ from typing import Any, cast
 import pytest
 from fastapi import FastAPI
 
+from nova_file_api.app import create_app
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     build_idempotency_store,
@@ -220,3 +221,10 @@ def test_exports_disabled_allow_missing_workflow_runtime() -> None:
     app = FastAPI()
     initialize_runtime_state(app, settings=settings, s3_client=object())
     assert app.state.settings.exports_enabled is False
+
+
+def test_create_app_enables_strict_content_type() -> None:
+    """The public API should keep strict JSON content-type enforcement on."""
+    app = create_app(settings=_settings())
+
+    assert app.router.strict_content_type is True

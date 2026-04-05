@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import httpx
 import pytest
 
 from nova_file_api.activity import MemoryActivityStore
@@ -182,6 +183,27 @@ async def test_v1_upload_introspect_returns_uploaded_parts() -> None:
 
     assert response.status_code == 200
     assert response.json()["parts"] == [{"part_number": 1, "etag": '"etag-1"'}]
+
+
+@pytest.mark.anyio
+async def test_v1_exports_reject_json_body_without_content_type() -> None:
+    """JSON bodies without a content type should fail strict parsing."""
+    app = build_test_app(_build_v1_deps())
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post(
+            "/v1/exports",
+            headers=AUTH_HEADERS,
+            content='{"source_key":"uploads/scope-1/source.csv","filename":"source.csv"}',
+        )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.anyio
@@ -397,6 +419,30 @@ async def test_v1_exports_reject_legacy_session_scope_body_fields() -> None:
             legacy_field: "scope-v1",
         },
     )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_request"
+
+
+@pytest.mark.anyio
+async def test_v1_resource_plan_rejects_json_body_without_content_type() -> (
+    None
+):
+    """FastAPI must reject JSON bodies that omit a content type."""
+    app = build_test_app(_build_v1_deps())
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client,
+    ):
+        response = await client.post(
+            "/v1/resources/plan",
+            content='{"resources":["exports"]}',
+        )
 
     assert response.status_code == 422
     payload = response.json()

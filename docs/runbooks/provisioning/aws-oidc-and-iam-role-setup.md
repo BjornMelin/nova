@@ -62,7 +62,7 @@ should be removed after the AWS-native release path is verified.
    roles for runtime deploys that must manage the API alias record in Route 53.
 
    ```bash
-   npx aws-cdk@2.1107.0 deploy NovaReleaseSupportStack \
+   npx aws-cdk@2.1117.0 deploy NovaReleaseSupportStack \
      --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
      -c account=${AWS_ACCOUNT_ID} \
      -c region=${AWS_REGION}

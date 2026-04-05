@@ -322,7 +322,7 @@ phases:
       - export ENVIRONMENT="${DEV_RUNTIME_ENVIRONMENT}"
       - export RUNTIME_STACK_ID="${DEV_RUNTIME_STACK_ID}"
       - >
-        npx aws-cdk@2.1107.0 deploy
+        npx aws-cdk@2.1117.0 deploy
         --app "uv run --package nova-cdk python infra/nova_cdk/app.py"
         --output /tmp/nova-release-cdk.out
         --require-approval never

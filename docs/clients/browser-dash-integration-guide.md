@@ -59,7 +59,8 @@ While you are reading the artifact, also confirm:
 Use `nova_dash_bridge` only for browser upload/download behavior inside Dash.
 Use an SDK or plain HTTP client when you need server-side Nova calls.
 
-- Dash/browser uploads: `pip install "nova-dash-bridge[dash]"`
+- Dash/browser uploads: `pip install "nova-dash-bridge[dash]"` in Dash 3.x or
+  Dash 4.x apps
 - Python server-side calls: `pip install nova-sdk-py`
 - TypeScript server-side calls: `@nova/sdk`
 - R consumers: package `nova`

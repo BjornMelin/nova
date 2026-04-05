@@ -4,7 +4,7 @@ import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
 import type { AbortUploadData, AbortUploadErrors, AbortUploadResponses, CancelExportData, CancelExportErrors, CancelExportResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateExportData, CreateExportErrors, CreateExportResponses, GetCapabilitiesData, GetCapabilitiesResponses, GetExportData, GetExportErrors, GetExportResponses, GetReleaseInfoData, GetReleaseInfoResponses, GetTransferCapabilitiesData, GetTransferCapabilitiesErrors, GetTransferCapabilitiesResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, InitiateUploadData, InitiateUploadErrors, InitiateUploadResponses, IntrospectUploadData, IntrospectUploadErrors, IntrospectUploadResponses, ListExportsData, ListExportsErrors, ListExportsResponses, MetricsSummaryData, MetricsSummaryErrors, MetricsSummaryResponses, PlanResourcesData, PlanResourcesErrors, PlanResourcesResponses, PresignDownloadData, PresignDownloadErrors, PresignDownloadResponses, SignUploadPartsData, SignUploadPartsErrors, SignUploadPartsResponses } from './types.gen.js';
 
-export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
      * You can provide a client instance returned by `createClient()` instead of
      * individual options. This might be also useful if you want to implement a

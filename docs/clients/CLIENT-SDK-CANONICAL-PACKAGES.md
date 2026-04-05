@@ -5,6 +5,7 @@
 - Package name: `@nova/sdk`
 - Source package directory: `packages/nova_sdk_ts`
 - Generator: `@hey-api/openapi-ts`
+- Compiler baseline: `typescript@5.9.3`
 - Client style: generated fetch client
 - Public imports:
   - `@nova/sdk/client`

@@ -176,7 +176,7 @@ def test_verification_authority_docs_match_repo_native_contract() -> None:
     """Tracked verification docs should use the repo-native gate commands."""
     expected_sync = "uv sync --locked --all-packages --all-extras --dev"
     expected_synth = (
-        'npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk '
+        'npx aws-cdk@2.1117.0 synth --app "uv run --package nova-cdk '
         'python infra/nova_cdk/app.py"'
     )
     expected_pytest_lanes = [

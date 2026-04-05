@@ -32,7 +32,10 @@ Use the async verifier and FastAPI/Starlette integration helpers instead of a de
 
 ### FastAPI native OpenAPI/security/features
 
-Use `Security(…)`, `response_model=…`, and `responses={…}` instead of hand-editing OpenAPI.
+Use `Security(…)`, `response_model=…`, `responses={…}`,
+`strict_content_type=True`, `lifespan`, instance-level OpenAPI overrides, and
+native streaming responses instead of hand-editing OpenAPI or reimplementing
+request parsing/runtime wrappers.
 
 ### Regional REST API throttling + AWS WAF
 

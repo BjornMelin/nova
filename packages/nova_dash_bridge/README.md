@@ -59,3 +59,6 @@ Install the Dash extra when you need the component surface:
 ```bash
 pip install "nova-dash-bridge[dash]"
 ```
+
+The package supports both Dash 3.x and Dash 4.x. Nova does not require a
+Dash-4-only migration for the browser helper surface in this package.

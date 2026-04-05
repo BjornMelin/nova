@@ -281,6 +281,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         version=settings.app_version,
         lifespan=lifespan,
         middleware=_cors_middleware(settings=settings),
+        strict_content_type=True,
     )
     app.add_middleware(cast(Any, RequestContextASGIMiddleware))
     app.state.settings = settings

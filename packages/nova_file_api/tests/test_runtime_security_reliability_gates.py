@@ -83,5 +83,7 @@ def test_service_packages_declare_native_runtime_dependencies() -> None:
 
     payload = tomllib.loads(package_path.read_text(encoding="utf-8"))
     dependencies = payload["project"]["dependencies"]
+    assert "anyio>=4.13.0" in dependencies
+    assert "fastapi>=0.135.3" in dependencies
     assert "nova-runtime-support>=0.1.0" in dependencies
     assert "mangum>=0.21.0" in dependencies

@@ -240,7 +240,7 @@ uv run python scripts/conformance/check_typescript_module_policy.py
 
 ```bash
 bash scripts/checks/run_infra_contracts.sh
-npx aws-cdk@2.1107.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
+npx aws-cdk@2.1117.0 synth --app "uv run --package nova-cdk python infra/nova_cdk/app.py" \
   -c account=111111111111 \
   -c region=us-west-2 \
   -c api_domain_name=api.dev.example.com \
