@@ -344,30 +344,31 @@
         "Invalid part_size_bytes: must be a positive integer"
       );
     }
-    var fallbackConcurrency = clampPositiveInt(
-      parseInt(config.maxConcurrency, 10),
-      4,
-      32
-    );
     var hintedConcurrency = parseInt(initiated.max_concurrency_hint, 10);
-    var maxConcurrency = clampPositiveInt(
-      hintedConcurrency,
-      fallbackConcurrency,
-      32
-    );
+    var maxConcurrency = Number.isFinite(hintedConcurrency) && hintedConcurrency > 0
+      ? clampPositiveInt(hintedConcurrency, 1, 32)
+      : clampPositiveInt(
+        parseInt(config.maxConcurrency, 10),
+        4,
+        32
+      );
     var configuredBatchSize = clampPositiveInt(
       parseInt(config.signBatchSize || "0", 10),
       0,
       128
     );
     var hintedBatchSize = parseInt(initiated.sign_batch_size_hint, 10);
-    var batchSize = configuredBatchSize > 0
-      ? configuredBatchSize
-      : clampPositiveInt(
-        hintedBatchSize,
-        Math.max(64, maxConcurrency * 4),
-        128
-      );
+    // Prefer server policy hints when present; use DOM override only if the
+    // server did not provide a positive batch hint.
+    var batchSize = Number.isFinite(hintedBatchSize) && hintedBatchSize > 0
+      ? clampPositiveInt(hintedBatchSize, 32, 128)
+      : configuredBatchSize > 0
+        ? configuredBatchSize
+        : clampPositiveInt(
+          Math.max(64, maxConcurrency * 4),
+          32,
+          128
+        );
     var totalParts = Math.ceil(file.size / partSize);
     var completeParts = [];
     var uploadedBytes = 0;
