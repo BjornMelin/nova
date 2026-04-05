@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-04-02
+Last reviewed: 2026-04-05
 
 ## Purpose
 
@@ -56,6 +56,10 @@ should be removed after the AWS-native release path is verified.
 
 1. Deploy the support stack if you want the canonical CFN execution roles
    provisioned by Nova rather than passed in from out-of-band IAM.
+
+   Omit `HOSTED_ZONE_ID` / `hosted_zone_id` only for release-control bootstrap.
+   Redeploy the support stack with the hosted zone before using those default
+   roles for runtime deploys that must manage the API alias record in Route 53.
 
    ```bash
    npx aws-cdk@2.1107.0 deploy NovaReleaseSupportStack \

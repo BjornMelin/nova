@@ -31,19 +31,12 @@ def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
     return value or None
 
 
-def _required_value(scope: Construct, *, key: str, env_var: str) -> str:
-    value = _optional_value(scope, key=key, env_var=env_var)
-    if value is None:
-        raise ValueError(f"Missing required value for {key}.")
-    return value
-
-
 @dataclass(frozen=True)
 class ReleaseSupportInputs:
     """Resolved inputs for the release support IAM stack."""
 
     dev_role_name: str
-    hosted_zone_id: str
+    hosted_zone_id: str | None
     prod_role_name: str
 
 
@@ -63,7 +56,7 @@ def load_release_support_inputs(scope: Construct) -> ReleaseSupportInputs:
             env_var="DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME",
         )
         or "nova-release-dev-cfn-execution",
-        hosted_zone_id=_required_value(
+        hosted_zone_id=_optional_value(
             scope,
             key="hosted_zone_id",
             env_var="HOSTED_ZONE_ID",
@@ -129,7 +122,7 @@ class NovaReleaseSupportStack(Stack):
         construct_id: str,
         *,
         deployment_environment: str,
-        hosted_zone_id: str,
+        hosted_zone_id: str | None,
         role_name: str,
     ) -> iam.Role:
         alarm_names = _runtime_alarm_names(deployment_environment)
@@ -141,9 +134,6 @@ class NovaReleaseSupportStack(Stack):
         dashboard_name = _observability_dashboard_name(deployment_environment)
         transfer_budget_name = _transfer_spend_budget_name(
             deployment_environment
-        )
-        route53_zone_arn = (
-            f"arn:{self.partition}:route53:::hostedzone/{hosted_zone_id}"
         )
         sns_topic_arn = (
             f"arn:{self.partition}:sns:{self.region}:{self.account}:"
@@ -167,7 +157,7 @@ class NovaReleaseSupportStack(Stack):
             for alarm_name in alarm_names.values()
         ]
         cloudwatch_dashboard_arn = (
-            f"arn:{self.partition}:cloudwatch:{self.region}:{self.account}:"
+            f"arn:{self.partition}:cloudwatch::{self.account}:"
             f"dashboard/{dashboard_name}"
         )
         budget_arn = (
@@ -350,16 +340,22 @@ class NovaReleaseSupportStack(Stack):
                 resources=["*"],
             )
         )
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "route53:ChangeResourceRecordSets",
-                    "route53:GetHostedZone",
-                    "route53:ListResourceRecordSets",
-                ],
-                resources=[route53_zone_arn],
+        if hosted_zone_id is not None:
+            role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "route53:ChangeResourceRecordSets",
+                        "route53:GetHostedZone",
+                        "route53:ListResourceRecordSets",
+                    ],
+                    resources=[
+                        (
+                            f"arn:{self.partition}:route53:::hostedzone/"
+                            f"{hosted_zone_id}"
+                        )
+                    ],
+                )
             )
-        )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=["sns:*"],
