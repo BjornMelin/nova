@@ -118,9 +118,9 @@ uv run --package nova-cdk python app.py
 - Provide `api_domain_name` and `certificate_arn` for every synth, diff, and
   deploy. The canonical public ingress is one Regional REST API custom domain,
   and the default `execute-api` endpoint stays disabled.
-- Provide `hosted_zone_id` and `hosted_zone_name` for every synth and deploy so
-  the stack can create the Route 53 alias record for the canonical API custom
-  domain.
+- Provide `hosted_zone_id` and `hosted_zone_name` for every runtime synth,
+  diff, and deploy so the stack can create the Route 53 alias record for the
+  canonical API custom domain.
 - Provide `api_lambda_artifact_bucket`, `api_lambda_artifact_key`, and
   `api_lambda_artifact_sha256` for every synth, diff, and deploy. CDK consumes
   an immutable API Lambda zip artifact from the release pipeline and no longer
@@ -137,6 +137,11 @@ uv run --package nova-cdk python app.py
   `release_connection_arn` are provided through CDK context or environment,
   the app also synthesizes the release stacks. By default it creates
   `NovaReleaseSupportStack` first and then `NovaReleaseControlPlaneStack`.
+- Release-only bootstrap can synthesize `NovaReleaseSupportStack` without
+  `hosted_zone_id`. In that mode the default execution roles omit Route 53
+  hosted-zone permissions until the support stack is redeployed with
+  `HOSTED_ZONE_ID` / `hosted_zone_id`, or until explicit equivalent execution
+  role ARNs are supplied to the release control plane.
 - Runtime-only synth/diff/deploy must not require release-control inputs.
   If `RELEASE_CONNECTION_ARN` is absent, the CDK app should synthesize only
   the runtime stack path even when runtime deploy artifacts and runtime stack
@@ -146,8 +151,9 @@ uv run --package nova-cdk python app.py
   - one CloudFormation execution role for the prod runtime stack
   - both roles are trusted only by `cloudformation.amazonaws.com`
   - both roles attach a curated runtime-service policy set (CloudFormation,
-    API Gateway, Lambda, Step Functions, DynamoDB, S3, logs, EventBridge, WAF)
-    plus scoped IAM role-management actions for Nova runtime roles
+    API Gateway, Lambda, Step Functions, DynamoDB, S3, SNS, SQS, AppConfig,
+    budgets, CloudWatch, Route 53, logs, EventBridge, WAF) plus scoped IAM
+    role-management actions for Nova runtime roles
   - if `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
     `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` are both provided explicitly, the app
     skips `NovaReleaseSupportStack` and uses those role ARNs directly

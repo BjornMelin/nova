@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from nova_runtime_support.export_copy_parts import _serialize_item
+from nova_file_api.export_copy_parts import _serialize_item
 
 
 def test_serialize_item_converts_values_to_attribute_value_maps() -> None:

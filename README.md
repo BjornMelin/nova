@@ -135,7 +135,7 @@ Nova is not responsible for:
 | --- | --- | --- |
 | `packages/nova_file_api` | Public FastAPI control plane | Canonical API and Lambda entrypoint |
 | `packages/nova_workflows` | Export workflow handlers | Step Functions task and workflow logic |
-| `packages/nova_runtime_support` | Shared runtime helpers | Request context, auth claims, logging, OpenAPI helpers |
+| `packages/nova_runtime_support` | Shared cross-cutting runtime helpers | Request context, canonical error transport, auth claim normalization, logging, metrics, and shared transfer config contracts |
 | `packages/nova_dash_bridge` | Downstream browser/Dash bridge | Packaged uploader assets and Dash components |
 | `packages/nova_sdk_ts` | Generated TypeScript SDK | Published as `@nova/sdk` with subpath exports |
 | `packages/nova_sdk_py` | Generated Python SDK | Published as `nova-sdk-py` |

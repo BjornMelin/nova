@@ -678,6 +678,10 @@ class NovaReleaseControlPlaneStack(Stack):
                         f"arn:{self.partition}:ssm:{self.region}:{self.account}:"
                         f"parameter{runtime_config.runtime_config_parameter_name}"
                     ),
+                    (
+                        f"arn:{self.partition}:ssm:{self.region}:{self.account}:"
+                        f"parameter/cdk-bootstrap/{bootstrap_qualifier}/version"
+                    ),
                 ],
             )
         )

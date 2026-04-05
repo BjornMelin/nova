@@ -7,8 +7,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from nova_runtime_support.export_models import ExportRecord, ExportStatus
-from nova_runtime_support.export_runtime import (
+from nova_file_api.export_models import ExportRecord, ExportStatus
+from nova_file_api.workflow_facade import (
     DynamoExportRepository,
     MemoryExportRepository,
     NoopExportMetrics,
@@ -16,11 +16,11 @@ from nova_runtime_support.export_runtime import (
     update_export_status_shared,
 )
 from nova_runtime_support.metrics import MetricsCollector
-from nova_runtime_support.workflow_config import (
+from nova_workflows.workflow_config import (
     WorkflowSettings,
     export_transfer_config_from_settings,
 )
-from nova_runtime_support.workflow_runtime import (
+from nova_workflows.workflow_runtime import (
     _build_export_service,
     workflow_services,
 )
@@ -114,7 +114,7 @@ def test_build_export_service_rejects_blank_exports_table() -> None:
     settings = WorkflowSettings.model_construct(
         exports_enabled=True,
         exports_dynamodb_table="  ",
-        file_transfer_bucket="",
+        file_transfer_bucket=None,
         file_transfer_upload_prefix="uploads/",
         file_transfer_export_prefix="exports/",
         file_transfer_tmp_prefix="tmp/",
@@ -163,7 +163,8 @@ def test_export_transfer_config_strips_bucket() -> None:
     config = export_transfer_config_from_settings(settings)
 
     assert config.bucket == "workflow-bucket"
-    assert config.part_size_bytes == 2 * 1024 * 1024 * 1024
+    assert config.part_size_bytes == 128 * 1024 * 1024
+    assert config.copy_part_size_bytes == 2 * 1024 * 1024 * 1024
     assert config.max_concurrency == 8
 
 
@@ -179,7 +180,8 @@ def test_export_transfer_config_uses_dedicated_copy_tuning() -> None:
 
     config = export_transfer_config_from_settings(settings)
 
-    assert config.part_size_bytes == 1_073_741_824
+    assert config.part_size_bytes == 128 * 1024 * 1024
+    assert config.copy_part_size_bytes == 1_073_741_824
     assert config.max_concurrency == 5
 
 
@@ -333,7 +335,7 @@ async def test_update_export_status_shared_keeps_stage_age_on_same_status_retry(
         [validating_time, copying_time, retry_time, finalize_time]
     )
     monkeypatch.setattr(
-        "nova_runtime_support.export_runtime._utc_now",
+        "nova_file_api.export_runtime._utc_now",
         lambda: next(now_values),
     )
     await repository.create(

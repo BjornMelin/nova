@@ -202,3 +202,5 @@ def test_release_control_stack_scopes_dev_and_prod_permissions() -> None:
     assert "nova-prod-cfn" not in dev_policy_text
     assert "nova-prod-cfn" in prod_policy_text
     assert "nova-dev-cfn" not in prod_policy_text
+    assert "parameter/cdk-bootstrap/hnb659fds/version" in dev_policy_text
+    assert "parameter/cdk-bootstrap/hnb659fds/version" in prod_policy_text

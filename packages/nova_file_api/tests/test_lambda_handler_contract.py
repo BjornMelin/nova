@@ -17,7 +17,7 @@ from nova_file_api.exports import (
     MemoryExportRepository,
 )
 from nova_file_api.lambda_handler import create_lambda_handler
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import build_cache_stack, build_runtime_deps, build_test_app
 from .support.doubles import StubAuthenticator, StubTransferService

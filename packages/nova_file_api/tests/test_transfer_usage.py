@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from nova_runtime_support.transfer_usage import (
+from nova_file_api.transfer_usage import (
     DynamoTransferUsageRepository,
     MemoryTransferUsageRepository,
     TransferQuotaExceeded,
@@ -188,7 +188,7 @@ async def test_dynamo_active_window_sets_ttl_for_self_healing() -> None:
 
 @pytest.mark.anyio
 async def test_as_utc_normalizes_aware_datetimes() -> None:
-    from nova_runtime_support.transfer_usage import _as_utc
+    from nova_file_api.transfer_usage import _as_utc
 
     aware = datetime(2026, 4, 3, 6, 0, tzinfo=timezone(timedelta(hours=-6)))
 

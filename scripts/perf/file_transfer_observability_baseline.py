@@ -7,7 +7,7 @@ import statistics
 from dataclasses import dataclass
 from typing import Final
 
-from nova_file_api.transfer_policy import (
+from nova_runtime_support.transfer_limits import (
     SIGN_BATCH_SIZE_HINT_MAX,
     SIGN_BATCH_SIZE_HINT_MIN,
 )
@@ -36,14 +36,13 @@ def gibibytes(value: float) -> int:
 
 
 def parse_sizes_gib(raw: str) -> list[int]:
-    """Parse a comma-separated GiB list and reject empty or invalid entries."""
+    """Parse a comma-separated GiB list, ignoring blank entries."""
     values = [item.strip() for item in raw.split(",")]
-    if not values or any(not item for item in values):
-        raise ValueError(
-            "sizes_gib must contain comma-separated numeric values"
-        )
+    non_empty_values = [item for item in values if item]
+    if not non_empty_values:
+        raise ValueError("at least one size must be provided")
     parsed: list[int] = []
-    for item in values:
+    for item in non_empty_values:
         try:
             parsed.append(gibibytes(float(item)))
         except ValueError as exc:

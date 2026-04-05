@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, cast
 
+import aioboto3
 import structlog
 from botocore.config import Config
 from fastapi import FastAPI
@@ -23,11 +24,8 @@ from nova_file_api.routes import (
     platform_router,
     transfer_router,
 )
-from nova_runtime_support import (
-    RequestContextFastAPI,
-    configure_structlog,
-    new_aioboto3_session,
-)
+from nova_runtime_support.http import RequestContextASGIMiddleware
+from nova_runtime_support.logging import configure_structlog
 
 _LOGGER = structlog.get_logger("nova_file_api.app")
 _RUNTIME_STATE_KEYS = (
@@ -169,7 +167,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 yield
             else:
                 runtime_settings = app.state.settings
-                session = new_aioboto3_session()
+                session = aioboto3.Session()
                 standard_s3_config = Config(
                     s3={"use_accelerate_endpoint": False}
                 )
@@ -278,12 +276,13 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 except Exception:
                     _LOGGER.exception("runtime_state_clear_failed")
 
-    app = RequestContextFastAPI(
+    app = FastAPI(
         title="nova-file-api",
         version=settings.app_version,
         lifespan=lifespan,
         middleware=_cors_middleware(settings=settings),
     )
+    app.add_middleware(cast(Any, RequestContextASGIMiddleware))
     app.state.settings = settings
     _install_openapi_override(app=app)
 

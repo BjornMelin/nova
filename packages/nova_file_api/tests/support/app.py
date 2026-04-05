@@ -26,7 +26,7 @@ from nova_file_api.dependencies import (
 )
 from nova_file_api.exports import ExportRepository
 from nova_file_api.idempotency import IdempotencyStore
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 from .dynamodb import MemoryDynamoResource
 

@@ -2,7 +2,7 @@
 ADR: 0025
 Title: Runtime monorepo component boundaries and ownership
 Status: Accepted
-Version: 2.5
+Version: 2.6
 Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](./ADR-0023-hard-cut-v1-canonical-route-surface.md)"
@@ -32,8 +32,9 @@ if package ownership remains explicit:
 
 - `packages/nova_file_api/` owns transfer and job control-plane behavior.
 - `packages/nova_runtime_support/` owns shared cross-cutting runtime transport
-  helpers such as outer-ASGI request context and canonical FastAPI exception
-  registration.
+  and support helpers only: outer-ASGI request context, canonical FastAPI
+  exception registration, auth claim normalization, shared logging/metrics,
+  and shared transfer config contracts.
 - `packages/nova_dash_bridge/` owns framework integration only.
 - `packages/contracts/` owns OpenAPI artifacts, fixtures, and generated-client
   contract inputs.
@@ -71,6 +72,8 @@ Choose **Option B**.
    - canonical `/v1/transfers/*` and `/v1/exports*` runtime behavior
    - capability, release-info, liveness, readiness, and metrics handlers
    - transfer, export, cache, idempotency, and activity orchestration
+   - export repositories, export copy state, upload-session state, transfer
+     quota persistence, and multipart reconciliation helpers
    - in-process bearer JWT verification and principal mapping
    - the canonical `nova_file_api.main:app` process entrypoint consumed by the
      release-only file-service Dockerfile under `apps/`
@@ -79,11 +82,16 @@ Choose **Option B**.
    ownership, auth semantics, or policy rules. It consumes the canonical Nova
    HTTP contract instead of keeping an in-process bridge seam alive.
 3. `packages/nova_runtime_support/` owns shared outer-ASGI request context,
-   request-id propagation, and shared FastAPI exception registration. Runtime
-   packages may adapt domain errors, but they do not re-implement the
-   cross-cutting transport layer.
-4. `packages/contracts/` is the only OpenAPI contract artifact authority.
-5. Deployment workflows and CI/CD contracts belong to separate deploy-governance
+   request-id propagation, shared FastAPI exception registration, auth-claim
+   normalization, structured logging/metrics helpers, and shared transfer
+   config contracts. Runtime packages may adapt domain errors, but they do not
+   re-implement the cross-cutting transport layer.
+4. `packages/nova_workflows/` owns workflow settings and runtime assembly for
+   Step Functions task handlers. It may import the pure transfer/export domain
+   modules from `packages/nova_file_api/`, but it must not depend on the app
+   factory, route modules, or HTTP transport layer.
+5. `packages/contracts/` is the only OpenAPI contract artifact authority.
+6. Deployment workflows and CI/CD contracts belong to separate deploy-governance
    docs, not this runtime boundary decision.
 
 ## Consequences
@@ -111,6 +119,10 @@ Choose **Option B**.
 
 - 2026-03-22 (v2.3): Added explicit ownership for shared outer-ASGI transport
   and FastAPI exception registration in `nova_runtime_support`.
+- 2026-04-04 (v2.6): Hard-cut export/session/quota/workflow domain ownership
+  out of `nova_runtime_support`; `nova_workflows` now consumes pure
+  `nova_file_api` modules for workflow execution while `nova_runtime_support`
+  stays limited to cross-cutting helpers.
 - 2026-03-31 (v2.5): Hard-cut `nova_dash_bridge` to browser/Dash helpers only
   and removed the retired in-process bridge seam.
 - 2026-03-22 (v2.4): Clarified that the former bridge seam was async-first and

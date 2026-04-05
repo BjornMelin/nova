@@ -12,22 +12,29 @@ from math import ceil
 from typing import Any, Literal, Protocol, cast
 
 from nova_file_api.transfer_config import TransferConfig
+from nova_runtime_support.transfer_limits import (
+    CLIENT_UPLOAD_MAX_PART_SIZE_BYTES,
+    CLIENT_UPLOAD_MIN_PART_SIZE_BYTES,
+    DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT,
+    DEFAULT_DAILY_INGRESS_BUDGET_BYTES,
+    DEFAULT_POLICY_ID,
+    DEFAULT_POLICY_VERSION,
+    DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT,
+    DEFAULT_TARGET_UPLOAD_PART_COUNT,
+    ENV_LARGE_EXPORT_WORKER_THRESHOLD_MIN_BYTES,
+    MAX_CONCURRENCY_HINT_MAX,
+    MAX_CONCURRENCY_HINT_MIN,
+    MULTIPART_THRESHOLD_MIN_BYTES,
+    RESUMABLE_TTL_MAX_SECONDS,
+    RESUMABLE_TTL_MIN_SECONDS,
+    SIGN_BATCH_SIZE_HINT_MAX,
+    SIGN_BATCH_SIZE_HINT_MIN,
+    TARGET_UPLOAD_PART_COUNT_MAX,
+)
 from nova_runtime_support.transfer_policy_document import (
     TransferPolicyDocument,
 )
 
-_DEFAULT_POLICY_ID = "default"
-_DEFAULT_POLICY_VERSION = "2026-04-03"
-_TARGET_UPLOAD_PART_COUNT = 2000
-_MINIMUM_UPLOAD_PART_SIZE_BYTES = 64 * 1024 * 1024
-_MAXIMUM_UPLOAD_PART_SIZE_BYTES = 512 * 1024 * 1024
-_MIN_SIGN_BATCH_SIZE = 32
-_MAX_SIGN_BATCH_SIZE = 128
-SIGN_BATCH_SIZE_HINT_MIN = _MIN_SIGN_BATCH_SIZE
-SIGN_BATCH_SIZE_HINT_MAX = _MAX_SIGN_BATCH_SIZE
-_DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT = 200
-_DEFAULT_DAILY_INGRESS_BUDGET_BYTES = 1024 * 1024 * 1024 * 1024
-_DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT = 512
 _LOGGER = logging.getLogger(__name__)
 
 ChecksumMode = Literal["none", "optional", "required"]
@@ -234,32 +241,33 @@ def resolve_transfer_policy(
     """Resolve the current transfer policy from static runtime settings."""
     active_multipart_upload_limit = (
         config.active_multipart_upload_limit
-        or _DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT
+        or DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT
     )
     daily_ingress_budget_bytes = (
-        config.daily_ingress_budget_bytes or _DEFAULT_DAILY_INGRESS_BUDGET_BYTES
+        config.daily_ingress_budget_bytes or DEFAULT_DAILY_INGRESS_BUDGET_BYTES
     )
     sign_requests_per_upload_limit = (
         config.sign_requests_per_upload_limit
-        or _DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT
+        or DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT
     )
     target_upload_part_count = _bounded_int(
         configured=document.target_upload_part_count if document else None,
-        default=config.target_upload_part_count or _TARGET_UPLOAD_PART_COUNT,
+        default=config.target_upload_part_count
+        or DEFAULT_TARGET_UPLOAD_PART_COUNT,
         minimum=1,
-        maximum=10_000,
+        maximum=TARGET_UPLOAD_PART_COUNT_MAX,
     )
     max_concurrency_hint = _bounded_int(
         configured=document.max_concurrency_hint if document else None,
         default=config.max_concurrency,
-        minimum=1,
-        maximum=32,
+        minimum=MAX_CONCURRENCY_HINT_MIN,
+        maximum=MAX_CONCURRENCY_HINT_MAX,
     )
     sign_batch_size_hint = _bounded_int(
         configured=document.sign_batch_size_hint if document else None,
         default=max(64, max_concurrency_hint * 4),
-        minimum=_MIN_SIGN_BATCH_SIZE,
-        maximum=_MAX_SIGN_BATCH_SIZE,
+        minimum=SIGN_BATCH_SIZE_HINT_MIN,
+        maximum=SIGN_BATCH_SIZE_HINT_MAX,
     )
     checksum_mode = _validated_checksum_mode(
         _effective_checksum_mode(
@@ -283,10 +291,10 @@ def resolve_transfer_policy(
     return TransferPolicy(
         policy_id=_opt_str(document.policy_id if document else None)
         or config.policy_id
-        or _DEFAULT_POLICY_ID,
+        or DEFAULT_POLICY_ID,
         policy_version=_opt_str(document.policy_version if document else None)
         or config.policy_version
-        or _DEFAULT_POLICY_VERSION,
+        or DEFAULT_POLICY_VERSION,
         max_upload_bytes=min(
             config.max_upload_bytes,
             document.max_upload_bytes
@@ -298,17 +306,17 @@ def resolve_transfer_policy(
                 document.multipart_threshold_bytes if document else None
             ),
             default=config.multipart_threshold_bytes,
-            minimum=5 * 1024 * 1024,
+            minimum=MULTIPART_THRESHOLD_MIN_BYTES,
             maximum=config.max_upload_bytes,
         ),
         target_upload_part_count=target_upload_part_count,
-        minimum_part_size_bytes=_MINIMUM_UPLOAD_PART_SIZE_BYTES,
-        maximum_part_size_bytes=_MAXIMUM_UPLOAD_PART_SIZE_BYTES,
+        minimum_part_size_bytes=CLIENT_UPLOAD_MIN_PART_SIZE_BYTES,
+        maximum_part_size_bytes=CLIENT_UPLOAD_MAX_PART_SIZE_BYTES,
         upload_part_size_bytes=_bounded_int(
             configured=document.upload_part_size_bytes if document else None,
             default=config.part_size_bytes,
-            minimum=_MINIMUM_UPLOAD_PART_SIZE_BYTES,
-            maximum=_MAXIMUM_UPLOAD_PART_SIZE_BYTES,
+            minimum=CLIENT_UPLOAD_MIN_PART_SIZE_BYTES,
+            maximum=CLIENT_UPLOAD_MAX_PART_SIZE_BYTES,
         ),
         max_concurrency_hint=max_concurrency_hint,
         sign_batch_size_hint=sign_batch_size_hint,
@@ -322,8 +330,8 @@ def resolve_transfer_policy(
         resumable_ttl_seconds=_bounded_int(
             configured=document.resumable_ttl_seconds if document else None,
             default=config.resumable_window_seconds,
-            minimum=60,
-            maximum=30 * 24 * 60 * 60,
+            minimum=RESUMABLE_TTL_MIN_SECONDS,
+            maximum=RESUMABLE_TTL_MAX_SECONDS,
         ),
         active_multipart_upload_limit=(
             _bounded_int(
@@ -364,7 +372,7 @@ def resolve_transfer_policy(
                 else None
             ),
             default=config.large_export_worker_threshold_bytes,
-            minimum=5 * 1024 * 1024 * 1024,
+            minimum=ENV_LARGE_EXPORT_WORKER_THRESHOLD_MIN_BYTES,
             maximum=config.max_upload_bytes,
         ),
     )

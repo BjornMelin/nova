@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 from contextlib import suppress
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -20,6 +19,14 @@ from nova_file_api.errors import (
     session_store_unavailable,
     too_many_requests,
     upstream_s3_error,
+)
+from nova_file_api.export_transfer import ExportCopyResult
+from nova_file_api.export_utils import (
+    COPY_OBJECT_MAX_BYTES,
+    build_export_object_key,
+    multipart_copy_create_upload_kwargs,
+    multipart_copy_part_size_bytes,
+    sanitize_filename,
 )
 from nova_file_api.models import (
     AbortUploadRequest,
@@ -37,6 +44,13 @@ from nova_file_api.models import (
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
+from nova_file_api.s3_coercion import (
+    copy_part_etag,
+    normalize_prefix,
+    opt_str,
+    parse_non_negative_int,
+    parse_positive_int,
+)
 from nova_file_api.transfer_config import TransferConfig
 from nova_file_api.transfer_policy import (
     TransferPolicy,
@@ -44,12 +58,12 @@ from nova_file_api.transfer_policy import (
     build_transfer_policy_provider,
     upload_part_size_bytes,
 )
-from nova_runtime_support.transfer_usage import (
+from nova_file_api.transfer_usage import (
     TransferQuotaExceeded,
     TransferUsageWindowRepository,
-    build_transfer_usage_repository,
+    build_transfer_usage_window_repository,
 )
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.upload_sessions import (
     UploadSessionRecord,
     UploadSessionRepository,
     UploadSessionStatus,
@@ -58,19 +72,11 @@ from nova_runtime_support.upload_sessions import (
     new_upload_session_id,
 )
 
-_COPY_OBJECT_MAX_BYTES = 5_000_000_000
-_MAX_MULTIPART_PARTS = 10_000
-_MIN_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024
-_MAX_MULTIPART_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(slots=True, frozen=True)
-class ExportCopyResult:
-    """Result returned after copying an upload object to the export prefix."""
-
-    export_key: str
-    download_filename: str
+def _upstream_s3_err(message: str) -> Exception:
+    return upstream_s3_error(message)
 
 
 class TransferService:
@@ -125,15 +131,15 @@ class TransferService:
         self._transfer_usage = (
             transfer_usage_repository
             if transfer_usage_repository is not None
-            else build_transfer_usage_repository(
+            else build_transfer_usage_window_repository(
                 table_name=self.config.usage_table,
                 dynamodb_resource=None,
                 enabled=bool(self.config.usage_table),
             )
         )
-        self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
-        self._export_prefix = _normalize_prefix(self.config.export_prefix)
-        self._tmp_prefix = _normalize_prefix(self.config.tmp_prefix)
+        self._upload_prefix = normalize_prefix(self.config.upload_prefix)
+        self._export_prefix = normalize_prefix(self.config.export_prefix)
+        self._tmp_prefix = normalize_prefix(self.config.tmp_prefix)
 
     async def initiate_upload(
         self,
@@ -171,9 +177,11 @@ class TransferService:
             multipart=multipart,
             policy=policy,
         )
+        success = False
+        released_after_failure = False
         try:
             if not multipart:
-                return await self._single_upload_response(
+                result = await self._single_upload_response(
                     created_at=created_at,
                     session_id=session_id,
                     key=key,
@@ -182,34 +190,42 @@ class TransferService:
                     request=request,
                     policy=policy,
                 )
-
-            return await self._multipart_upload_response(
-                created_at=created_at,
-                session_id=session_id,
-                key=key,
-                content_type=request.content_type,
-                principal=principal,
-                request=request,
-                policy=policy,
-            )
+            else:
+                result = await self._multipart_upload_response(
+                    created_at=created_at,
+                    session_id=session_id,
+                    key=key,
+                    content_type=request.content_type,
+                    principal=principal,
+                    request=request,
+                    policy=policy,
+                )
         except asyncio.CancelledError:
-            await self._release_upload_quota_best_effort(
-                scope_id=principal.scope_id,
-                created_at=created_at,
-                size_bytes=request.size_bytes,
-                multipart=multipart,
-                completed=False,
+            # Await in `finally` can be cancelled with the task; shield so
+            # quota release still runs before the caller observes cancellation.
+            await asyncio.shield(
+                self._release_upload_quota_best_effort(
+                    scope_id=principal.scope_id,
+                    created_at=created_at,
+                    size_bytes=request.size_bytes,
+                    multipart=multipart,
+                    completed=False,
+                )
             )
+            released_after_failure = True
             raise
-        except Exception:
-            await self._release_upload_quota_best_effort(
-                scope_id=principal.scope_id,
-                created_at=created_at,
-                size_bytes=request.size_bytes,
-                multipart=multipart,
-                completed=False,
-            )
-            raise
+        else:
+            success = True
+            return result
+        finally:
+            if not success and not released_after_failure:
+                await self._release_upload_quota_best_effort(
+                    scope_id=principal.scope_id,
+                    created_at=created_at,
+                    size_bytes=request.size_bytes,
+                    multipart=multipart,
+                    completed=False,
+                )
 
     async def sign_parts(
         self,
@@ -261,9 +277,8 @@ class TransferService:
             )
         )
 
-        urls: dict[int, str] = {}
-        for part_number in request.part_numbers:
-            params: dict[str, Any] = {
+        async def presign_part(part_number: int) -> tuple[int, str]:
+            params = {
                 "Bucket": self.config.bucket,
                 "Key": request.key,
                 "UploadId": request.upload_id,
@@ -289,7 +304,7 @@ class TransferService:
                 and part_number in request.checksums_sha256
             ):
                 params["ChecksumSHA256"] = request.checksums_sha256[part_number]
-            urls[part_number] = await self._generate_presigned_url(
+            url = await self._generate_presigned_url(
                 operation="upload_part",
                 params=params,
                 expires_in=self.config.presign_upload_ttl_seconds,
@@ -297,6 +312,14 @@ class TransferService:
                     use_accelerate_endpoint=session.accelerate_enabled
                 ),
             )
+            return part_number, url
+
+        # Part batch size is capped above (sign_batch_size_hint); gather runs
+        # presigns concurrently for latency without unbounded fan-out.
+        pairs = await asyncio.gather(
+            *[presign_part(on) for on in request.part_numbers]
+        )
+        urls = dict(pairs)
 
         return SignPartsResponse(
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
@@ -449,11 +472,12 @@ class TransferService:
                 missing_message="completed multipart upload object not found",
                 failure_message="failed to inspect completed multipart upload",
             )
-            content_length = _require_non_negative_int(
+            content_length = parse_non_negative_int(
                 completed_object.get("ContentLength"),
                 error_message=(
                     "completed multipart upload is missing content length"
                 ),
+                err=_upstream_s3_err,
             )
             if content_length != expected_size_bytes:
                 raise upstream_s3_error(
@@ -489,8 +513,8 @@ class TransferService:
         return CompleteUploadResponse(
             bucket=self.config.bucket,
             key=request.key,
-            etag=_opt_str(result.get("ETag")),
-            version_id=_opt_str(result.get("VersionId")),
+            etag=opt_str(result.get("ETag")),
+            version_id=opt_str(result.get("VersionId")),
         )
 
     async def abort_upload(
@@ -551,7 +575,7 @@ class TransferService:
             params["ResponseContentDisposition"] = request.content_disposition
         elif request.filename:
             params["ResponseContentDisposition"] = (
-                f'attachment; filename="{_sanitize_filename(request.filename)}"'
+                f'attachment; filename="{sanitize_filename(request.filename)}"'
             )
         if request.content_type is not None:
             params["ResponseContentType"] = request.content_type
@@ -612,20 +636,20 @@ class TransferService:
             missing_message="source upload object not found",
             failure_message="failed to inspect source upload object",
         )
-        download_filename = _sanitize_filename(
-            filename or Path(source_key).name
-        )
-        export_key = self._new_export_key(
+        download_filename = sanitize_filename(filename or Path(source_key).name)
+        export_key = build_export_object_key(
+            export_prefix=self._export_prefix,
             scope_id=scope_id,
             export_id=export_id,
             filename=download_filename,
         )
-        source_size_bytes = _require_non_negative_int(
+        source_size_bytes = parse_non_negative_int(
             source_object.get("ContentLength"),
             error_message="source upload object is missing content length",
+            err=_upstream_s3_err,
         )
         try:
-            if source_size_bytes <= _COPY_OBJECT_MAX_BYTES:
+            if source_size_bytes <= COPY_OBJECT_MAX_BYTES:
                 await self._s3.copy_object(
                     Bucket=self.config.bucket,
                     CopySource={
@@ -720,31 +744,17 @@ class TransferService:
             expires_in_seconds=self.config.presign_upload_ttl_seconds,
         )
         await self._store_upload_session(
-            UploadSessionRecord(
+            self._new_upload_session_record(
                 session_id=session_id,
                 upload_id=None,
-                scope_id=principal.scope_id,
                 key=key,
-                filename=request.filename,
-                size_bytes=request.size_bytes,
-                content_type=request.content_type,
                 strategy=UploadStrategy.SINGLE,
                 part_size_bytes=None,
-                policy_id=policy.policy_id,
-                policy_version=policy.policy_version,
-                max_concurrency_hint=policy.max_concurrency_hint,
-                sign_batch_size_hint=policy.sign_batch_size_hint,
-                accelerate_enabled=policy.accelerate_enabled,
-                checksum_algorithm=policy.checksum_algorithm,
-                checksum_mode=policy.checksum_mode,
-                sign_requests_count=0,
-                sign_requests_limit=policy.sign_requests_per_upload_limit,
-                resumable_until=resumable_until,
-                resumable_until_epoch=int(resumable_until.timestamp()),
-                status=UploadSessionStatus.INITIATED,
-                request_id=None,
                 created_at=created_at,
-                last_activity_at=created_at,
+                principal=principal,
+                request=request,
+                policy=policy,
+                resumable_until=resumable_until,
             )
         )
         return response
@@ -780,7 +790,7 @@ class TransferService:
                 "failed to initiate multipart upload"
             ) from exc
 
-        upload_id = _opt_str(output.get("UploadId"))
+        upload_id = opt_str(output.get("UploadId"))
         if upload_id is None:
             raise upstream_s3_error("S3 multipart response missing upload id")
         part_size_bytes = upload_part_size_bytes(
@@ -809,35 +819,21 @@ class TransferService:
         )
         try:
             await self._store_upload_session(
-                UploadSessionRecord(
+                self._new_upload_session_record(
                     session_id=session_id,
                     upload_id=upload_id,
-                    scope_id=principal.scope_id,
                     key=key,
-                    filename=request.filename,
-                    size_bytes=request.size_bytes,
-                    content_type=request.content_type,
                     strategy=UploadStrategy.MULTIPART,
                     part_size_bytes=part_size_bytes,
-                    policy_id=policy.policy_id,
-                    policy_version=policy.policy_version,
-                    max_concurrency_hint=policy.max_concurrency_hint,
-                    sign_batch_size_hint=policy.sign_batch_size_hint,
-                    accelerate_enabled=policy.accelerate_enabled,
-                    checksum_algorithm=policy.checksum_algorithm,
-                    checksum_mode=policy.checksum_mode,
-                    sign_requests_count=0,
-                    sign_requests_limit=policy.sign_requests_per_upload_limit,
-                    resumable_until=resumable_until,
-                    resumable_until_epoch=int(resumable_until.timestamp()),
-                    status=UploadSessionStatus.INITIATED,
-                    request_id=None,
                     created_at=created_at,
-                    last_activity_at=created_at,
+                    principal=principal,
+                    request=request,
+                    policy=policy,
+                    resumable_until=resumable_until,
                 )
             )
-        except Exception:
-            with suppress(Exception):
+        except FileTransferError:
+            with suppress(ClientError, BotoCoreError):
                 await self._s3.abort_multipart_upload(
                     Bucket=self.config.bucket,
                     Key=key,
@@ -903,30 +899,33 @@ class TransferService:
                 for raw_part in raw_parts:
                     if not isinstance(raw_part, dict):
                         continue
-                    part_number = _require_positive_int(
+                    part_number = parse_positive_int(
                         raw_part.get("PartNumber"),
                         error_message=(
                             "multipart upload part is missing part number"
                         ),
+                        err=_upstream_s3_err,
                     )
-                    etag = _opt_str(raw_part.get("ETag"))
+                    etag = opt_str(raw_part.get("ETag"))
                     if etag is None:
                         raise upstream_s3_error(
                             "multipart upload part is missing etag"
                         )
-                    size_bytes = _require_non_negative_int(
+                    size_bytes = parse_non_negative_int(
                         raw_part.get("Size"),
                         error_message="multipart upload part is missing size",
+                        err=_upstream_s3_err,
                     )
                     parts.append((part_number, etag, size_bytes))
 
             if not response.get("IsTruncated"):
                 break
-            part_number_marker = _require_positive_int(
+            part_number_marker = parse_positive_int(
                 response.get("NextPartNumberMarker"),
                 error_message=(
                     "multipart upload pagination is missing next part marker"
                 ),
+                err=_upstream_s3_err,
             )
         return sorted(parts, key=lambda item: item[0])
 
@@ -958,12 +957,12 @@ class TransferService:
         source_object: dict[str, Any],
     ) -> None:
         upload_id: str | None = None
-        part_size_bytes = _multipart_copy_part_size_bytes(
+        part_size_bytes = multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
             preferred_part_size_bytes=self.config.export_copy_part_size_bytes,
         )
         try:
-            create_upload_kwargs = _multipart_copy_create_upload_kwargs(
+            create_upload_kwargs = multipart_copy_create_upload_kwargs(
                 bucket=self.config.bucket,
                 key=export_key,
                 source_object=source_object,
@@ -971,7 +970,7 @@ class TransferService:
             output = await self._s3.create_multipart_upload(
                 **create_upload_kwargs
             )
-            upload_id = _opt_str(output.get("UploadId"))
+            upload_id = opt_str(output.get("UploadId"))
             if upload_id is None:
                 raise upstream_s3_error(
                     "multipart export copy response missing upload id"
@@ -1078,7 +1077,7 @@ class TransferService:
             UploadId=upload_id,
         )
         return {
-            "ETag": _copy_part_etag(response),
+            "ETag": copy_part_etag(response, err=_upstream_s3_err),
             "PartNumber": part_number,
         }
 
@@ -1284,6 +1283,10 @@ class TransferService:
         multipart: bool,
         completed: bool,
     ) -> None:
+        """Release quota; swallow and log failures.
+
+        ``initiate_upload`` shields this coroutine on ``CancelledError``.
+        """
         try:
             await self._transfer_usage.release_upload(
                 scope_id=scope_id,
@@ -1323,25 +1326,49 @@ class TransferService:
             ) from exc
 
     def _new_upload_key(self, *, scope_id: str, filename: str) -> str:
-        safe = _sanitize_filename(filename)
+        safe = sanitize_filename(filename)
         return f"{self._upload_prefix}{scope_id}/{uuid4().hex}/{safe}"
 
-    def _new_export_key(
+    def _new_upload_session_record(
         self,
         *,
-        scope_id: str,
-        export_id: str,
-        filename: str,
-    ) -> str:
-        """Build an export object key for a pre-sanitized download filename."""
-        stable_export_id = "".join(
-            character
-            for character in export_id.strip()
-            if character.isalnum() or character in {"-", "_"}
+        session_id: str,
+        upload_id: str | None,
+        key: str,
+        strategy: UploadStrategy,
+        part_size_bytes: int | None,
+        created_at: datetime,
+        principal: Principal,
+        request: InitiateUploadRequest,
+        policy: TransferPolicy,
+        resumable_until: datetime,
+    ) -> UploadSessionRecord:
+        return UploadSessionRecord(
+            session_id=session_id,
+            upload_id=upload_id,
+            scope_id=principal.scope_id,
+            key=key,
+            filename=request.filename,
+            size_bytes=request.size_bytes,
+            content_type=request.content_type,
+            strategy=strategy,
+            part_size_bytes=part_size_bytes,
+            policy_id=policy.policy_id,
+            policy_version=policy.policy_version,
+            max_concurrency_hint=policy.max_concurrency_hint,
+            sign_batch_size_hint=policy.sign_batch_size_hint,
+            accelerate_enabled=policy.accelerate_enabled,
+            checksum_algorithm=policy.checksum_algorithm,
+            checksum_mode=policy.checksum_mode,
+            sign_requests_count=0,
+            sign_requests_limit=policy.sign_requests_per_upload_limit,
+            resumable_until=resumable_until,
+            resumable_until_epoch=int(resumable_until.timestamp()),
+            status=UploadSessionStatus.INITIATED,
+            request_id=None,
+            created_at=created_at,
+            last_activity_at=created_at,
         )
-        if not stable_export_id:
-            stable_export_id = uuid4().hex
-        return f"{self._export_prefix}{scope_id}/{stable_export_id}/{filename}"
 
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
         expected_prefix = f"{self._upload_prefix}{scope_id}/"
@@ -1358,107 +1385,5 @@ class TransferService:
             raise invalid_request("key is outside caller read scope")
 
 
-def _sanitize_filename(filename: str) -> str:
-    base_name = Path(filename).name
-    cleaned = "".join(
-        character
-        for character in base_name
-        if character.isalnum() or character in {".", "-", "_"}
-    )
-    if not cleaned:
-        return "file"
-    if len(cleaned) > 255:
-        return cleaned[:255]
-    return cleaned
-
-
-def _normalize_prefix(prefix: str) -> str:
-    normalized = prefix.strip()
-    if not normalized:
-        return ""
-    if not normalized.endswith("/"):
-        normalized = f"{normalized}/"
-    return normalized
-
-
-def _opt_str(value: object) -> str | None:
-    if isinstance(value, str):
-        return value
-    return None
-
-
 def _normalize_etag(value: str) -> str:
     return value.strip().strip('"')
-
-
-def _require_positive_int(value: Any, *, error_message: str) -> int:
-    if isinstance(value, int) and value > 0:
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = int(value)
-        except ValueError:
-            parsed = 0
-        if parsed > 0:
-            return parsed
-    raise upstream_s3_error(error_message)
-
-
-def _require_non_negative_int(value: Any, *, error_message: str) -> int:
-    if isinstance(value, int) and value >= 0:
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = int(value)
-        except ValueError:
-            parsed = -1
-        if parsed >= 0:
-            return parsed
-    raise upstream_s3_error(error_message)
-
-
-def _copy_part_etag(response: dict[str, Any]) -> str:
-    copy_result = response.get("CopyPartResult")
-    if not isinstance(copy_result, dict):
-        raise upstream_s3_error("multipart export copy part result is missing")
-    etag = _opt_str(copy_result.get("ETag"))
-    if etag is None:
-        raise upstream_s3_error("multipart export copy part etag is missing")
-    return etag
-
-
-def _multipart_copy_part_size_bytes(
-    *,
-    source_size_bytes: int,
-    preferred_part_size_bytes: int,
-) -> int:
-    return min(
-        _MAX_MULTIPART_PART_SIZE_BYTES,
-        max(
-            preferred_part_size_bytes,
-            _MIN_MULTIPART_PART_SIZE_BYTES,
-            math.ceil(source_size_bytes / _MAX_MULTIPART_PARTS),
-        ),
-    )
-
-
-def _multipart_copy_create_upload_kwargs(
-    *,
-    bucket: str,
-    key: str,
-    source_object: dict[str, Any],
-) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
-    for field in (
-        "CacheControl",
-        "ContentDisposition",
-        "ContentEncoding",
-        "ContentLanguage",
-        "ContentType",
-        "Expires",
-        "Metadata",
-    ):
-        value = source_object.get(field)
-        if value is not None:
-            kwargs[field] = value
-    return kwargs

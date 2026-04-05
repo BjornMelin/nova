@@ -53,6 +53,12 @@ roles, and the optional read-only GitHub validation surface.
 | `cloudformation:CreateChangeSet`, `ExecuteChangeSet`, `Describe*`, `DeleteChangeSet`, `GetTemplate*` | CodeBuild release role | Runtime stack-name scope only |
 | `iam:PassRole` for CloudFormation execution roles | CodeBuild release role | Exact ARN allowlist + `iam:PassedToService=cloudformation.amazonaws.com` |
 | `codepipeline:PutApprovalResult` | Approved promotion actor | Manual approval stage/action scope |
+| `ssm:GetParameters` for `/cdk-bootstrap/<qualifier>/version` | CloudFormation execution roles only | Bootstrap version parameter ARN scope only |
+| AppConfig mutation during deploy | CloudFormation execution roles only | Create actions require Nova request tags; non-create actions require Nova resource tags; no unscoped AppConfig admin grant |
+| Route53 record changes during deploy | CloudFormation execution roles only | Hosted-zone ARN scope only |
+| CloudWatch alarm/dashboard mutation during deploy | CloudFormation execution roles only | Named Nova alarm/dashboard ARN scope only; list/read actions may remain `*` when AWS requires it |
+| SNS and SQS mutation during deploy | CloudFormation execution roles only | Named Nova topic/queue ARN scope only |
+| Budget mutation during deploy | CloudFormation execution roles only | Named Nova budget ARN scope only |
 | Resource mutation during deploy | CloudFormation execution roles only | Environment stack scope only |
 | Read-only release/runtime evidence access | Optional read-only validation role | No mutation or approval actions |
 

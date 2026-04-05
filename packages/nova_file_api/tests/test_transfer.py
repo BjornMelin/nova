@@ -25,7 +25,11 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.transfer_usage import (
+    MemoryTransferUsageRepository,
+    TransferUsageWindowRepository,
+)
+from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
     UploadSessionStatus,
@@ -37,6 +41,7 @@ def _settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "IDEMPOTENCY_ENABLED": False,
         "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        "FILE_TRANSFER_BUCKET": "test-transfer-bucket",
     }
     values.update(overrides)
     return Settings.model_validate(values)
@@ -58,6 +63,9 @@ class _FakeS3Client:
         self.upload_part_copy_wait_event: asyncio.Event | None = None
         self.max_upload_part_copy_in_flight = 0
         self._upload_part_copy_in_flight = 0
+        self.presign_wait_event: asyncio.Event | None = None
+        self.max_presign_in_flight = 0
+        self._presign_in_flight = 0
 
     async def generate_presigned_url(
         self,
@@ -66,14 +74,24 @@ class _FakeS3Client:
         Params: dict[str, Any],
         ExpiresIn: int,
     ) -> str:
-        self.calls.append(
-            {
-                "ClientMethod": ClientMethod,
-                "Params": Params,
-                "ExpiresIn": ExpiresIn,
-            }
+        self._presign_in_flight += 1
+        self.max_presign_in_flight = max(
+            self.max_presign_in_flight,
+            self._presign_in_flight,
         )
-        return "https://example.local/presigned"
+        try:
+            if self.presign_wait_event is not None:
+                await self.presign_wait_event.wait()
+            self.calls.append(
+                {
+                    "ClientMethod": ClientMethod,
+                    "Params": Params,
+                    "ExpiresIn": ExpiresIn,
+                }
+            )
+            return "https://example.local/presigned"
+        finally:
+            self._presign_in_flight -= 1
 
     async def head_object(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
@@ -138,6 +156,32 @@ class _FakeS3Client:
         return {}
 
 
+class _RecordingTransferUsageRepository(MemoryTransferUsageRepository):
+    """Tracks ``release_upload`` calls for cancellation tests."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release_upload_calls = 0
+
+    async def release_upload(
+        self,
+        *,
+        scope_id: str,
+        window_started_at: datetime,
+        size_bytes: int,
+        multipart: bool,
+        completed: bool,
+    ) -> None:
+        self.release_upload_calls += 1
+        await super().release_upload(
+            scope_id=scope_id,
+            window_started_at=window_started_at,
+            size_bytes=size_bytes,
+            multipart=multipart,
+            completed=completed,
+        )
+
+
 class _FailingUploadSessionRepository(MemoryUploadSessionRepository):
     def __init__(self) -> None:
         super().__init__()
@@ -161,6 +205,7 @@ def _transfer_service(
     settings: Settings,
     s3_client: _FakeS3Client,
     upload_session_repository: MemoryUploadSessionRepository | None = None,
+    transfer_usage_repository: TransferUsageWindowRepository | None = None,
 ) -> TransferService:
     return TransferService(
         config=transfer_config_from_settings(settings),
@@ -168,6 +213,7 @@ def _transfer_service(
         upload_session_repository=(
             upload_session_repository or MemoryUploadSessionRepository()
         ),
+        transfer_usage_repository=transfer_usage_repository,
     )
 
 
@@ -231,7 +277,7 @@ async def test_presign_download_uses_filename_fallback_when_disposition_missing(
     params = fake_s3.calls[0]["Params"]
     assert (
         params["ResponseContentDisposition"]
-        == 'attachment; filename="reportfinal.csv"'
+        == 'attachment; filename="report final.csv"'
     )
 
 
@@ -474,7 +520,7 @@ async def test_copy_upload_to_export_error_mapping(
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -800,6 +846,100 @@ async def test_sign_parts_includes_checksum_header_when_required() -> None:
 
 
 @pytest.mark.anyio
+async def test_initiate_upload_releases_quota_on_cancel_during_presign() -> (
+    None
+):
+    """Quota release runs on cancel (shielded), not only on plain failure."""
+    settings = _settings(
+        # Single-part path awaits presign; multipart initiate does not presign
+        # in this handler.
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=500 * 1024 * 1024 * 1024,
+    )
+    fake_s3 = _FakeS3Client()
+    fake_s3.presign_wait_event = asyncio.Event()
+    usage = _RecordingTransferUsageRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        transfer_usage_repository=usage,
+    )
+    task = asyncio.create_task(
+        service.initiate_upload(
+            request=InitiateUploadRequest(
+                filename="report.csv",
+                content_type="text/csv",
+                size_bytes=6 * 1024 * 1024,
+            ),
+            principal=_principal(),
+        )
+    )
+    for _ in range(200):
+        if fake_s3._presign_in_flight > 0:
+            break
+        await asyncio.sleep(0)
+    assert fake_s3._presign_in_flight > 0
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    assert usage.release_upload_calls == 1
+
+
+@pytest.mark.anyio
+async def test_sign_parts_presigns_multiple_parts_concurrently() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+        FILE_TRANSFER_SIGN_BATCH_SIZE_HINT=10,
+    )
+    fake_s3 = _FakeS3Client()
+    fake_s3.presign_wait_event = asyncio.Event()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    sign_task = asyncio.create_task(
+        service.sign_parts(
+            request=SignPartsRequest(
+                key=initiated.key,
+                upload_id=initiated.upload_id or "",
+                part_numbers=[1, 2, 3],
+            ),
+            principal=_principal(),
+        )
+    )
+    try:
+        for _ in range(100):
+            if fake_s3.max_presign_in_flight >= 3:
+                break
+            await asyncio.sleep(0)
+
+        assert fake_s3.max_presign_in_flight == 3
+        fake_s3.presign_wait_event.set()
+        response = await sign_task
+    finally:
+        if (
+            fake_s3.presign_wait_event is not None
+            and not fake_s3.presign_wait_event.is_set()
+        ):
+            fake_s3.presign_wait_event.set()
+        if not sign_task.done():
+            sign_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sign_task
+
+    presign_calls = [
+        c for c in fake_s3.calls if c.get("ClientMethod") == "upload_part"
+    ]
+    assert len(presign_calls) == 3
+    assert set(response.urls.keys()) == {1, 2, 3}
+
+
+@pytest.mark.anyio
 async def test_abort_upload_tolerates_session_store_failure() -> None:
     settings = _settings()
     fake_s3 = _FakeS3Client()
@@ -898,7 +1038,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     ]
 
     result = await service.copy_upload_to_export(
-        source_bucket=settings.file_transfer_bucket,
+        source_bucket=settings.file_transfer_bucket or "",
         source_key="uploads/scope-1/source.csv",
         scope_id="scope-1",
         export_id="job-1",
@@ -909,7 +1049,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     assert fake_s3.copy_calls == []
     assert fake_s3.multipart_upload_calls == [
         {
-            "Bucket": settings.file_transfer_bucket,
+            "Bucket": settings.file_transfer_bucket or "",
             "Key": result.export_key,
             "ContentType": "text/csv",
             "Metadata": {"source": "unit-test"},
@@ -956,7 +1096,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -982,7 +1122,7 @@ async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
 
     copy_task = asyncio.create_task(
         service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -1023,7 +1163,7 @@ async def test_large_copy_missing_source_is_invalid() -> None:
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",

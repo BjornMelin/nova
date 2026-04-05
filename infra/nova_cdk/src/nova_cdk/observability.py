@@ -16,6 +16,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_logs as logs,
     aws_sns as sns,
+    custom_resources as cr,
 )
 from constructs import Construct
 
@@ -101,26 +102,67 @@ def create_alarm_topic(
 ) -> sns.ITopic:
     """Ensure the canonical SNS topic used by runtime alarms exists."""
     topic_name = f"nova-runtime-alarms-{deployment_environment}"
-    topic = sns.Topic(
+    topic_ensure = cr.AwsCustomResource(
+        scope,
+        "NovaAlarmTopicEnsure",
+        install_latest_aws_sdk=False,
+        on_create=cr.AwsSdkCall(
+            service="SNS",
+            action="createTopic",
+            parameters={"Name": topic_name},
+            physical_resource_id=cr.PhysicalResourceId.of(topic_name),
+        ),
+        on_update=cr.AwsSdkCall(
+            service="SNS",
+            action="createTopic",
+            parameters={"Name": topic_name},
+            physical_resource_id=cr.PhysicalResourceId.of(topic_name),
+        ),
+        policy=cr.AwsCustomResourcePolicy.from_statements(
+            [
+                iam.PolicyStatement(
+                    actions=["sns:CreateTopic"],
+                    resources=["*"],
+                )
+            ]
+        ),
+    )
+    topic = sns.Topic.from_topic_arn(
         scope,
         "NovaAlarmTopic",
-        topic_name=topic_name,
+        topic_arn=topic_ensure.get_response_field("TopicArn"),
     )
-    topic.add_to_resource_policy(
-        iam.PolicyStatement(
-            actions=["sns:Publish"],
-            principals=[iam.ServicePrincipal("cloudwatch.amazonaws.com")],
-            resources=[topic.topic_arn],
-        )
+    topic_policy = sns.CfnTopicPolicy(
+        scope,
+        "NovaAlarmTopicPolicy",
+        topics=[topic.topic_arn],
+        policy_document={
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": [
+                            "budgets.amazonaws.com",
+                            "cloudwatch.amazonaws.com",
+                        ]
+                    },
+                    "Action": "sns:Publish",
+                    "Resource": topic.topic_arn,
+                }
+            ],
+        },
     )
+    topic_policy.node.add_dependency(topic_ensure)
     for index, email in enumerate(_alarm_notification_emails(scope), start=1):
-        sns.Subscription(
+        subscription = sns.Subscription(
             scope,
             f"NovaAlarmTopicEmailSubscription{index}",
             endpoint=email,
             protocol=sns.SubscriptionProtocol.EMAIL,
             topic=topic,
         )
+        subscription.node.add_dependency(topic_ensure)
     return topic
 
 

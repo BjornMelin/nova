@@ -7,22 +7,33 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
-from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_runtime_support.export_utils import (
-    _multipart_copy_create_upload_kwargs,
-    _multipart_copy_part_size_bytes,
-    _sanitize_filename,
+from nova_file_api.export_utils import (
+    COPY_OBJECT_MAX_BYTES,
+    build_export_object_key,
+    multipart_copy_create_upload_kwargs,
+    multipart_copy_part_size_bytes,
+    sanitize_filename,
 )
-
-_COPY_OBJECT_MAX_BYTES = 5_000_000_000
+from nova_file_api.s3_coercion import (
+    copy_part_etag,
+    normalize_prefix,
+    opt_str,
+    parse_non_negative_int,
+)
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class ExportTransferConfig:
-    """Transfer configuration required by export workflow handlers."""
+    """Transfer configuration required by export workflow handlers.
+
+    ``part_size_bytes`` mirrors the general transfer multipart default
+    (``FILE_TRANSFER_PART_SIZE_BYTES``). Export S3 multipart *copy* chunking
+    uses ``copy_part_size_bytes``
+    (``FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES``).
+    """
 
     bucket: str
     upload_prefix: str
@@ -70,9 +81,9 @@ class S3ExportTransferService:
         """Initialize the export-copy service with config and S3 client."""
         self.config = config
         self._s3 = s3_client
-        self._upload_prefix = _normalize_prefix(self.config.upload_prefix)
-        self._export_prefix = _normalize_prefix(self.config.export_prefix)
-        self._tmp_prefix = _normalize_prefix(self.config.tmp_prefix)
+        self._upload_prefix = normalize_prefix(self.config.upload_prefix)
+        self._export_prefix = normalize_prefix(self.config.export_prefix)
+        self._tmp_prefix = normalize_prefix(self.config.tmp_prefix)
 
     async def copy_upload_to_export(
         self,
@@ -93,20 +104,20 @@ class S3ExportTransferService:
             missing_message="source upload object not found",
             failure_message="failed to inspect source upload object",
         )
-        download_filename = _sanitize_filename(
-            filename or Path(source_key).name
-        )
-        export_key = self._new_export_key(
+        download_filename = sanitize_filename(filename or Path(source_key).name)
+        export_key = build_export_object_key(
+            export_prefix=self._export_prefix,
             scope_id=scope_id,
             export_id=export_id,
             filename=download_filename,
         )
-        source_size_bytes = _require_non_negative_int(
+        source_size_bytes = parse_non_negative_int(
             source_object.get("ContentLength"),
             error_message="source upload object is missing content length",
+            err=RuntimeError,
         )
         try:
-            if source_size_bytes <= _COPY_OBJECT_MAX_BYTES:
+            if source_size_bytes <= COPY_OBJECT_MAX_BYTES:
                 await self._s3.copy_object(
                     Bucket=self.config.bucket,
                     CopySource={
@@ -167,19 +178,19 @@ class S3ExportTransferService:
         source_object: dict[str, Any],
     ) -> None:
         upload_id: str | None = None
-        part_size_bytes = _multipart_copy_part_size_bytes(
+        part_size_bytes = multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
             preferred_part_size_bytes=self.config.copy_part_size_bytes,
         )
         try:
             output = await self._s3.create_multipart_upload(
-                **_multipart_copy_create_upload_kwargs(
+                **multipart_copy_create_upload_kwargs(
                     bucket=self.config.bucket,
                     key=export_key,
                     source_object=source_object,
                 )
             )
-            upload_id = _opt_str(output.get("UploadId"))
+            upload_id = opt_str(output.get("UploadId"))
             if upload_id is None:
                 raise RuntimeError(
                     "multipart export copy response missing upload id"
@@ -283,65 +294,11 @@ class S3ExportTransferService:
             UploadId=upload_id,
         )
         return {
-            "ETag": _copy_part_etag(response),
+            "ETag": copy_part_etag(response, err=RuntimeError),
             "PartNumber": part_number,
         }
-
-    def _new_export_key(
-        self,
-        *,
-        scope_id: str,
-        export_id: str,
-        filename: str,
-    ) -> str:
-        stable_export_id = "".join(
-            character
-            for character in export_id.strip()
-            if character.isalnum() or character in {"-", "_"}
-        )
-        if not stable_export_id:
-            stable_export_id = uuid4().hex
-        return f"{self._export_prefix}{scope_id}/{stable_export_id}/{filename}"
 
     def _assert_upload_scope(self, *, key: str, scope_id: str) -> None:
         expected_prefix = f"{self._upload_prefix}{scope_id}/"
         if not key.startswith(expected_prefix):
             raise ValueError("key is outside caller upload scope")
-
-
-def _normalize_prefix(prefix: str) -> str:
-    normalized = prefix.strip()
-    if not normalized:
-        return ""
-    if not normalized.endswith("/"):
-        normalized = f"{normalized}/"
-    return normalized
-
-
-def _opt_str(value: object) -> str | None:
-    if isinstance(value, str):
-        return value
-    return None
-
-
-def _require_non_negative_int(value: Any, *, error_message: str) -> int:
-    if isinstance(value, int) and value >= 0:
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = int(value)
-        except ValueError:
-            parsed = -1
-        if parsed >= 0:
-            return parsed
-    raise RuntimeError(error_message)
-
-
-def _copy_part_etag(response: dict[str, Any]) -> str:
-    copy_result = response.get("CopyPartResult")
-    if not isinstance(copy_result, dict):
-        raise TypeError("multipart export copy part result is missing")
-    etag = _opt_str(copy_result.get("ETag"))
-    if etag is None:
-        raise RuntimeError("multipart export copy part etag is missing")
-    return etag

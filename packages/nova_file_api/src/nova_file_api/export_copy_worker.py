@@ -10,21 +10,25 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol, cast
-from uuid import uuid4
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from nova_runtime_support.export_copy_parts import (
+from nova_file_api.export_copy_parts import (
     ExportCopyPartRecord,
     ExportCopyPartRepository,
     ExportCopyPartStatus,
 )
-from nova_runtime_support.export_models import ExportRecord, ExportStatus
-from nova_runtime_support.export_runtime import ExportMetrics, ExportRepository
-from nova_runtime_support.export_utils import (
-    _multipart_copy_create_upload_kwargs,
-    _multipart_copy_part_size_bytes,
-    _sanitize_filename,
+from nova_file_api.export_models import ExportRecord, ExportStatus
+from nova_file_api.export_runtime import ExportMetrics, ExportRepository
+from nova_file_api.export_utils import (
+    build_export_object_key,
+    multipart_copy_create_upload_kwargs,
+    multipart_copy_part_size_bytes,
+    sanitize_filename,
+)
+from nova_file_api.s3_coercion import (
+    normalize_prefix,
+    parse_non_negative_int,
 )
 
 _SQS_BATCH_SIZE = 10
@@ -162,8 +166,8 @@ class LargeExportCopyCoordinator:
 
         """
         self.bucket = bucket
-        self.upload_prefix = _normalize_prefix(upload_prefix)
-        self.export_prefix = _normalize_prefix(export_prefix)
+        self.upload_prefix = normalize_prefix(upload_prefix)
+        self.export_prefix = normalize_prefix(export_prefix)
         self.copy_part_size_bytes = copy_part_size_bytes
         self.worker_threshold_bytes = worker_threshold_bytes
         self.max_attempts = max_attempts
@@ -195,14 +199,15 @@ class LargeExportCopyCoordinator:
             key=export.source_key, scope_id=export.scope_id
         )
         source_object = await self._head_object(key=export.source_key)
-        source_size_bytes = _require_non_negative_int(
+        source_size_bytes = parse_non_negative_int(
             source_object.get("ContentLength"),
             error_message="source upload object is missing content length",
+            err=RuntimeError,
         )
-        download_filename = _sanitize_filename(
+        download_filename = sanitize_filename(
             export.filename or Path(export.source_key).name
         )
-        copy_part_size_bytes = _multipart_copy_part_size_bytes(
+        copy_part_size_bytes = multipart_copy_part_size_bytes(
             source_size_bytes=source_size_bytes,
             preferred_part_size_bytes=self.copy_part_size_bytes,
         )
@@ -215,7 +220,7 @@ class LargeExportCopyCoordinator:
             else ExportCopyStrategy.INLINE
         )
         return PreparedExportCopy(
-            export_key=_new_export_key(
+            export_key=build_export_object_key(
                 export_prefix=self.export_prefix,
                 scope_id=export.scope_id,
                 export_id=export.export_id,
@@ -262,7 +267,7 @@ class LargeExportCopyCoordinator:
             return existing_state
         source_object = await self._head_object(key=export.source_key)
         create_upload_output = await self._s3.create_multipart_upload(
-            **_multipart_copy_create_upload_kwargs(
+            **multipart_copy_create_upload_kwargs(
                 bucket=self.bucket,
                 key=prepared.export_key,
                 source_object=source_object,
@@ -681,30 +686,6 @@ class LargeExportCopyCoordinator:
             raise ValueError("key is outside caller upload scope")
 
 
-def _normalize_prefix(prefix: str) -> str:
-    normalized = prefix.strip()
-    if normalized and not normalized.endswith("/"):
-        normalized = f"{normalized}/"
-    return normalized
-
-
-def _new_export_key(
-    *,
-    export_prefix: str,
-    scope_id: str,
-    export_id: str,
-    filename: str,
-) -> str:
-    stable_export_id = "".join(
-        character
-        for character in export_id.strip()
-        if character.isalnum() or character in {"-", "_"}
-    )
-    if not stable_export_id:
-        stable_export_id = uuid4().hex
-    return f"{export_prefix}{scope_id}/{stable_export_id}/{filename}"
-
-
 def _optional_str(value: object) -> str | None:
     if isinstance(value, str):
         return value
@@ -715,19 +696,6 @@ def _require_non_empty_str(value: object, *, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise TypeError(f"{field} must be a non-empty string")
     return value
-
-
-def _require_non_negative_int(value: object, *, error_message: str) -> int:
-    if isinstance(value, int) and value >= 0:
-        return value
-    if isinstance(value, str):
-        try:
-            parsed = int(value)
-        except ValueError:
-            parsed = -1
-        if parsed >= 0:
-            return parsed
-    raise RuntimeError(error_message)
 
 
 def _coerce_int(value: object) -> int:

@@ -5,12 +5,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from nova_file_api.models import UploadStrategy
-from nova_runtime_support.transfer_reconciliation import (
+from nova_file_api.transfer_reconciliation import (
     TransferReconciliationConfig,
     TransferReconciliationService,
 )
-from nova_runtime_support.transfer_usage import MemoryTransferUsageRepository
-from nova_runtime_support.upload_sessions import (
+from nova_file_api.transfer_usage import MemoryTransferUsageRepository
+from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
     UploadSessionStatus,

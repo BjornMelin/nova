@@ -257,7 +257,7 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
         props["Environment"]["Variables"][
             "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"
         ]
-        == "8"
+        == "2"
     )
     assert (
         props["Environment"]["Variables"]["FILE_TRANSFER_CHECKSUM_MODE"]
@@ -302,7 +302,7 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES"] == str(
         2 * 1024 * 1024 * 1024
     )
-    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == "8"
+    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == "2"
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS"] == "5"
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_QUEUE_URL"]
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE"]
@@ -403,6 +403,11 @@ def test_runtime_stack_adds_export_copy_worker_resources() -> None:
     assert any(
         logical_id.startswith("ExportCopyWorkerDlq") for logical_id in queues
     )
+    queue_names = {
+        resource["Properties"]["QueueName"] for resource in queues.values()
+    }
+    assert "nova-export-copy-worker-dev" in queue_names
+    assert "nova-export-copy-worker-dlq-dev" in queue_names
     functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
     handlers = {
         resource["Properties"]["Handler"] for resource in functions.values()
@@ -420,6 +425,10 @@ def test_runtime_stack_adds_export_copy_worker_resources() -> None:
     assert any(
         resource["Properties"].get("FunctionResponseTypes")
         == ["ReportBatchItemFailures"]
+        for resource in event_sources.values()
+    )
+    assert any(
+        resource["Properties"].get("ScalingConfig") == {"MaximumConcurrency": 2}
         for resource in event_sources.values()
     )
     worker_functions = [
@@ -463,6 +472,8 @@ def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
     assert _resources_of_type(bundle.resources, "AWS::S3::StorageLens")
     assert _resources_of_type(bundle.resources, "AWS::Budgets::Budget")
     alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
+    for resource in alarms.values():
+        assert resource["Properties"]["AlarmName"].startswith("nova-dev-")
     assert any(
         logical_id.startswith("StaleMultipartUploadBytesAlarm")
         for logical_id in alarms

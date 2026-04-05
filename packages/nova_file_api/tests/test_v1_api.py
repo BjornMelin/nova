@@ -12,7 +12,6 @@ from nova_file_api.exports import (
     MemoryExportPublisher,
     MemoryExportRepository,
 )
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import (
     ExportRecord,
     ExportStatus,
@@ -21,6 +20,7 @@ from nova_file_api.models import (
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import (
     RuntimeDeps,
@@ -90,7 +90,7 @@ class _FailingListExportRepository:
 
 def _build_v1_deps(
     *,
-    file_transfer_bucket: str = "test-transfer-bucket",
+    file_transfer_bucket: str | None = "test-transfer-bucket",
     process_immediately: bool = True,
 ) -> RuntimeDeps:
     """Build an in-memory dependency set for v1 route tests."""
@@ -128,7 +128,7 @@ def _build_v1_deps(
 @pytest.mark.anyio
 async def test_v1_health_and_capabilities() -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
-    app = build_test_app(_build_v1_deps(file_transfer_bucket=""))
+    app = build_test_app(_build_v1_deps(file_transfer_bucket=None))
     live = await request_app(app, "GET", "/v1/health/live")
     ready = await request_app(app, "GET", "/v1/health/ready")
     caps = await request_app(app, "GET", "/v1/capabilities")

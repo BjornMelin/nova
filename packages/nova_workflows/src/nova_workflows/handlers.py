@@ -4,27 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import AsyncExitStack
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from typing import Any, cast
 
+import aioboto3
 import structlog
 from botocore.config import Config
 
-from nova_runtime_support.aws import new_aioboto3_session
-from nova_runtime_support.export_copy_worker import ExportCopyTaskMessage
-from nova_runtime_support.transfer_reconciliation import (
+from nova_file_api.workflow_facade import (
+    ExportCopyTaskMessage,
     TransferReconciliationConfig,
     TransferReconciliationService,
-)
-from nova_runtime_support.transfer_usage import (
-    DynamoResource as TransferUsageDynamoResource,
-    build_transfer_usage_repository,
-)
-from nova_runtime_support.upload_sessions import (
-    DynamoResource as UploadSessionDynamoResource,
+    TransferUsageDynamoResource,
+    UploadSessionDynamoResource,
+    build_transfer_usage_window_repository,
     build_upload_session_repository,
 )
-from nova_runtime_support.workflow_config import WorkflowSettings
 from nova_workflows.models import ExportWorkflowInput
 from nova_workflows.runtime import export_services, workflow_services
 from nova_workflows.tasks import (
@@ -36,6 +31,7 @@ from nova_workflows.tasks import (
     start_queued_export_copy,
     validate_export,
 )
+from nova_workflows.workflow_config import WorkflowSettings
 
 _LOGGER = structlog.get_logger("nova_workflows.handlers")
 
@@ -145,7 +141,7 @@ async def _copy_export(*, event: dict[str, Any]) -> dict[str, Any]:
             workflow_input=workflow_input,
             export_service=services.export_service,
             transfer_service=services.transfer_service,
-            file_transfer_bucket=settings.file_transfer_bucket,
+            file_transfer_bucket=settings.file_transfer_bucket or "",
         )
     return result.model_dump(mode="json")
 
@@ -232,7 +228,7 @@ async def _fail_export(*, event: dict[str, Any]) -> dict[str, Any]:
 async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
     del event
     settings = WorkflowSettings()
-    session = new_aioboto3_session()
+    session = aioboto3.Session()
     s3_config = Config(
         s3={
             "use_accelerate_endpoint": (
@@ -242,10 +238,16 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
     )
     async with AsyncExitStack() as stack:
         s3_client = await stack.enter_async_context(
-            session.client("s3", config=s3_config)
+            cast(
+                AbstractAsyncContextManager[Any],
+                session.client("s3", config=s3_config),
+            )
         )
         dynamodb_resource = await stack.enter_async_context(
-            session.resource("dynamodb")
+            cast(
+                AbstractAsyncContextManager[Any],
+                session.resource("dynamodb"),
+            )
         )
         upload_session_repository = build_upload_session_repository(
             table_name=settings.file_transfer_upload_sessions_table,
@@ -255,7 +257,7 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
             ),
             enabled=True,
         )
-        transfer_usage_repository = build_transfer_usage_repository(
+        transfer_usage_repository = build_transfer_usage_window_repository(
             table_name=settings.file_transfer_usage_table,
             dynamodb_resource=cast(
                 TransferUsageDynamoResource | None,
@@ -265,7 +267,7 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
         )
         service = TransferReconciliationService(
             config=TransferReconciliationConfig(
-                bucket=settings.file_transfer_bucket,
+                bucket=settings.file_transfer_bucket or "",
                 upload_prefix=settings.file_transfer_upload_prefix,
                 export_prefix=settings.file_transfer_export_prefix,
                 stale_multipart_cleanup_age_seconds=(

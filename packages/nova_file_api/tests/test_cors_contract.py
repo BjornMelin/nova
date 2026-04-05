@@ -12,7 +12,7 @@ from nova_file_api.exports import (
     MemoryExportPublisher,
     MemoryExportRepository,
 )
-from nova_file_api.metrics import MetricsCollector
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import (
     build_cache_stack,

@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from nova_runtime_support.export_models import ExportOutput, ExportStatus
+from nova_file_api.export_models import (
+    ExportDownloadFilename,
+    ExportOutput,
+    ExportStatus,
+    ExportStorageKey,
+    ExportWorkflowId,
+    ExportWorkflowScopeId,
+)
 
 
 class WorkflowOutput(BaseModel):
@@ -12,8 +19,8 @@ class WorkflowOutput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    key: str = Field(min_length=1, max_length=2048)
-    download_filename: str = Field(min_length=1, max_length=512)
+    key: ExportStorageKey
+    download_filename: ExportDownloadFilename
 
     @classmethod
     def from_export_output(cls, output: ExportOutput) -> WorkflowOutput:
@@ -36,10 +43,10 @@ class ExportWorkflowInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    export_id: str = Field(min_length=1, max_length=128)
-    scope_id: str = Field(min_length=1, max_length=256)
-    source_key: str = Field(min_length=1, max_length=2048)
-    filename: str = Field(min_length=1, max_length=512)
+    export_id: ExportWorkflowId
+    scope_id: ExportWorkflowScopeId
+    source_key: ExportStorageKey
+    filename: ExportDownloadFilename
     request_id: str | None = Field(default=None, max_length=256)
     status: ExportStatus
     created_at: str = Field(min_length=1, max_length=128)
@@ -47,7 +54,7 @@ class ExportWorkflowInput(BaseModel):
     output: WorkflowOutput | None = None
     source_size_bytes: int | None = Field(default=None, ge=1)
     copy_strategy: str | None = Field(default=None, max_length=32)
-    copy_export_key: str | None = Field(default=None, max_length=2048)
+    copy_export_key: ExportStorageKey | None = None
     copy_upload_id: str | None = Field(default=None, max_length=1024)
     copy_part_size_bytes: int | None = Field(default=None, ge=1)
     copy_part_count: int | None = Field(default=None, ge=1)

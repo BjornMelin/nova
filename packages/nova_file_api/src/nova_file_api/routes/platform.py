@@ -340,7 +340,9 @@ async def health_ready(
         auth_dependency = False
 
     checks = {
-        "bucket_configured": bool(settings.file_transfer_bucket.strip()),
+        "bucket_configured": bool(
+            (settings.file_transfer_bucket or "").strip()
+        ),
         "idempotency_store": idempotency_store_ready,
         "export_runtime": export_runtime,
         "activity_store": activity_store_ready,

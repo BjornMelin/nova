@@ -7,22 +7,20 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import cast
 
+import aioboto3
 from botocore.config import Config
 
-from nova_runtime_support.aws import new_aioboto3_session
-from nova_runtime_support.export_copy_parts import (
-    DynamoResource as ExportCopyPartsDynamoResource,
-    build_export_copy_part_repository,
-)
-from nova_runtime_support.export_copy_worker import LargeExportCopyCoordinator
-from nova_runtime_support.export_runtime import (
+from nova_file_api.workflow_facade import (
     DynamoExportRepository,
     DynamoResource,
+    ExportCopyPartsDynamoResource,
+    LargeExportCopyCoordinator,
+    S3ExportTransferService,
     WorkflowExportStateService,
+    build_export_copy_part_repository,
 )
-from nova_runtime_support.export_transfer import S3ExportTransferService
 from nova_runtime_support.metrics import MetricsCollector
-from nova_runtime_support.workflow_config import (
+from nova_workflows.workflow_config import (
     WorkflowSettings,
     export_transfer_config_from_settings,
 )
@@ -72,7 +70,7 @@ async def export_services(
 ) -> AsyncIterator[ExportServices]:
     """Build the export service without the S3 transfer dependency."""
     resolved_settings = WorkflowSettings() if settings is None else settings
-    session = new_aioboto3_session()
+    session = aioboto3.Session()
     async with AsyncExitStack() as stack:
         dynamodb_resource = await stack.enter_async_context(
             session.resource("dynamodb")
@@ -105,7 +103,7 @@ async def workflow_services(
             "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL must be configured when "
             "EXPORTS_ENABLED=true"
         )
-    session = new_aioboto3_session()
+    session = aioboto3.Session()
     s3_config = Config(
         s3={
             "use_accelerate_endpoint": (
@@ -125,12 +123,15 @@ async def workflow_services(
             resolved_settings=resolved_settings,
             dynamodb_resource=dynamodb_resource,
         )
+        export_transfer_cfg = export_transfer_config_from_settings(
+            resolved_settings
+        )
         transfer_service = S3ExportTransferService(
-            config=export_transfer_config_from_settings(resolved_settings),
+            config=export_transfer_cfg,
             s3_client=s3_client,
         )
         large_copy_service = LargeExportCopyCoordinator(
-            bucket=resolved_settings.file_transfer_bucket,
+            bucket=export_transfer_cfg.bucket,
             upload_prefix=resolved_settings.file_transfer_upload_prefix,
             export_prefix=resolved_settings.file_transfer_export_prefix,
             copy_part_size_bytes=(

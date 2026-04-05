@@ -86,12 +86,14 @@ class UploadSessionRepository(Protocol):
         limit: int,
     ) -> list[UploadSessionRecord]:
         """Return expired multipart sessions that still need cleanup."""
+        ...
 
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace an existing session record."""
 
     async def healthcheck(self) -> bool:
         """Return readiness of the backing store."""
+        ...
 
 
 @dataclass(slots=True)
@@ -174,15 +176,19 @@ class DynamoTable(Protocol):
 
     async def put_item(self, **kwargs: object) -> Mapping[str, object]:
         """Create or replace an item."""
+        ...
 
     async def get_item(self, **kwargs: object) -> Mapping[str, object]:
         """Read a single item by key."""
+        ...
 
     async def query(self, **kwargs: object) -> Mapping[str, object]:
         """Query items using a secondary index."""
+        ...
 
     async def scan(self, **kwargs: object) -> Mapping[str, object]:
         """Scan items with optional filters."""
+        ...
 
 
 class DynamoResource(Protocol):

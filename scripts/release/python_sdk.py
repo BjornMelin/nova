@@ -14,11 +14,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
-from nova_runtime_support import (
+from scripts.release.sdk_common import (
+    REPO_ROOT,
     SDK_VISIBILITY_EXTENSION,
     SDK_VISIBILITY_INTERNAL,
 )
-from scripts.release.sdk_common import REPO_ROOT
 
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
 GENERATOR_ROOT = REPO_ROOT / "scripts" / "release" / "openapi_python_client"

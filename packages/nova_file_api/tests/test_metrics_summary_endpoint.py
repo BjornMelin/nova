@@ -13,8 +13,8 @@ from nova_file_api.exports import (
     MemoryExportPublisher,
     MemoryExportRepository,
 )
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import Principal
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import build_cache_stack, build_runtime_deps, build_test_app
 from .support.doubles import StubTransferService

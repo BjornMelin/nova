@@ -8,8 +8,8 @@ from fastapi import Header, Query
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request
-from nova_file_api.metrics import MetricsCollector
 from nova_file_api.models import ErrorEnvelope, ReadinessResponse
+from nova_runtime_support.metrics import MetricsCollector
 
 OpenApiResponse = dict[str, Any]
 OpenApiResponses = dict[int | str, OpenApiResponse]
