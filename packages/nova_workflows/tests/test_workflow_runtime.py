@@ -114,7 +114,7 @@ def test_build_export_service_rejects_blank_exports_table() -> None:
     settings = WorkflowSettings.model_construct(
         exports_enabled=True,
         exports_dynamodb_table="  ",
-        file_transfer_bucket="",
+        file_transfer_bucket=None,
         file_transfer_upload_prefix="uploads/",
         file_transfer_export_prefix="exports/",
         file_transfer_tmp_prefix="tmp/",

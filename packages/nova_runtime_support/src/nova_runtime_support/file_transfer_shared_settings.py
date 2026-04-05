@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from nova_runtime_support.transfer_limits import (
     ENV_EXPORT_COPY_PART_SIZE_BYTES_MAX,
@@ -21,10 +21,22 @@ class FileTransferSharedEnvFields(BaseModel):
     validation — single definition to avoid drift.
     """
 
-    file_transfer_bucket: str = Field(
-        default="",
+    file_transfer_bucket: str | None = Field(
+        default=None,
         validation_alias="FILE_TRANSFER_BUCKET",
     )
+
+    @field_validator("file_transfer_bucket", mode="before")
+    @classmethod
+    def _normalize_file_transfer_bucket(cls, value: object) -> object:
+        """Treat unset, empty, or whitespace-only values as unconfigured."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped if stripped else None
+        return value
+
     file_transfer_upload_prefix: str = Field(
         default="uploads/",
         validation_alias="FILE_TRANSFER_UPLOAD_PREFIX",

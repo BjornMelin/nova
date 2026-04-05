@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import AsyncExitStack
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from typing import Any, cast
 
 import aioboto3
@@ -141,7 +141,7 @@ async def _copy_export(*, event: dict[str, Any]) -> dict[str, Any]:
             workflow_input=workflow_input,
             export_service=services.export_service,
             transfer_service=services.transfer_service,
-            file_transfer_bucket=settings.file_transfer_bucket,
+            file_transfer_bucket=settings.file_transfer_bucket or "",
         )
     return result.model_dump(mode="json")
 
@@ -238,10 +238,16 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
     )
     async with AsyncExitStack() as stack:
         s3_client = await stack.enter_async_context(
-            session.client("s3", config=s3_config)
+            cast(
+                AbstractAsyncContextManager[Any],
+                session.client("s3", config=s3_config),
+            )
         )
         dynamodb_resource = await stack.enter_async_context(
-            session.resource("dynamodb")
+            cast(
+                AbstractAsyncContextManager[Any],
+                session.resource("dynamodb"),
+            )
         )
         upload_session_repository = build_upload_session_repository(
             table_name=settings.file_transfer_upload_sessions_table,
@@ -261,7 +267,7 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
         )
         service = TransferReconciliationService(
             config=TransferReconciliationConfig(
-                bucket=settings.file_transfer_bucket,
+                bucket=settings.file_transfer_bucket or "",
                 upload_prefix=settings.file_transfer_upload_prefix,
                 export_prefix=settings.file_transfer_export_prefix,
                 stale_multipart_cleanup_age_seconds=(

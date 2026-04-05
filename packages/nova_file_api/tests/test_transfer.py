@@ -41,6 +41,7 @@ def _settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "IDEMPOTENCY_ENABLED": False,
         "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+        "FILE_TRANSFER_BUCKET": "test-transfer-bucket",
     }
     values.update(overrides)
     return Settings.model_validate(values)
@@ -519,7 +520,7 @@ async def test_copy_upload_to_export_error_mapping(
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -1037,7 +1038,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     ]
 
     result = await service.copy_upload_to_export(
-        source_bucket=settings.file_transfer_bucket,
+        source_bucket=settings.file_transfer_bucket or "",
         source_key="uploads/scope-1/source.csv",
         scope_id="scope-1",
         export_id="job-1",
@@ -1048,7 +1049,7 @@ async def test_copy_upload_to_export_uses_multipart_copy_above_5_gb() -> None:
     assert fake_s3.copy_calls == []
     assert fake_s3.multipart_upload_calls == [
         {
-            "Bucket": settings.file_transfer_bucket,
+            "Bucket": settings.file_transfer_bucket or "",
             "Key": result.export_key,
             "ContentType": "text/csv",
             "Metadata": {"source": "unit-test"},
@@ -1095,7 +1096,7 @@ async def test_copy_upload_to_export_aborts_failed_multipart_copy() -> None:
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -1121,7 +1122,7 @@ async def test_copy_upload_to_export_limits_multipart_copy_concurrency() -> (
 
     copy_task = asyncio.create_task(
         service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",
@@ -1162,7 +1163,7 @@ async def test_large_copy_missing_source_is_invalid() -> None:
 
     with pytest.raises(FileTransferError) as exc_info:
         await service.copy_upload_to_export(
-            source_bucket=settings.file_transfer_bucket,
+            source_bucket=settings.file_transfer_bucket or "",
             source_key="uploads/scope-1/source.csv",
             scope_id="scope-1",
             export_id="job-1",

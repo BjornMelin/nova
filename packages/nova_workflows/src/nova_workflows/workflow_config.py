@@ -126,7 +126,7 @@ def export_transfer_config_from_settings(
     Raises:
         ValueError: If the configured transfer bucket is blank after trimming.
     """
-    bucket = settings.file_transfer_bucket.strip()
+    bucket = (settings.file_transfer_bucket or "").strip()
     if not bucket:
         raise ValueError("FILE_TRANSFER_BUCKET must be configured")
     return ExportTransferConfig(

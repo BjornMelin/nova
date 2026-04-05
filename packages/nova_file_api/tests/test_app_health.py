@@ -43,7 +43,7 @@ class _FailingActivityStore(MemoryActivityStore):
 def _build_deps(
     *,
     exports_enabled: bool = True,
-    file_transfer_bucket: str = "test-transfer-bucket",
+    file_transfer_bucket: str | None = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build in-memory test doubles for readiness and health checks."""
     settings = Settings.model_validate(
@@ -200,7 +200,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
 @pytest.mark.anyio
 async def test_readyz_fails_when_bucket_is_missing() -> None:
     """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
-    app = build_test_app(_build_deps(file_transfer_bucket=""))
+    app = build_test_app(_build_deps(file_transfer_bucket=None))
     response = await request_app(app, "GET", "/v1/health/ready")
     assert response.status_code == 503
     payload = response.json()

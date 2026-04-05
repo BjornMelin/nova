@@ -101,7 +101,7 @@ def transfer_config_from_settings(settings: Settings) -> TransferConfig:
     """
     return TransferConfig(
         enabled=settings.file_transfer_enabled,
-        bucket=settings.file_transfer_bucket,
+        bucket=settings.file_transfer_bucket or "",
         upload_prefix=settings.file_transfer_upload_prefix,
         export_prefix=settings.file_transfer_export_prefix,
         tmp_prefix=settings.file_transfer_tmp_prefix,

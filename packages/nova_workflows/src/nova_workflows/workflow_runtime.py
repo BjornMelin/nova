@@ -125,12 +125,15 @@ async def workflow_services(
             resolved_settings=resolved_settings,
             dynamodb_resource=dynamodb_resource,
         )
+        export_transfer_cfg = export_transfer_config_from_settings(
+            resolved_settings
+        )
         transfer_service = S3ExportTransferService(
-            config=export_transfer_config_from_settings(resolved_settings),
+            config=export_transfer_cfg,
             s3_client=s3_client,
         )
         large_copy_service = LargeExportCopyCoordinator(
-            bucket=resolved_settings.file_transfer_bucket,
+            bucket=export_transfer_cfg.bucket,
             upload_prefix=resolved_settings.file_transfer_upload_prefix,
             export_prefix=resolved_settings.file_transfer_export_prefix,
             copy_part_size_bytes=(
