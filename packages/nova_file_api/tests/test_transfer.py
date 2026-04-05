@@ -25,6 +25,10 @@ from nova_file_api.models import (
 )
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
+from nova_file_api.transfer_usage import (
+    MemoryTransferUsageRepository,
+    TransferUsageWindowRepository,
+)
 from nova_file_api.upload_sessions import (
     MemoryUploadSessionRepository,
     UploadSessionRecord,
@@ -151,6 +155,32 @@ class _FakeS3Client:
         return {}
 
 
+class _RecordingTransferUsageRepository(MemoryTransferUsageRepository):
+    """Tracks ``release_upload`` calls for cancellation tests."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release_upload_calls = 0
+
+    async def release_upload(
+        self,
+        *,
+        scope_id: str,
+        window_started_at: datetime,
+        size_bytes: int,
+        multipart: bool,
+        completed: bool,
+    ) -> None:
+        self.release_upload_calls += 1
+        await super().release_upload(
+            scope_id=scope_id,
+            window_started_at=window_started_at,
+            size_bytes=size_bytes,
+            multipart=multipart,
+            completed=completed,
+        )
+
+
 class _FailingUploadSessionRepository(MemoryUploadSessionRepository):
     def __init__(self) -> None:
         super().__init__()
@@ -174,6 +204,7 @@ def _transfer_service(
     settings: Settings,
     s3_client: _FakeS3Client,
     upload_session_repository: MemoryUploadSessionRepository | None = None,
+    transfer_usage_repository: TransferUsageWindowRepository | None = None,
 ) -> TransferService:
     return TransferService(
         config=transfer_config_from_settings(settings),
@@ -181,6 +212,7 @@ def _transfer_service(
         upload_session_repository=(
             upload_session_repository or MemoryUploadSessionRepository()
         ),
+        transfer_usage_repository=transfer_usage_repository,
     )
 
 
@@ -810,6 +842,45 @@ async def test_sign_parts_includes_checksum_header_when_required() -> None:
     )
 
     assert fake_s3.calls[-1]["Params"]["ChecksumSHA256"] == "part-checksum"
+
+
+@pytest.mark.anyio
+async def test_initiate_upload_releases_quota_on_cancel_during_presign() -> (
+    None
+):
+    """Quota release runs on cancel (shielded), not only on plain failure."""
+    settings = _settings(
+        # Single-part path awaits presign; multipart initiate does not presign
+        # in this handler.
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=500 * 1024 * 1024 * 1024,
+    )
+    fake_s3 = _FakeS3Client()
+    fake_s3.presign_wait_event = asyncio.Event()
+    usage = _RecordingTransferUsageRepository()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        transfer_usage_repository=usage,
+    )
+    task = asyncio.create_task(
+        service.initiate_upload(
+            request=InitiateUploadRequest(
+                filename="report.csv",
+                content_type="text/csv",
+                size_bytes=6 * 1024 * 1024,
+            ),
+            principal=_principal(),
+        )
+    )
+    for _ in range(200):
+        if fake_s3._presign_in_flight > 0:
+            break
+        await asyncio.sleep(0)
+    assert fake_s3._presign_in_flight > 0
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    assert usage.release_upload_calls == 1
 
 
 @pytest.mark.anyio

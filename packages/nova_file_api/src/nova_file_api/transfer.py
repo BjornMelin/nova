@@ -178,6 +178,7 @@ class TransferService:
             policy=policy,
         )
         success = False
+        released_after_failure = False
         try:
             if not multipart:
                 result = await self._single_upload_response(
@@ -199,10 +200,25 @@ class TransferService:
                     request=request,
                     policy=policy,
                 )
+        except asyncio.CancelledError:
+            # Await in `finally` can be cancelled with the task; shield so
+            # quota release still runs before the caller observes cancellation.
+            await asyncio.shield(
+                self._release_upload_quota_best_effort(
+                    scope_id=principal.scope_id,
+                    created_at=created_at,
+                    size_bytes=request.size_bytes,
+                    multipart=multipart,
+                    completed=False,
+                )
+            )
+            released_after_failure = True
+            raise
+        else:
             success = True
             return result
         finally:
-            if not success:
+            if not success and not released_after_failure:
                 await self._release_upload_quota_best_effort(
                     scope_id=principal.scope_id,
                     created_at=created_at,
@@ -1267,6 +1283,10 @@ class TransferService:
         multipart: bool,
         completed: bool,
     ) -> None:
+        """Release quota; swallow and log failures.
+
+        ``initiate_upload`` shields this coroutine on ``CancelledError``.
+        """
         try:
             await self._transfer_usage.release_upload(
                 scope_id=scope_id,
