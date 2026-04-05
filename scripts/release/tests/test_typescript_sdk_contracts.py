@@ -9,6 +9,8 @@ from typing import cast
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TS_PACKAGE_DIR = "nova_sdk_ts"
+ROOT_PACKAGE_JSON = REPO_ROOT / "package.json"
+ROOT_PACKAGE_LOCK = REPO_ROOT / "package-lock.json"
 
 
 def _load_package_json(package_dir_name: str) -> dict[str, object]:
@@ -16,6 +18,20 @@ def _load_package_json(package_dir_name: str) -> dict[str, object]:
     return cast(
         dict[str, object],
         json.loads(package_path.read_text(encoding="utf-8")),
+    )
+
+
+def _load_root_package_json() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        json.loads(ROOT_PACKAGE_JSON.read_text(encoding="utf-8")),
+    )
+
+
+def _load_package_lock() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        json.loads(ROOT_PACKAGE_LOCK.read_text(encoding="utf-8")),
     )
 
 
@@ -41,6 +57,49 @@ def test_typescript_sdk_source_manifests_remain_private() -> None:
     """Source TS SDK manifests stay private until staged publish preparation."""
     package_data = _load_package_json(TS_PACKAGE_DIR)
     assert package_data.get("private") is True
+
+
+def test_typescript_workspace_keeps_generator_and_compiler_contract() -> None:
+    """The npm workspace should advance the generator but keep TS 5.9.3."""
+    root_package = _load_root_package_json()
+    root_dev_dependencies = cast(
+        dict[str, str],
+        root_package.get("devDependencies", {}),
+    )
+    sdk_package = _load_package_json(TS_PACKAGE_DIR)
+    contracts_package = _load_package_json("contracts/typescript")
+
+    assert root_dev_dependencies["@hey-api/openapi-ts"] == "0.95.0"
+    assert (
+        cast(dict[str, str], sdk_package["devDependencies"])["typescript"]
+        == "5.9.3"
+    )
+    assert (
+        cast(dict[str, str], contracts_package["devDependencies"])["typescript"]
+        == "5.9.3"
+    )
+    assert (
+        cast(dict[str, str], sdk_package["devDependencies"])["@types/node"]
+        == "24.12.2"
+    )
+    assert (
+        cast(dict[str, str], contracts_package["devDependencies"])[
+            "@types/node"
+        ]
+        == "24.12.2"
+    )
+
+
+def test_package_lock_keeps_single_typescript_5_line() -> None:
+    """The lockfile must not retain the deferred TypeScript 6 nested install."""
+    package_lock = _load_package_lock()
+    packages = cast(dict[str, object], package_lock.get("packages", {}))
+    root_typescript = cast(
+        dict[str, object], packages["node_modules/typescript"]
+    )
+
+    assert root_typescript["version"] == "5.9.3"
+    assert "packages/nova_sdk_ts/node_modules/typescript" not in packages
 
 
 def test_public_sdk_package_is_runtime_lean() -> None:

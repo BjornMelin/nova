@@ -200,13 +200,23 @@ Toolchain baseline notes:
   the verified TypeScript 5.x line. TypeScript 6 remains deferred until a
   repo-wide migration updates `package-lock.json`, generated SDK outputs,
   conformance fixtures, and release/workflow docs in one verified change set.
+- The repo-installed TypeScript SDK generator is exact-pinned at
+  `@hey-api/openapi-ts@0.95.0`. Keep the committed `package-lock.json`,
+  generated `packages/nova_sdk_ts/src/client` tree, and the compatibility
+  checks in `scripts/release/typescript_sdk.py` aligned in the same change.
 - The root dev dependency group pins `openapi-python-client==0.28.3` for the
   committed Python SDK generation path. Keep that exact pin, the lockfile,
   `scripts/release/openapi_python_client/`, and the committed
   `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
-  `pydantic-settings>=2.13.1` and `mangum>=0.21.0` in `nova-file-api`. If those
-  floors move, update docs, lockfiles, and verification guidance together.
+  `anyio>=4.13.0`, `fastapi>=0.135.3`, `pydantic-settings>=2.13.1`, and
+  `mangum>=0.21.0` in `nova-file-api`, `fastapi>=0.135.3` in
+  `nova-runtime-support`, `dash>=4.1.0,<5.0.0` in `nova-dash-bridge`,
+  the `attrs>=25.4.0,<26.0` compatibility window in `nova-sdk-py` while the
+  current CDK/jsii toolchain still caps `attrs<26`, and the async AWS
+  compatibility hold `aioboto3>=15.5.0,<16` plus
+  `botocore>=1.40.46,<1.40.62` in `nova-workflows`. If those floors move,
+  update docs, lockfiles, and verification guidance together.
 - Pytest defaults to `--import-mode=importlib` and relies on editable workspace
   installs instead of repo-level `pythonpath` injection. Treat any return to a
   global `pythonpath` shim as a regression unless it is backed by a newly

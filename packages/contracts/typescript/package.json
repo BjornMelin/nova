@@ -14,7 +14,7 @@
     "@nova/sdk": "file:../../nova_sdk_ts"
   },
   "devDependencies": {
-    "@types/node": "^24.12.0",
-    "typescript": "^5.9.3"
+    "@types/node": "24.12.2",
+    "typescript": "5.9.3"
   }
 }
