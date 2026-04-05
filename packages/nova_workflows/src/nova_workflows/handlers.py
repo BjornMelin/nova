@@ -11,8 +11,8 @@ import aioboto3
 import structlog
 from botocore.config import Config
 
-from nova_file_api.export_copy_worker import ExportCopyTaskMessage
 from nova_file_api.workflow_facade import (
+    ExportCopyTaskMessage,
     TransferReconciliationConfig,
     TransferReconciliationService,
     TransferUsageDynamoResource,

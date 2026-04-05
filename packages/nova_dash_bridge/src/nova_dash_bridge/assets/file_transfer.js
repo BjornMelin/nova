@@ -352,18 +352,22 @@
         4,
         32
       );
-    var configuredBatchSize = clampPositiveInt(
-      parseInt(config.signBatchSize || "0", 10),
-      0,
-      128
-    );
+    var rawSignBatch = parseInt(config.signBatchSize || "0", 10);
+    var configuredBatchSize = 0;
+    if (Number.isFinite(rawSignBatch) && rawSignBatch > 0) {
+      configuredBatchSize = clampPositiveInt(
+        Math.max(32, rawSignBatch),
+        32,
+        128
+      );
+    }
     var hintedBatchSize = parseInt(initiated.sign_batch_size_hint, 10);
     // Prefer server policy hints when present; use DOM override only if the
     // server did not provide a positive batch hint.
     var batchSize = Number.isFinite(hintedBatchSize) && hintedBatchSize > 0
-      ? clampPositiveInt(hintedBatchSize, 32, 128)
+      ? clampPositiveInt(Math.max(32, hintedBatchSize), 32, 128)
       : configuredBatchSize > 0
-        ? clampPositiveInt(configuredBatchSize, 32, 128)
+        ? configuredBatchSize
         : clampPositiveInt(
           Math.max(64, maxConcurrency * 4),
           32,

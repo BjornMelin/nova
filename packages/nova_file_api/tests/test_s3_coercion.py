@@ -72,3 +72,5 @@ def test_copy_part_etag() -> None:
         copy_part_etag({}, err=err)
     with pytest.raises(ValueError, match="multipart export copy part etag"):
         copy_part_etag({"CopyPartResult": {}}, err=err)
+    with pytest.raises(ValueError, match="multipart export copy part etag"):
+        copy_part_etag({"CopyPartResult": {"ETag": 123}}, err=err)

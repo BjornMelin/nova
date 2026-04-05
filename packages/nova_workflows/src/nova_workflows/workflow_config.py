@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from nova_file_api.export_transfer import ExportTransferConfig
+from nova_file_api.workflow_facade import ExportTransferConfig
 from nova_runtime_support.file_transfer_shared_settings import (
     FileTransferSharedEnvFields,
 )

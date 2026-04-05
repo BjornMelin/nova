@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nova_file_api.export_copy_worker import ExportCopyTaskMessage
+from nova_file_api.workflow_facade import ExportCopyTaskMessage
 from nova_workflows import handlers
 
 

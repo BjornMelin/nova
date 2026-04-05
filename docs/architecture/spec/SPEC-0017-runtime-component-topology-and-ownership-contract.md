@@ -2,7 +2,7 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.5
+Version: 2.6
 Date: 2026-03-22
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"

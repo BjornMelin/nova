@@ -4,22 +4,20 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from nova_file_api.export_copy_worker import (
-    ExportCopyPollResult,
-    ExportCopyStrategy,
-    PreparedExportCopy,
-    QueuedExportCopyState,
-)
 from nova_file_api.export_models import (
     ExportOutput,
     ExportRecord,
     ExportStatus,
 )
-from nova_file_api.export_transfer import (
+from nova_file_api.workflow_facade import (
+    ExportCopyPollResult,
     ExportCopyResult,
+    ExportCopyStrategy,
     ExportTransferService,
+    PreparedExportCopy,
+    QueuedExportCopyState,
+    WorkflowExportStateService,
 )
-from nova_file_api.workflow_facade import WorkflowExportStateService
 from nova_workflows.models import ExportWorkflowInput, WorkflowOutput
 
 
@@ -28,6 +26,7 @@ class ExportCopyCoordinator(Protocol):
 
     async def prepare(self, *, export: ExportRecord) -> PreparedExportCopy:
         """Resolve one export-copy execution plan."""
+        ...
 
     async def start(
         self,
@@ -36,6 +35,7 @@ class ExportCopyCoordinator(Protocol):
         prepared: PreparedExportCopy,
     ) -> QueuedExportCopyState:
         """Persist part state and enqueue queued copy work."""
+        ...
 
     async def poll(
         self,
@@ -46,6 +46,7 @@ class ExportCopyCoordinator(Protocol):
         download_filename: str,
     ) -> ExportCopyPollResult:
         """Poll queued copy progress and finalize the destination MPU."""
+        ...
 
 
 async def validate_export(

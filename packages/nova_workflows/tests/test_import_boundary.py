@@ -13,10 +13,7 @@ def test_workflows_do_not_cross_api_boundary() -> None:
     target_module = "nova_" + "file_api"
     target_prefix = f"{target_module}."
     allowed_modules = {
-        "nova_file_api.export_copy_parts",
-        "nova_file_api.export_copy_worker",
         "nova_file_api.export_models",
-        "nova_file_api.export_transfer",
         "nova_file_api.workflow_facade",
     }
     violations: list[str] = []
