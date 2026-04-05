@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from aws_cdk import CfnOutput, DefaultStackSynthesizer, Stack, aws_iam as iam
 from constructs import Construct
@@ -168,7 +168,10 @@ class NovaReleaseSupportStack(Stack):
             self,
             construct_id,
             role_name=role_name,
-            assumed_by=iam.ServicePrincipal("cloudformation.amazonaws.com"),
+            assumed_by=cast(
+                iam.IPrincipal,
+                iam.ServicePrincipal("cloudformation.amazonaws.com"),
+            ),
             description=(
                 "CloudFormation execution role for Nova runtime stack "
                 "deployments driven by the release control plane."
