@@ -39,6 +39,15 @@ _COMPAT_GET_PARSE_AS_SIGNATURE = (
     "export const getParseAs = (contentType: string | null): "
     "Exclude<Config['parseAs'], 'auto'> | undefined => {"
 )
+# @hey-api/openapi-ts types SseFn with RequestOptions<never,...>, which forces
+# onSseEvent to StreamEvent<never>. Align with MethodFn so TData flows to SSE
+# callbacks and ServerSentEventsResult.
+_SSE_FN_BROKEN_REQUEST_OPTIONS = (
+    "Omit<RequestOptions<never, TResponseStyle, ThrowOnError>, 'method'>"
+)
+_SSE_FN_FIXED_REQUEST_OPTIONS = (
+    "Omit<RequestOptions<TData, TResponseStyle, ThrowOnError>, 'method'>"
+)
 _GET_PARSE_AS_SIGNATURE_PATTERN = re.compile(
     r"export const getParseAs = \(contentType: string \| null\):\s*"
     r"Exclude<Config\[(?P<quote1>['\"])parseAs(?P=quote1)\],\s*"
@@ -144,6 +153,17 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
         RuntimeError: Raised when the expected upstream ``getParseAs``
             signature is missing from the generated output.
     """
+    client_types_path = root / "client" / "types.gen.ts"
+    if client_types_path.exists():
+        ct_text = client_types_path.read_text(encoding="utf-8")
+        if _SSE_FN_BROKEN_REQUEST_OPTIONS in ct_text:
+            ct_text = ct_text.replace(
+                _SSE_FN_BROKEN_REQUEST_OPTIONS,
+                _SSE_FN_FIXED_REQUEST_OPTIONS,
+                1,
+            )
+            client_types_path.write_text(ct_text, encoding="utf-8")
+
     utils_path = root / "client" / "utils.gen.ts"
     if not utils_path.exists():
         return
