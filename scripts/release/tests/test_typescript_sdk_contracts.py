@@ -196,6 +196,7 @@ def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
         "@returns The response from the "
         "`getTransferCapabilities` operation." in source
     )
+    assert "@returns The response from the `listExports` operation." in source
 
 
 def test_public_sdk_types_include_sentence_style_alias_docblocks() -> None:

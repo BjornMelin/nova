@@ -55,12 +55,7 @@ _GET_PARSE_AS_SIGNATURE_PATTERN = re.compile(
     r"(?P<compat>\|\s*undefined\s*)?=>\s*{"
 )
 _SDK_OPERATION_DOCBLOCK_PATTERN = re.compile(
-    r"/\*\*\n"
-    r" \* (?P<title>[^\n]+)\n"
-    r" \*\n"
-    r" \* (?P<description>[^\n]+)\n"
-    r" \*/\n"
-    r"export const (?P<name>\w+) =",
+    r"/\*\*\n(?P<body>(?: \*.*\n)+?) \*/\nexport const (?P<name>\w+) =",
     re.MULTILINE,
 )
 _UNDOCUMENTED_TYPE_EXPORT_PATTERN = re.compile(
@@ -203,15 +198,23 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
     sdk_text = sdk_path.read_text(encoding="utf-8")
 
     def _normalize_docblock(match: re.Match[str]) -> str:
-        description = match.group("description").strip()
-        if not description.endswith("."):
-            description = f"{description}."
         operation_name = match.group("name")
+        body = match.group("body")
+        if "@returns" in body:
+            return match.group(0)
+        normalized_lines = body.splitlines()
+        for index, line in enumerate(normalized_lines):
+            stripped = line.removeprefix(" * ").strip()
+            if stripped and stripped != "*" and not stripped.endswith("."):
+                normalized_lines[index] = f" * {stripped}."
+                break
+        if normalized_lines and normalized_lines[-1] != " *":
+            normalized_lines.append(" *")
+        normalized_lines.append(
+            f" * @returns The response from the `{operation_name}` operation."
+        )
         return (
-            "/**\n"
-            f" * {description}\n"
-            " *\n"
-            f" * @returns The response from the `{operation_name}` operation.\n"
+            "/**\n" + "\n".join(normalized_lines) + "\n"
             " */\n"
             f"export const {operation_name} ="
         )

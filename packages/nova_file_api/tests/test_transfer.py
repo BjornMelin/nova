@@ -233,19 +233,34 @@ class _LaggingUploadSessionTable:
 
     async def scan(self, **kwargs: object) -> dict[str, object]:
         self.scan_calls.append(deepcopy(dict(kwargs)))
+        filter_expression = cast(str, kwargs["FilterExpression"])
+        names = cast(dict[str, str], kwargs["ExpressionAttributeNames"])
         values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
         now_epoch = values[":now_epoch"]
         assert isinstance(now_epoch, int)
+        allowed_record_types: set[str | None] | None = None
+        record_type_name = names.get("#record_type")
+        if (
+            record_type_name == "record_type"
+            and "#record_type = :session_record" in filter_expression
+        ):
+            allowed_record_types = {values[":session_record"]}
+            if "attribute_not_exists(#record_type)" in filter_expression:
+                allowed_record_types.add(None)
+        allowed_statuses = {
+            values[":initiated"],
+            values[":active"],
+        }
+        multipart_value = values[":multipart"]
         items = [
             deepcopy(item)
             for item in self._items.values()
-            if item.get("record_type") in (None, "upload_session")
-            and item.get("strategy") == UploadStrategy.MULTIPART.value
-            and item.get("status")
-            in {
-                UploadSessionStatus.INITIATED.value,
-                UploadSessionStatus.ACTIVE.value,
-            }
+            if (
+                allowed_record_types is None
+                or item.get("record_type") in allowed_record_types
+            )
+            and item.get("strategy") == multipart_value
+            and item.get("status") in allowed_statuses
             and int(item["resumable_until_epoch"]) <= now_epoch
         ]
         limit = kwargs.get("Limit")
@@ -266,11 +281,18 @@ class _LaggingUploadSessionClient:
         if self._table.fail_transact_write:
             raise RuntimeError("transaction write failed")
         for request in cast(list[dict[str, Any]], kwargs["TransactItems"]):
-            put = cast(dict[str, Any], request["Put"])
-            item = _deserialize_item(cast(dict[str, Any], put["Item"]))
-            session_id = item["session_id"]
+            if "Put" in request:
+                put = cast(dict[str, Any], request["Put"])
+                item = _deserialize_item(cast(dict[str, Any], put["Item"]))
+                session_id = item["session_id"]
+                assert isinstance(session_id, str)
+                self._table._items[session_id] = item
+                continue
+            delete = cast(dict[str, Any], request["Delete"])
+            key = _deserialize_item(cast(dict[str, Any], delete["Key"]))
+            session_id = key["session_id"]
             assert isinstance(session_id, str)
-            self._table._items[session_id] = item
+            self._table._items.pop(session_id, None)
         return {}
 
 
@@ -1226,6 +1248,32 @@ async def test_dynamo_upload_repository_update_is_atomic() -> None:
 
 
 @pytest.mark.anyio
+async def test_memory_upload_repository_update_removes_stale_alias() -> None:
+    repository = MemoryUploadSessionRepository()
+    original = _upload_session_record(upload_id="upload-1")
+    await repository.create(original)
+    updated = replace(original, upload_id="upload-2")
+
+    await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") is None
+    assert await repository.get_for_upload_id(upload_id="upload-2") == updated
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_update_removes_stale_alias() -> None:
+    repository, _table = _lagging_upload_session_repository()
+    original = _upload_session_record(upload_id="upload-1")
+    await repository.create(original)
+    updated = replace(original, upload_id="upload-2")
+
+    await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") is None
+    assert await repository.get_for_upload_id(upload_id="upload-2") == updated
+
+
+@pytest.mark.anyio
 async def test_dynamo_upload_repository_requires_transaction_client() -> None:
     repository = DynamoUploadSessionRepository(
         table_name="upload-sessions",
@@ -1243,7 +1291,7 @@ async def test_dynamo_upload_repository_requires_transaction_client() -> None:
 async def test_dynamo_upload_repository_scan_ignores_upload_alias_rows() -> (
     None
 ):
-    repository, _table = _lagging_upload_session_repository()
+    repository, table = _lagging_upload_session_repository()
     now = datetime.now(tz=UTC)
     record = _upload_session_record(
         created_at=now,
@@ -1258,6 +1306,9 @@ async def test_dynamo_upload_repository_scan_ignores_upload_alias_rows() -> (
     )
 
     assert expired == [record]
+    assert "#record_type = :session_record" in cast(
+        str, table.scan_calls[-1]["FilterExpression"]
+    )
 
 
 @pytest.mark.anyio

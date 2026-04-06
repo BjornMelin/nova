@@ -19,6 +19,8 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Metrics Summary.
+ *
  * Return low-cardinality metrics summary for dashboards.
  *
  * @returns The response from the `metricsSummary` operation.
@@ -30,6 +32,8 @@ export const metricsSummary = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
+ * Get Capabilities.
+ *
  * Expose runtime capability declarations.
  *
  * @returns The response from the `getCapabilities` operation.
@@ -37,6 +41,8 @@ export const metricsSummary = <ThrowOnError extends boolean = false>(options?: O
 export const getCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/capabilities', ...options });
 
 /**
+ * Get Transfer Capabilities.
+ *
  * Expose the current transfer policy envelope.
  *
  * @returns The response from the `getTransferCapabilities` operation.
@@ -44,12 +50,14 @@ export const getCapabilities = <ThrowOnError extends boolean = false>(options?: 
 export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, GetTransferCapabilitiesErrors, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
 
 /**
- * List Exports
+ * List Exports.
  *
  * List caller-owned exports with most recent first.
  *
  * This endpoint is intentionally eventual because it is backed by a scoped
  * DynamoDB global secondary index.
+ *
+ * @returns The response from the `listExports` operation.
  */
 export const listExports = <ThrowOnError extends boolean = false>(options?: Options<ListExportsData, ThrowOnError>) => (options?.client ?? client).get<ListExportsResponses, ListExportsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -58,6 +66,8 @@ export const listExports = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
+ * Create Export.
+ *
  * Create an explicit export workflow resource.
  *
  * @returns The response from the `createExport` operation.
@@ -73,6 +83,8 @@ export const createExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
+ * Get Export.
+ *
  * Return the caller-owned export resource.
  *
  * @returns The response from the `getExport` operation.
@@ -84,6 +96,8 @@ export const getExport = <ThrowOnError extends boolean = false>(options: Options
 });
 
 /**
+ * Cancel Export.
+ *
  * Cancel a caller-owned non-terminal export.
  *
  * @returns The response from the `cancelExport` operation.
@@ -95,6 +109,8 @@ export const cancelExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
+ * Health Live.
+ *
  * Return liveness status.
  *
  * @returns The response from the `healthLive` operation.
@@ -102,6 +118,8 @@ export const cancelExport = <ThrowOnError extends boolean = false>(options: Opti
 export const healthLive = <ThrowOnError extends boolean = false>(options?: Options<HealthLiveData, ThrowOnError>) => (options?.client ?? client).get<HealthLiveResponses, unknown, ThrowOnError>({ url: '/v1/health/live', ...options });
 
 /**
+ * Health Ready.
+ *
  * Return readiness checks for traffic-critical dependencies.
  *
  * @returns The response from the `healthReady` operation.
@@ -109,6 +127,8 @@ export const healthLive = <ThrowOnError extends boolean = false>(options?: Optio
 export const healthReady = <ThrowOnError extends boolean = false>(options?: Options<HealthReadyData, ThrowOnError>) => (options?.client ?? client).get<HealthReadyResponses, HealthReadyErrors, ThrowOnError>({ url: '/v1/health/ready', ...options });
 
 /**
+ * Get Release Info.
+ *
  * Return public release metadata for browser and deploy canaries.
  *
  * @returns The response from the `getReleaseInfo` operation.
@@ -116,6 +136,8 @@ export const healthReady = <ThrowOnError extends boolean = false>(options?: Opti
 export const getReleaseInfo = <ThrowOnError extends boolean = false>(options?: Options<GetReleaseInfoData, ThrowOnError>) => (options?.client ?? client).get<GetReleaseInfoResponses, unknown, ThrowOnError>({ url: '/v1/releases/info', ...options });
 
 /**
+ * Plan Resources.
+ *
  * Plan supportability for requested resource keys.
  *
  * @returns The response from the `planResources` operation.
@@ -130,6 +152,8 @@ export const planResources = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
+ * Presign Download.
+ *
  * Issue presigned GET URL for caller-scoped key.
  *
  * @returns The response from the `presignDownload` operation.
@@ -145,6 +169,8 @@ export const presignDownload = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
+ * Abort Upload.
+ *
  * Abort multipart upload.
  *
  * @returns The response from the `abortUpload` operation.
@@ -160,6 +186,8 @@ export const abortUpload = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
+ * Complete Upload.
+ *
  * Complete multipart upload.
  *
  * @returns The response from the `completeUpload` operation.
@@ -175,6 +203,8 @@ export const completeUpload = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
+ * Initiate Upload.
+ *
  * Choose upload strategy and return presigned metadata.
  *
  * @returns The response from the `initiateUpload` operation.
@@ -190,7 +220,7 @@ export const initiateUpload = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Introspect Upload
+ * Introspect Upload.
  *
  * Return uploaded multipart part state for resume flows.
  *
@@ -203,6 +233,8 @@ export const initiateUpload = <ThrowOnError extends boolean = false>(options: Op
  *
  * Returns:
  * UploadIntrospectionResponse: Multipart state for resume operations.
+ *
+ * @returns The response from the `introspectUpload` operation.
  */
 export const introspectUpload = <ThrowOnError extends boolean = false>(options: Options<IntrospectUploadData, ThrowOnError>) => (options.client ?? client).post<IntrospectUploadResponses, IntrospectUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -215,6 +247,8 @@ export const introspectUpload = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
+ * Sign Upload Parts.
+ *
  * Return presigned multipart part URLs.
  *
  * @returns The response from the `signUploadParts` operation.

@@ -81,7 +81,17 @@ class UploadSessionRepository(Protocol):
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
-        """Return one session using the authoritative upload-id lookup path."""
+        """Return one session using the authoritative upload-id lookup path.
+
+        Args:
+            upload_id:
+                Upload identifier used to resolve the authoritative alias row.
+
+        Returns:
+            UploadSessionRecord | None:
+                The matching persisted upload session, or ``None`` when no
+                active authoritative alias row exists for ``upload_id``.
+        """
 
     async def list_expired_multipart(
         self,
@@ -126,7 +136,17 @@ class MemoryUploadSessionRepository:
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
-        """Return one in-memory session for the provided upload id."""
+        """Return one in-memory session for the provided upload id.
+
+        Args:
+            upload_id:
+                Upload identifier used to resolve the authoritative alias row.
+
+        Returns:
+            UploadSessionRecord | None:
+                The matching upload session, or ``None`` when no active alias
+                row exists for ``upload_id``.
+        """
         async with self._lock:
             record = self._records_by_upload_id.get(upload_id)
             if record is None:
@@ -140,6 +160,15 @@ class MemoryUploadSessionRepository:
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one in-memory upload session record."""
         async with self._lock:
+            previous = self._records_by_session_id.get(record.session_id)
+            previous_upload_id = (
+                previous.upload_id if previous is not None else None
+            )
+            if (
+                previous_upload_id is not None
+                and previous_upload_id != record.upload_id
+            ):
+                self._records_by_upload_id.pop(previous_upload_id, None)
             self._records_by_session_id[record.session_id] = record
             if record.upload_id is not None:
                 self._records_by_upload_id[record.upload_id] = record
@@ -202,6 +231,15 @@ def _as_dynamo_table(table: object) -> DynamoTable:
         method = getattr(table, method_name, None)
         if not callable(method):
             invalid_methods.append(method_name)
+    meta = getattr(table, "meta", None)
+    client = getattr(meta, "client", None) if meta is not None else None
+    transact_write_items = (
+        getattr(client, "transact_write_items", None)
+        if client is not None
+        else None
+    )
+    if not callable(transact_write_items):
+        invalid_methods.append("meta.client.transact_write_items")
     if invalid_methods:
         methods = ", ".join(invalid_methods)
         raise TypeError(
@@ -227,10 +265,11 @@ class DynamoUploadSessionRepository:
     async def create(self, record: UploadSessionRecord) -> None:
         """Persist one upload session record to DynamoDB."""
         table = await self._resolve_table()
-        await _transact_write_put_items(
+        await _transact_write_session_items(
             table_name=self.table_name,
             table=table,
-            items=_record_to_items(record),
+            record=record,
+            previous_upload_id=None,
         )
 
     async def get_for_upload_id(
@@ -238,7 +277,28 @@ class DynamoUploadSessionRepository:
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
-        """Return one persisted session by authoritative upload-id key."""
+        """Return one persisted session by authoritative upload-id key.
+
+        Args:
+            upload_id:
+                Upload identifier used to resolve the authoritative alias row.
+
+        Returns:
+            UploadSessionRecord | None:
+                The matching upload session, or ``None`` when no active alias
+                row exists for ``upload_id``.
+
+        Raises:
+            BotoCoreError:
+                Raised when the DynamoDB client fails while reading the alias
+                row.
+            ClientError:
+                Raised when DynamoDB rejects the read request.
+            TypeError:
+                Raised when the persisted item shape is invalid.
+            ValueError:
+                Raised when persisted enum or checksum values are invalid.
+        """
         table = await self._resolve_table()
         # Multipart continuation reads are authoritative on the base-table
         # alias row keyed by upload_id, so the read can stay strongly
@@ -258,10 +318,19 @@ class DynamoUploadSessionRepository:
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one upload session record in DynamoDB."""
         table = await self._resolve_table()
-        await _transact_write_put_items(
+        current = await table.get_item(
+            Key={"session_id": record.session_id},
+            ConsistentRead=True,
+        )
+        current_item = cast(dict[str, Any] | None, current.get("Item"))
+        previous_upload_id: str | None = None
+        if current_item is not None:
+            previous_upload_id = _item_to_record(current_item).upload_id
+        await _transact_write_session_items(
             table_name=self.table_name,
             table=table,
-            items=_record_to_items(record),
+            record=record,
+            previous_upload_id=previous_upload_id,
         )
 
     async def list_expired_multipart(
@@ -405,34 +474,62 @@ def _dynamo_transact_write_client(table: object) -> object | None:
     return cast(object, client)
 
 
-async def _transact_write_put_items(
+async def _transact_write_session_items(
     *,
     table_name: str,
     table: DynamoTable,
-    items: list[dict[str, object]],
+    record: UploadSessionRecord,
+    previous_upload_id: str | None,
 ) -> None:
     """Write all rows for one upload session as a single transaction."""
     client = _dynamo_transact_write_client(table)
-    if client is None:
-        raise TypeError(
-            "dynamodb table object does not expose meta.client."
-            "transact_write_items"
-        )
+    assert client is not None
     transact_write_items = cast(
         Any,
         client,
     ).transact_write_items
     await transact_write_items(
-        TransactItems=[
+        TransactItems=_session_transact_items(
+            table_name=table_name,
+            record=record,
+            previous_upload_id=previous_upload_id,
+        )
+    )
+
+
+def _session_transact_items(
+    *,
+    table_name: str,
+    record: UploadSessionRecord,
+    previous_upload_id: str | None,
+) -> list[dict[str, object]]:
+    transact_items: list[dict[str, object]] = []
+    if (
+        previous_upload_id is not None
+        and previous_upload_id != record.upload_id
+    ):
+        transact_items.append(
+            {
+                "Delete": {
+                    "TableName": table_name,
+                    "Key": _serialize_item({"session_id": previous_upload_id}),
+                }
+            }
+        )
+    put_items: list[dict[str, object]] = [
+        cast(
+            dict[str, object],
             {
                 "Put": {
                     "TableName": table_name,
                     "Item": _serialize_item(item),
                 }
-            }
-            for item in items
-        ]
-    )
+            },
+        )
+        for item in _record_to_items(record)
+    ]
+    transact_items.extend(put_items)
+    return transact_items
 
 
 def _serialize_item(item: dict[str, object]) -> dict[str, object]:
@@ -496,6 +593,11 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
     ):
         upload_id = _as_str(item.get("session_id"))
     session_id = _as_str(item.get("canonical_session_id"))
+    if (
+        session_id is None
+        and record_type == _UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE
+    ):
+        raise TypeError("upload session session_id must be a string")
     if session_id is None:
         session_id = _as_str(item.get("session_id"))
     if session_id is None:
