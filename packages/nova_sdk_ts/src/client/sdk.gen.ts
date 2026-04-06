@@ -54,7 +54,7 @@ export const getTransferCapabilities = <ThrowOnError extends boolean = false>(op
  *
  * List caller-owned exports with most recent first.
  *
- * This endpoint is intentionally eventual because it is backed by a scoped.
+ * This endpoint is intentionally eventual because it is backed by a scoped
  * DynamoDB global secondary index.
  *
  * @returns The response from the `listExports` operation.
