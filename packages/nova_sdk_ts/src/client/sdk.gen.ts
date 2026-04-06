@@ -54,7 +54,7 @@ export const getTransferCapabilities = <ThrowOnError extends boolean = false>(op
  *
  * List caller-owned exports with most recent first.
  *
- * This endpoint is intentionally eventual because it is backed by a scoped
+ * This endpoint is intentionally eventual because it is backed by a scoped.
  * DynamoDB global secondary index.
  *
  * @returns The response from the `listExports` operation.
@@ -223,16 +223,6 @@ export const initiateUpload = <ThrowOnError extends boolean = false>(options: Op
  * Introspect Upload.
  *
  * Return uploaded multipart part state for resume flows.
- *
- * Args:
- * payload: Multipart introspection input payload.
- * metrics: Request-scoped metrics collector dependency.
- * transfer_service: Transfer domain service dependency.
- * activity_store: Activity persistence dependency.
- * principal: Authenticated caller principal.
- *
- * Returns:
- * UploadIntrospectionResponse: Multipart state for resume operations.
  *
  * @returns The response from the `introspectUpload` operation.
  */
