@@ -46,6 +46,44 @@ _CORS_ALLOWED_HEADERS = [
 ]
 _CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
 _CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
+_OPENAPI_DESCRIPTION = (
+    "Typed control-plane API for direct-to-S3 uploads, presigned downloads, "
+    "and durable export workflows.\n\n"
+    "This API coordinates transfer policy discovery, multipart session state, "
+    "and export workflow lifecycle metadata. It is not a bulk data-plane "
+    "proxy; clients transfer object bytes directly with S3 using the returned "
+    "metadata."
+)
+_OPENAPI_TAGS = [
+    {
+        "name": "transfers",
+        "description": (
+            "Direct-to-S3 upload and download planning endpoints, including "
+            "multipart session orchestration."
+        ),
+    },
+    {
+        "name": "exports",
+        "description": (
+            "Durable export workflow resources used to create, inspect, list, "
+            "and cancel caller-owned exports."
+        ),
+    },
+    {
+        "name": "platform",
+        "description": (
+            "Capability, release, and supportability endpoints that describe "
+            "the current deployment contract."
+        ),
+    },
+    {
+        "name": "ops",
+        "description": (
+            "Operational liveness, readiness, and metrics endpoints for "
+            "runtime health and observability."
+        ),
+    },
+]
 
 # Cap HTTPValidationError.detail[] (FastAPI how-to: extending-openapi).
 _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS = 256
@@ -278,9 +316,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="nova-file-api",
+        description=_OPENAPI_DESCRIPTION,
         version=settings.app_version,
         lifespan=lifespan,
         middleware=_cors_middleware(settings=settings),
+        openapi_tags=_OPENAPI_TAGS,
         strict_content_type=True,
     )
     app.add_middleware(cast(Any, RequestContextASGIMiddleware))

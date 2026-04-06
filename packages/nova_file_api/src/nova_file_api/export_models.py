@@ -9,8 +9,24 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 # Storage keys and filenames shared across API, persistence, and workflows.
-ExportStorageKey = Annotated[str, Field(min_length=1, max_length=2048)]
-ExportDownloadFilename = Annotated[str, Field(min_length=1, max_length=512)]
+ExportStorageKey = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=2048,
+        description="Storage key of the object managed by the export workflow.",
+    ),
+]
+ExportDownloadFilename = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=512,
+        description=(
+            "Filename presented to callers when downloading the export."
+        ),
+    ),
+]
 
 # Workflow payload identifiers shared across Step Functions task boundaries.
 ExportWorkflowId = Annotated[str, Field(min_length=1, max_length=128)]

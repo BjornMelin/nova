@@ -6,12 +6,14 @@
         "description": "Multipart abort request.",
         "properties": {
           "key": {
+            "description": "Storage key reserved for the multipart upload.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
             "type": "string"
           },
           "upload_id": {
+            "description": "S3 multipart upload identifier being aborted.",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Upload Id",
@@ -31,6 +33,7 @@
         "properties": {
           "ok": {
             "default": true,
+            "description": "Whether the multipart abort request was accepted.",
             "title": "Ok",
             "type": "boolean"
           }
@@ -43,6 +46,7 @@
         "description": "Capabilities endpoint response.",
         "properties": {
           "capabilities": {
+            "description": "Capability declarations exposed by the running API.",
             "items": {
               "$ref": "#/components/schemas/CapabilityDescriptor"
             },
@@ -68,10 +72,12 @@
             "type": "object"
           },
           "enabled": {
+            "description": "Whether the capability is enabled in the current deployment.",
             "title": "Enabled",
             "type": "boolean"
           },
           "key": {
+            "description": "Stable capability identifier.",
             "title": "Key",
             "type": "string"
           }
@@ -88,12 +94,14 @@
         "description": "Multipart completion request.",
         "properties": {
           "key": {
+            "description": "Storage key reserved for the multipart upload.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
             "type": "string"
           },
           "parts": {
+            "description": "Ordered multipart parts to finalize in S3.",
             "items": {
               "$ref": "#/components/schemas/CompletedPart"
             },
@@ -103,6 +111,7 @@
             "type": "array"
           },
           "upload_id": {
+            "description": "S3 multipart upload identifier being finalized.",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Upload Id",
@@ -122,6 +131,7 @@
         "description": "Multipart completion response.",
         "properties": {
           "bucket": {
+            "description": "Bucket that now contains the completed object.",
             "title": "Bucket",
             "type": "string"
           },
@@ -134,9 +144,11 @@
                 "type": "null"
               }
             ],
+            "description": "Object ETag returned by S3 when available.",
             "title": "Etag"
           },
           "key": {
+            "description": "Storage key of the completed object.",
             "title": "Key",
             "type": "string"
           },
@@ -149,6 +161,7 @@
                 "type": "null"
               }
             ],
+            "description": "S3 object version identifier when bucket versioning is enabled.",
             "title": "Version Id"
           }
         },
@@ -174,15 +187,18 @@
                 "type": "null"
               }
             ],
+            "description": "Optional SHA-256 checksum for the completed multipart part.",
             "title": "Checksum Sha256"
           },
           "etag": {
+            "description": "ETag returned by S3 for the completed multipart part.",
             "maxLength": 256,
             "minLength": 1,
             "title": "Etag",
             "type": "string"
           },
           "part_number": {
+            "description": "Multipart part number included in the completion request.",
             "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Part Number",
@@ -227,15 +243,18 @@
         "description": "Standard API error body.",
         "properties": {
           "code": {
+            "description": "Stable machine-readable error code.",
             "title": "Code",
             "type": "string"
           },
           "details": {
             "additionalProperties": true,
+            "description": "Additional structured details for the error.",
             "title": "Details",
             "type": "object"
           },
           "message": {
+            "description": "Human-readable error summary.",
             "title": "Message",
             "type": "string"
           },
@@ -248,6 +267,7 @@
                 "type": "null"
               }
             ],
+            "description": "Request identifier associated with the failure when available.",
             "title": "Request Id"
           }
         },
@@ -265,7 +285,8 @@
         "description": "Standard API error envelope.",
         "properties": {
           "error": {
-            "$ref": "#/components/schemas/ErrorBody"
+            "$ref": "#/components/schemas/ErrorBody",
+            "description": "Standard API error payload."
           }
         },
         "required": [
@@ -279,6 +300,7 @@
         "description": "Response payload for export listing endpoint.",
         "properties": {
           "exports": {
+            "description": "Caller-owned export workflow resources ordered by recency.",
             "items": {
               "$ref": "#/components/schemas/ExportResource"
             },
@@ -333,9 +355,11 @@
                 "type": "null"
               }
             ],
+            "description": "Timestamp when cancel intent was persisted for the export.",
             "title": "Cancel Requested At"
           },
           "created_at": {
+            "description": "Timestamp when the export workflow resource was created.",
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -349,6 +373,7 @@
                 "type": "null"
               }
             ],
+            "description": "Terminal error message when the export fails.",
             "title": "Error"
           },
           "execution_arn": {
@@ -360,13 +385,16 @@
                 "type": "null"
               }
             ],
+            "description": "Step Functions execution ARN for the active export workflow.",
             "title": "Execution Arn"
           },
           "export_id": {
+            "description": "Identifier of the caller-owned export workflow resource.",
             "title": "Export Id",
             "type": "string"
           },
           "filename": {
+            "description": "Filename presented to callers when downloading the export.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Filename",
@@ -380,18 +408,22 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Completed output metadata when the export succeeds."
           },
           "source_key": {
+            "description": "Storage key of the object managed by the export workflow.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Source Key",
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/ExportStatus"
+            "$ref": "#/components/schemas/ExportStatus",
+            "description": "Current lifecycle state of the export workflow."
           },
           "updated_at": {
+            "description": "Timestamp when the export workflow resource last changed.",
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
@@ -442,6 +474,7 @@
         "description": "Health endpoint response body.",
         "properties": {
           "ok": {
+            "description": "Whether the runtime process is alive.",
             "title": "Ok",
             "type": "boolean"
           }
@@ -466,6 +499,7 @@
                 "type": "null"
               }
             ],
+            "description": "Preferred checksum strictness requested by the client.",
             "title": "Checksum Preference"
           },
           "checksum_value": {
@@ -479,6 +513,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional checksum value supplied with the initiate request.",
             "title": "Checksum Value"
           },
           "content_type": {
@@ -491,9 +526,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional MIME type that should be persisted with the object.",
             "title": "Content Type"
           },
           "filename": {
+            "description": "Client-facing filename for the object being uploaded.",
             "maxLength": 512,
             "minLength": 1,
             "title": "Filename",
@@ -510,9 +547,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional transfer-policy hint evaluated by the API.",
             "title": "Policy Hint"
           },
           "size_bytes": {
+            "description": "Total size of the object being uploaded, in bytes.",
             "exclusiveMinimum": 0.0,
             "title": "Size Bytes",
             "type": "integer"
@@ -528,6 +567,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional workload-class hint for transfer policy selection.",
             "title": "Workload Class"
           }
         },
@@ -543,10 +583,12 @@
         "description": "Initiate-upload response model.",
         "properties": {
           "accelerate_enabled": {
+            "description": "Whether S3 Transfer Acceleration is enabled for the session.",
             "title": "Accelerate Enabled",
             "type": "boolean"
           },
           "bucket": {
+            "description": "Bucket that will receive the uploaded object.",
             "title": "Bucket",
             "type": "string"
           },
@@ -559,9 +601,11 @@
                 "type": "null"
               }
             ],
+            "description": "Checksum algorithm callers should use when checksums apply.",
             "title": "Checksum Algorithm"
           },
           "checksum_mode": {
+            "description": "Server-resolved checksum enforcement mode for the upload.",
             "enum": [
               "none",
               "optional",
@@ -571,14 +615,17 @@
             "type": "string"
           },
           "expires_in_seconds": {
+            "description": "Seconds until the returned presigned inputs expire.",
             "title": "Expires In Seconds",
             "type": "integer"
           },
           "key": {
+            "description": "Storage key reserved for the uploaded object.",
             "title": "Key",
             "type": "string"
           },
           "max_concurrency_hint": {
+            "description": "Suggested maximum number of concurrent client uploads.",
             "title": "Max Concurrency Hint",
             "type": "integer"
           },
@@ -591,31 +638,38 @@
                 "type": "null"
               }
             ],
+            "description": "Target multipart part size in bytes when multipart is required.",
             "title": "Part Size Bytes"
           },
           "policy_id": {
+            "description": "Identifier of the effective transfer policy.",
             "title": "Policy Id",
             "type": "string"
           },
           "policy_version": {
+            "description": "Version of the effective transfer policy.",
             "title": "Policy Version",
             "type": "string"
           },
           "resumable_until": {
+            "description": "Timestamp until which multipart resume operations are valid.",
             "format": "date-time",
             "title": "Resumable Until",
             "type": "string"
           },
           "session_id": {
+            "description": "Durable upload-session identifier used for resume flows.",
             "title": "Session Id",
             "type": "string"
           },
           "sign_batch_size_hint": {
+            "description": "Suggested maximum number of parts per sign-parts request.",
             "title": "Sign Batch Size Hint",
             "type": "integer"
           },
           "strategy": {
-            "$ref": "#/components/schemas/UploadStrategy"
+            "$ref": "#/components/schemas/UploadStrategy",
+            "description": "Upload strategy selected by the API for this transfer."
           },
           "upload_id": {
             "anyOf": [
@@ -626,6 +680,7 @@
                 "type": "null"
               }
             ],
+            "description": "S3 multipart upload identifier when multipart is required.",
             "title": "Upload Id"
           },
           "url": {
@@ -637,6 +692,7 @@
                 "type": "null"
               }
             ],
+            "description": "Presigned single-part upload URL when the strategy is direct.",
             "title": "Url"
           }
         },
@@ -665,6 +721,7 @@
             "additionalProperties": {
               "type": "integer"
             },
+            "description": "Activity rollups derived from the activity store.",
             "title": "Activity",
             "type": "object"
           },
@@ -672,6 +729,7 @@
             "additionalProperties": {
               "type": "integer"
             },
+            "description": "Low-cardinality request and workflow counters.",
             "title": "Counters",
             "type": "object"
           },
@@ -679,6 +737,7 @@
             "additionalProperties": {
               "type": "number"
             },
+            "description": "Aggregated request-latency summaries in milliseconds.",
             "title": "Latencies Ms",
             "type": "object"
           }
@@ -705,6 +764,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional Content-Disposition override for the download response.",
             "title": "Content Disposition"
           },
           "content_type": {
@@ -717,6 +777,7 @@
                 "type": "null"
               }
             ],
+            "description": "Optional Content-Type override for the download response.",
             "title": "Content Type"
           },
           "filename": {
@@ -729,9 +790,11 @@
                 "type": "null"
               }
             ],
+            "description": "Optional filename hint applied to Content-Disposition.",
             "title": "Filename"
           },
           "key": {
+            "description": "Storage key of the object to download.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
@@ -749,18 +812,22 @@
         "description": "Presign download response.",
         "properties": {
           "bucket": {
+            "description": "Bucket that owns the downloadable object.",
             "title": "Bucket",
             "type": "string"
           },
           "expires_in_seconds": {
+            "description": "Seconds until the presigned download URL expires.",
             "title": "Expires In Seconds",
             "type": "integer"
           },
           "key": {
+            "description": "Storage key of the downloadable object.",
             "title": "Key",
             "type": "string"
           },
           "url": {
+            "description": "Presigned download URL for the requested object.",
             "title": "Url",
             "type": "string"
           }
@@ -782,10 +849,12 @@
             "additionalProperties": {
               "type": "boolean"
             },
+            "description": "Per-dependency readiness results keyed by check name.",
             "title": "Checks",
             "type": "object"
           },
           "ok": {
+            "description": "Whether every required traffic dependency is ready.",
             "title": "Ok",
             "type": "boolean"
           }
@@ -802,14 +871,17 @@
         "description": "Release metadata for conformance/debug clients.",
         "properties": {
           "environment": {
+            "description": "Deployment environment name.",
             "title": "Environment",
             "type": "string"
           },
           "name": {
+            "description": "Public application name for the deployment.",
             "title": "Name",
             "type": "string"
           },
           "version": {
+            "description": "Published application version string.",
             "title": "Version",
             "type": "string"
           }
@@ -835,13 +907,16 @@
                 "type": "null"
               }
             ],
+            "description": "Machine-readable reason when the resource is not supported.",
             "title": "Reason"
           },
           "resource": {
+            "description": "Requested resource key.",
             "title": "Resource",
             "type": "string"
           },
           "supported": {
+            "description": "Whether the resource is supported in the current deployment.",
             "title": "Supported",
             "type": "boolean"
           }
@@ -858,7 +933,9 @@
         "description": "Resource planning request body.",
         "properties": {
           "resources": {
+            "description": "Resource keys whose supportability should be evaluated.",
             "items": {
+              "description": "Public resource key evaluated by the resource planner.",
               "maxLength": 256,
               "minLength": 1,
               "type": "string"
@@ -880,6 +957,7 @@
         "description": "Resource planning response body.",
         "properties": {
           "plan": {
+            "description": "Supportability decision for each requested resource key.",
             "items": {
               "$ref": "#/components/schemas/ResourcePlanItem"
             },
@@ -910,15 +988,18 @@
                 "type": "null"
               }
             ],
+            "description": "Optional SHA-256 checksum map keyed by multipart part number.",
             "title": "Checksums Sha256"
           },
           "key": {
+            "description": "Storage key reserved for the multipart upload.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
             "type": "string"
           },
           "part_numbers": {
+            "description": "Multipart part numbers to sign in this request.",
             "items": {
               "maximum": 10000.0,
               "minimum": 1.0,
@@ -931,6 +1012,7 @@
             "uniqueItems": true
           },
           "upload_id": {
+            "description": "S3 multipart upload identifier returned by initiate upload.",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Upload Id",
@@ -950,6 +1032,7 @@
         "description": "Multipart sign-parts response.",
         "properties": {
           "expires_in_seconds": {
+            "description": "Seconds until the presigned part URLs expire.",
             "title": "Expires In Seconds",
             "type": "integer"
           },
@@ -957,6 +1040,7 @@
             "additionalProperties": {
               "type": "string"
             },
+            "description": "Presigned upload URL for each requested multipart part number.",
             "title": "Urls",
             "type": "object"
           }
@@ -973,10 +1057,12 @@
         "description": "Transfer policy capabilities exposed to clients and operators.",
         "properties": {
           "accelerate_enabled": {
+            "description": "Whether S3 Transfer Acceleration is enabled.",
             "title": "Accelerate Enabled",
             "type": "boolean"
           },
           "active_multipart_upload_limit": {
+            "description": "Maximum number of active multipart uploads per scope.",
             "title": "Active Multipart Upload Limit",
             "type": "integer"
           },
@@ -989,9 +1075,11 @@
                 "type": "null"
               }
             ],
+            "description": "Checksum algorithm callers should use when checksums apply.",
             "title": "Checksum Algorithm"
           },
           "checksum_mode": {
+            "description": "Server-enforced checksum mode for uploads.",
             "enum": [
               "none",
               "optional",
@@ -1001,54 +1089,67 @@
             "type": "string"
           },
           "daily_ingress_budget_bytes": {
+            "description": "Per-scope daily ingress budget in bytes.",
             "title": "Daily Ingress Budget Bytes",
             "type": "integer"
           },
           "large_export_worker_threshold_bytes": {
+            "description": "Export size threshold in bytes for the worker-backed copy lane.",
             "title": "Large Export Worker Threshold Bytes",
             "type": "integer"
           },
           "max_concurrency_hint": {
+            "description": "Suggested maximum number of concurrent client uploads.",
             "title": "Max Concurrency Hint",
             "type": "integer"
           },
           "max_upload_bytes": {
+            "description": "Maximum allowed upload size in bytes.",
             "title": "Max Upload Bytes",
             "type": "integer"
           },
           "maximum_part_size_bytes": {
+            "description": "Maximum multipart part size accepted by the API.",
             "title": "Maximum Part Size Bytes",
             "type": "integer"
           },
           "minimum_part_size_bytes": {
+            "description": "Minimum multipart part size accepted by the API.",
             "title": "Minimum Part Size Bytes",
             "type": "integer"
           },
           "multipart_threshold_bytes": {
+            "description": "Object size in bytes at which multipart upload becomes required.",
             "title": "Multipart Threshold Bytes",
             "type": "integer"
           },
           "policy_id": {
+            "description": "Identifier of the effective transfer policy.",
             "title": "Policy Id",
             "type": "string"
           },
           "policy_version": {
+            "description": "Version of the effective transfer policy.",
             "title": "Policy Version",
             "type": "string"
           },
           "resumable_ttl_seconds": {
+            "description": "How long multipart resume state remains valid, in seconds.",
             "title": "Resumable Ttl Seconds",
             "type": "integer"
           },
           "sign_batch_size_hint": {
+            "description": "Suggested maximum number of parts per sign-parts request.",
             "title": "Sign Batch Size Hint",
             "type": "integer"
           },
           "sign_requests_per_upload_limit": {
+            "description": "Maximum number of sign-parts requests allowed per upload.",
             "title": "Sign Requests Per Upload Limit",
             "type": "integer"
           },
           "target_upload_part_count": {
+            "description": "Target number of multipart parts for large uploads.",
             "title": "Target Upload Part Count",
             "type": "integer"
           }
@@ -1079,12 +1180,14 @@
         "description": "Multipart upload introspection request.",
         "properties": {
           "key": {
+            "description": "Storage key reserved for the multipart upload.",
             "maxLength": 2048,
             "minLength": 1,
             "title": "Key",
             "type": "string"
           },
           "upload_id": {
+            "description": "S3 multipart upload identifier being inspected.",
             "maxLength": 1024,
             "minLength": 1,
             "title": "Upload Id",
@@ -1103,19 +1206,23 @@
         "description": "Multipart upload introspection response.",
         "properties": {
           "bucket": {
+            "description": "Bucket that owns the multipart upload.",
             "title": "Bucket",
             "type": "string"
           },
           "key": {
+            "description": "Storage key reserved for the multipart upload.",
             "title": "Key",
             "type": "string"
           },
           "part_size_bytes": {
+            "description": "Configured multipart part size in bytes for this session.",
             "exclusiveMinimum": 0.0,
             "title": "Part Size Bytes",
             "type": "integer"
           },
           "parts": {
+            "description": "Multipart parts that have already been uploaded.",
             "items": {
               "$ref": "#/components/schemas/UploadedPart"
             },
@@ -1124,6 +1231,7 @@
             "type": "array"
           },
           "upload_id": {
+            "description": "S3 multipart upload identifier.",
             "title": "Upload Id",
             "type": "string"
           }
@@ -1152,12 +1260,14 @@
         "description": "Part state returned for multipart upload introspection.",
         "properties": {
           "etag": {
+            "description": "ETag returned by S3 for the uploaded multipart part.",
             "maxLength": 256,
             "minLength": 1,
             "title": "Etag",
             "type": "string"
           },
           "part_number": {
+            "description": "Multipart part number that has already been uploaded.",
             "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Part Number",
@@ -1224,6 +1334,7 @@
     }
   },
   "info": {
+    "description": "Typed control-plane API for direct-to-S3 uploads, presigned downloads, and durable export workflows.\n\nThis API coordinates transfer policy discovery, multipart session state, and export workflow lifecycle metadata. It is not a bulk data-plane proxy; clients transfer object bytes directly with S3 using the returned metadata.",
     "title": "nova-file-api",
     "version": "0.5.1"
   },
@@ -1231,7 +1342,7 @@
   "paths": {
     "/metrics/summary": {
       "get": {
-        "description": "Return low-cardinality metrics summary for dashboards.",
+        "description": "Return low-cardinality counters, latency summaries, and activity rollups for dashboards.",
         "operationId": "metrics_summary",
         "responses": {
           "200": {
@@ -1242,7 +1353,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Low-cardinality metrics and activity summary."
           },
           "401": {
             "content": {
@@ -1270,7 +1381,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Metrics Summary",
+        "summary": "Get metrics summary",
         "tags": [
           "ops"
         ]
@@ -1278,7 +1389,7 @@
     },
     "/v1/capabilities": {
       "get": {
-        "description": "Expose runtime capability declarations.",
+        "description": "Expose the major runtime capabilities enabled for the current Nova deployment.",
         "operationId": "get_capabilities",
         "responses": {
           "200": {
@@ -1289,10 +1400,10 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Runtime capability declarations for the deployment."
           }
         },
-        "summary": "Get Capabilities",
+        "summary": "Get runtime capability declarations",
         "tags": [
           "platform"
         ]
@@ -1300,10 +1411,11 @@
     },
     "/v1/capabilities/transfers": {
       "get": {
-        "description": "Expose the current transfer policy envelope.",
+        "description": "Expose the current transfer policy envelope that browser and native upload clients should honor.",
         "operationId": "get_transfer_capabilities",
         "parameters": [
           {
+            "description": "Optional workload-class hint used to resolve a narrower effective transfer policy.",
             "in": "query",
             "name": "workload_class",
             "required": false,
@@ -1317,10 +1429,12 @@
                   "type": "null"
                 }
               ],
+              "description": "Optional workload-class hint used to resolve a narrower effective transfer policy.",
               "title": "Workload Class"
             }
           },
           {
+            "description": "Optional policy hint evaluated by the transfer policy resolver.",
             "in": "query",
             "name": "policy_hint",
             "required": false,
@@ -1334,6 +1448,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Optional policy hint evaluated by the transfer policy resolver.",
               "title": "Policy Hint"
             }
           }
@@ -1347,7 +1462,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Effective transfer policy metadata and limits."
           },
           "422": {
             "content": {
@@ -1360,7 +1475,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Transfer Capabilities",
+        "summary": "Get the effective transfer policy",
         "tags": [
           "platform"
         ]
@@ -1368,15 +1483,17 @@
     },
     "/v1/exports": {
       "get": {
-        "description": "List caller-owned exports with most recent first.\n\nThis endpoint is intentionally eventual because it is backed by a scoped\nDynamoDB global secondary index.",
+        "description": "List caller-owned export workflow resources with the most recent exports first.",
         "operationId": "list_exports",
         "parameters": [
           {
+            "description": "Maximum number of caller-owned export workflow resources to return, ordered newest first.",
             "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
               "default": 50,
+              "description": "Maximum number of caller-owned export workflow resources to return, ordered newest first.",
               "maximum": 200,
               "minimum": 1,
               "title": "Limit",
@@ -1393,7 +1510,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Page of caller-owned export workflow resources."
           },
           "401": {
             "content": {
@@ -1431,16 +1548,17 @@
             "bearerAuth": []
           }
         ],
-        "summary": "List Exports",
+        "summary": "List export workflows",
         "tags": [
           "exports"
         ]
       },
       "post": {
-        "description": "Create an explicit export workflow resource.",
+        "description": "Create a caller-owned export resource that copies a source object into a download-oriented export output.",
         "operationId": "create_export",
         "parameters": [
           {
+            "description": "Client-supplied idempotency key used to deduplicate supported mutation requests.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -1453,6 +1571,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Client-supplied idempotency key used to deduplicate supported mutation requests.",
               "title": "Idempotency-Key"
             }
           }
@@ -1476,7 +1595,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Created export workflow resource."
           },
           "401": {
             "content": {
@@ -1534,7 +1653,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Create Export",
+        "summary": "Create an export workflow",
         "tags": [
           "exports"
         ]
@@ -1542,14 +1661,18 @@
     },
     "/v1/exports/{export_id}": {
       "get": {
-        "description": "Return the caller-owned export resource.",
+        "description": "Return the current state of a caller-owned export workflow resource.",
         "operationId": "get_export",
         "parameters": [
           {
+            "description": "Identifier of the caller-owned export workflow resource.",
             "in": "path",
             "name": "export_id",
             "required": true,
             "schema": {
+              "description": "Identifier of the caller-owned export workflow resource.",
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Export Id",
               "type": "string"
             }
@@ -1564,7 +1687,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Current export workflow resource."
           },
           "401": {
             "content": {
@@ -1612,7 +1735,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Get Export",
+        "summary": "Get an export workflow",
         "tags": [
           "exports"
         ]
@@ -1620,14 +1743,18 @@
     },
     "/v1/exports/{export_id}/cancel": {
       "post": {
-        "description": "Cancel a caller-owned non-terminal export.",
+        "description": "Persist cancel intent for a caller-owned export that has not yet reached a terminal state.",
         "operationId": "cancel_export",
         "parameters": [
           {
+            "description": "Identifier of the caller-owned export workflow resource.",
             "in": "path",
             "name": "export_id",
             "required": true,
             "schema": {
+              "description": "Identifier of the caller-owned export workflow resource.",
+              "maxLength": 128,
+              "minLength": 1,
               "title": "Export Id",
               "type": "string"
             }
@@ -1642,7 +1769,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Updated export workflow resource after cancel intent."
           },
           "401": {
             "content": {
@@ -1690,7 +1817,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Cancel Export",
+        "summary": "Cancel an export workflow",
         "tags": [
           "exports"
         ]
@@ -1698,7 +1825,7 @@
     },
     "/v1/health/live": {
       "get": {
-        "description": "Return liveness status.",
+        "description": "Return a shallow liveness signal for the API runtime process.",
         "operationId": "health_live",
         "responses": {
           "200": {
@@ -1709,10 +1836,10 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Liveness status for the API runtime."
           }
         },
-        "summary": "Health Live",
+        "summary": "Check liveness",
         "tags": [
           "ops"
         ]
@@ -1720,7 +1847,7 @@
     },
     "/v1/health/ready": {
       "get": {
-        "description": "Return readiness checks for traffic-critical dependencies.",
+        "description": "Return readiness checks for traffic-critical dependencies such as auth, transfers, exports, and idempotency.",
         "operationId": "health_ready",
         "responses": {
           "200": {
@@ -1731,7 +1858,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Readiness status plus per-dependency readiness checks."
           },
           "503": {
             "content": {
@@ -1744,7 +1871,7 @@
             "description": "Service Unavailable - Readiness failed."
           }
         },
-        "summary": "Health Ready",
+        "summary": "Check readiness",
         "tags": [
           "ops"
         ]
@@ -1752,7 +1879,7 @@
     },
     "/v1/releases/info": {
       "get": {
-        "description": "Return public release metadata for browser and deploy canaries.",
+        "description": "Return public release metadata used by browser clients, diagnostics, and deploy canaries.",
         "operationId": "get_release_info",
         "responses": {
           "200": {
@@ -1763,10 +1890,10 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Release name, version, and environment metadata."
           }
         },
-        "summary": "Get Release Info",
+        "summary": "Get public release metadata",
         "tags": [
           "platform"
         ]
@@ -1774,7 +1901,7 @@
     },
     "/v1/resources/plan": {
       "post": {
-        "description": "Plan supportability for requested resource keys.",
+        "description": "Report whether each requested resource is currently supported in the active deployment.",
         "operationId": "plan_resources",
         "requestBody": {
           "content": {
@@ -1795,7 +1922,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Supportability decisions for each requested resource."
           },
           "422": {
             "content": {
@@ -1808,7 +1935,7 @@
             "description": "Unprocessable Content - Request validation failed."
           }
         },
-        "summary": "Plan Resources",
+        "summary": "Plan resource support",
         "tags": [
           "platform"
         ]
@@ -1816,7 +1943,7 @@
     },
     "/v1/transfers/downloads/presign": {
       "post": {
-        "description": "Issue presigned GET URL for caller-scoped key.",
+        "description": "Return a time-limited download URL for an object the caller is authorized to access.",
         "operationId": "presign_download",
         "requestBody": {
           "content": {
@@ -1837,7 +1964,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Presigned download URL and associated object metadata."
           },
           "401": {
             "content": {
@@ -1875,7 +2002,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Presign Download",
+        "summary": "Presign a direct download",
         "tags": [
           "transfers"
         ]
@@ -1883,7 +2010,7 @@
     },
     "/v1/transfers/uploads/abort": {
       "post": {
-        "description": "Abort multipart upload.",
+        "description": "Cancel an in-progress multipart upload and discard any staged parts.",
         "operationId": "abort_upload",
         "requestBody": {
           "content": {
@@ -1904,7 +2031,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Acknowledgement that the multipart upload was aborted."
           },
           "401": {
             "content": {
@@ -1942,7 +2069,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Abort Upload",
+        "summary": "Abort a multipart upload",
         "tags": [
           "transfers"
         ]
@@ -1950,7 +2077,7 @@
     },
     "/v1/transfers/uploads/complete": {
       "post": {
-        "description": "Complete multipart upload.",
+        "description": "Finalize a multipart upload after the caller has uploaded every required part.",
         "operationId": "complete_upload",
         "requestBody": {
           "content": {
@@ -1971,7 +2098,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Completed object metadata for the finalized upload."
           },
           "401": {
             "content": {
@@ -2009,7 +2136,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Complete Upload",
+        "summary": "Complete a multipart upload",
         "tags": [
           "transfers"
         ]
@@ -2017,10 +2144,11 @@
     },
     "/v1/transfers/uploads/initiate": {
       "post": {
-        "description": "Choose upload strategy and return presigned metadata.",
+        "description": "Resolve the effective transfer policy for the caller and return the presigned metadata needed to upload directly to S3.",
         "operationId": "initiate_upload",
         "parameters": [
           {
+            "description": "Client-supplied idempotency key used to deduplicate supported mutation requests.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -2033,6 +2161,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Client-supplied idempotency key used to deduplicate supported mutation requests.",
               "title": "Idempotency-Key"
             }
           }
@@ -2056,7 +2185,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Resolved upload session metadata, policy hints, and presigned inputs."
           },
           "401": {
             "content": {
@@ -2114,7 +2243,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Initiate Upload",
+        "summary": "Initiate a direct-to-S3 upload session",
         "tags": [
           "transfers"
         ]
@@ -2122,7 +2251,7 @@
     },
     "/v1/transfers/uploads/introspect": {
       "post": {
-        "description": "Return uploaded multipart part state for resume flows.\n\nArgs:\n    payload: Multipart introspection input payload.\n    metrics: Request-scoped metrics collector dependency.\n    transfer_service: Transfer domain service dependency.\n    activity_store: Activity persistence dependency.\n    principal: Authenticated caller principal.\n\nReturns:\n    UploadIntrospectionResponse: Multipart state for resume operations.",
+        "description": "Return the persisted multipart session state so browser or native clients can resume an interrupted upload.",
         "operationId": "introspect_upload",
         "requestBody": {
           "content": {
@@ -2143,7 +2272,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Current multipart upload state, including uploaded parts."
           },
           "401": {
             "content": {
@@ -2181,7 +2310,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Introspect Upload",
+        "summary": "Inspect multipart upload state",
         "tags": [
           "transfers"
         ]
@@ -2189,7 +2318,7 @@
     },
     "/v1/transfers/uploads/sign-parts": {
       "post": {
-        "description": "Return presigned multipart part URLs.",
+        "description": "Return presigned URLs for the requested multipart upload part numbers.",
         "operationId": "sign_upload_parts",
         "requestBody": {
           "content": {
@@ -2210,7 +2339,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Presigned multipart part URLs and their TTL."
           },
           "401": {
             "content": {
@@ -2248,11 +2377,29 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Sign Upload Parts",
+        "summary": "Sign multipart upload parts",
         "tags": [
           "transfers"
         ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "description": "Direct-to-S3 upload and download planning endpoints, including multipart session orchestration.",
+      "name": "transfers"
+    },
+    {
+      "description": "Durable export workflow resources used to create, inspect, list, and cancel caller-owned exports.",
+      "name": "exports"
+    },
+    {
+      "description": "Capability, release, and supportability endpoints that describe the current deployment contract.",
+      "name": "platform"
+    },
+    {
+      "description": "Operational liveness, readiness, and metrics endpoints for runtime health and observability.",
+      "name": "ops"
+    }
+  ]
 }

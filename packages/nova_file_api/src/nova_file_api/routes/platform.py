@@ -61,6 +61,12 @@ platform_router = APIRouter(prefix="/v1", tags=["platform"])
     "/capabilities",
     operation_id=GET_CAPABILITIES_OPERATION_ID,
     response_model=CapabilitiesResponse,
+    summary="Get runtime capability declarations",
+    description=(
+        "Expose the major runtime capabilities enabled for the current Nova "
+        "deployment."
+    ),
+    response_description="Runtime capability declarations for the deployment.",
 )
 async def get_capabilities(
     settings: SettingsDep,
@@ -118,17 +124,35 @@ async def get_capabilities(
     "/capabilities/transfers",
     operation_id=GET_TRANSFER_CAPABILITIES_OPERATION_ID,
     response_model=TransferCapabilitiesResponse,
+    summary="Get the effective transfer policy",
+    description=(
+        "Expose the current transfer policy envelope that browser and native "
+        "upload clients should honor."
+    ),
+    response_description="Effective transfer policy metadata and limits.",
 )
 async def get_transfer_capabilities(
     settings: SettingsDep,
     transfer_service: TransferServiceDep,
     workload_class: Annotated[
         str | None,
-        Query(max_length=128),
+        Query(
+            max_length=128,
+            description=(
+                "Optional workload-class hint used to resolve a narrower "
+                "effective transfer policy."
+            ),
+        ),
     ] = None,
     policy_hint: Annotated[
         str | None,
-        Query(max_length=128),
+        Query(
+            max_length=128,
+            description=(
+                "Optional policy hint evaluated by the transfer policy "
+                "resolver."
+            ),
+        ),
     ] = None,
 ) -> TransferCapabilitiesResponse:
     """Expose the current transfer policy envelope."""
@@ -199,6 +223,14 @@ async def _resolve_capabilities_policy(
     "/resources/plan",
     operation_id=PLAN_RESOURCES_OPERATION_ID,
     response_model=ResourcePlanResponse,
+    summary="Plan resource support",
+    description=(
+        "Report whether each requested resource is currently supported in the "
+        "active deployment."
+    ),
+    response_description=(
+        "Supportability decisions for each requested resource."
+    ),
     responses=VALIDATION_ERROR_RESPONSE,
 )
 async def plan_resources(
@@ -243,6 +275,12 @@ async def plan_resources(
     "/releases/info",
     operation_id=GET_RELEASE_INFO_OPERATION_ID,
     response_model=ReleaseInfoResponse,
+    summary="Get public release metadata",
+    description=(
+        "Return public release metadata used by browser clients, diagnostics, "
+        "and deploy canaries."
+    ),
+    response_description="Release name, version, and environment metadata.",
 )
 async def get_release_info(settings: SettingsDep) -> ReleaseInfoResponse:
     """Return public release metadata for browser and deploy canaries."""
@@ -257,6 +295,9 @@ async def get_release_info(settings: SettingsDep) -> ReleaseInfoResponse:
     "/v1/health/live",
     operation_id=HEALTH_LIVE_OPERATION_ID,
     response_model=HealthResponse,
+    summary="Check liveness",
+    description="Return a shallow liveness signal for the API runtime process.",
+    response_description="Liveness status for the API runtime.",
 )
 async def health_live() -> HealthResponse:
     """Return liveness status."""
@@ -267,6 +308,14 @@ async def health_live() -> HealthResponse:
     "/v1/health/ready",
     operation_id=HEALTH_READY_OPERATION_ID,
     response_model=ReadinessResponse,
+    summary="Check readiness",
+    description=(
+        "Return readiness checks for traffic-critical dependencies such as "
+        "auth, transfers, exports, and idempotency."
+    ),
+    response_description=(
+        "Readiness status plus per-dependency readiness checks."
+    ),
     responses=READINESS_UNAVAILABLE_RESPONSE,
 )
 async def health_ready(
@@ -367,6 +416,12 @@ async def health_ready(
     "/metrics/summary",
     operation_id=METRICS_SUMMARY_OPERATION_ID,
     response_model=MetricsSummaryResponse,
+    summary="Get metrics summary",
+    description=(
+        "Return low-cardinality counters, latency summaries, and activity "
+        "rollups for dashboards."
+    ),
+    response_description="Low-cardinality metrics and activity summary.",
     responses=UNAUTHORIZED_AND_FORBIDDEN_RESPONSES,
 )
 async def metrics_summary(
