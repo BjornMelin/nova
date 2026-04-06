@@ -18,6 +18,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 _ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES = frozenset(
     {"none", "optional", "required"}
 )
+_UPLOAD_SESSION_RECORD_TYPE = "upload_session"
+_UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE = "upload_session_upload_lookup"
 
 
 class UploadStrategy(StrEnum):
@@ -72,12 +74,12 @@ class UploadSessionRepository(Protocol):
     async def create(self, record: UploadSessionRecord) -> None:
         """Store a new upload session."""
 
-    async def get_by_upload_id(
+    async def get_for_upload_id(
         self,
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
-        """Return the session bound to one multipart upload id."""
+        """Return one session using the authoritative upload-id lookup path."""
 
     async def list_expired_multipart(
         self,
@@ -101,13 +103,13 @@ class MemoryUploadSessionRepository:
     """In-memory upload session repository used for tests and fallback."""
 
     _records_by_session_id: dict[str, UploadSessionRecord]
-    _upload_id_index: dict[str, str]
+    _records_by_upload_id: dict[str, UploadSessionRecord]
     _lock: asyncio.Lock = field(init=False, repr=False)
 
     def __init__(self) -> None:
         """Initialize empty in-memory upload session state."""
         self._records_by_session_id = {}
-        self._upload_id_index = {}
+        self._records_by_upload_id = {}
         self._lock = asyncio.Lock()
 
     async def create(self, record: UploadSessionRecord) -> None:
@@ -115,24 +117,21 @@ class MemoryUploadSessionRepository:
         async with self._lock:
             self._records_by_session_id[record.session_id] = record
             if record.upload_id is not None:
-                self._upload_id_index[record.upload_id] = record.session_id
+                self._records_by_upload_id[record.upload_id] = record
 
-    async def get_by_upload_id(
+    async def get_for_upload_id(
         self,
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
         """Return one in-memory session for the provided upload id."""
         async with self._lock:
-            session_id = self._upload_id_index.get(upload_id)
-            if session_id is None:
-                return None
-            record = self._records_by_session_id.get(session_id)
+            record = self._records_by_upload_id.get(upload_id)
             if record is None:
                 return None
             if _is_expired(record):
-                self._records_by_session_id.pop(session_id, None)
-                self._upload_id_index.pop(upload_id, None)
+                self._records_by_session_id.pop(record.session_id, None)
+                self._records_by_upload_id.pop(upload_id, None)
                 return None
             return record
 
@@ -141,7 +140,7 @@ class MemoryUploadSessionRepository:
         async with self._lock:
             self._records_by_session_id[record.session_id] = record
             if record.upload_id is not None:
-                self._upload_id_index[record.upload_id] = record.session_id
+                self._records_by_upload_id[record.upload_id] = record
 
     async def list_expired_multipart(
         self,
@@ -182,10 +181,6 @@ class DynamoTable(Protocol):
         """Read a single item by key."""
         ...
 
-    async def query(self, **kwargs: object) -> Mapping[str, object]:
-        """Query items using a secondary index."""
-        ...
-
     async def scan(self, **kwargs: object) -> Mapping[str, object]:
         """Scan items with optional filters."""
         ...
@@ -201,7 +196,7 @@ class DynamoResource(Protocol):
 def _as_dynamo_table(table: object) -> DynamoTable:
     """Validate and cast a DynamoDB table-like object."""
     invalid_methods: list[str] = []
-    for method_name in ("put_item", "get_item", "query", "scan"):
+    for method_name in ("put_item", "get_item", "scan"):
         method = getattr(table, method_name, None)
         if not callable(method):
             invalid_methods.append(method_name)
@@ -230,26 +225,27 @@ class DynamoUploadSessionRepository:
     async def create(self, record: UploadSessionRecord) -> None:
         """Persist one upload session record to DynamoDB."""
         table = await self._resolve_table()
-        await table.put_item(Item=_record_to_item(record))
+        for item in _record_to_items(record):
+            await table.put_item(Item=item)
 
-    async def get_by_upload_id(
+    async def get_for_upload_id(
         self,
         *,
         upload_id: str,
     ) -> UploadSessionRecord | None:
-        """Return one persisted upload session by multipart upload id."""
+        """Return one persisted session by authoritative upload-id key."""
         table = await self._resolve_table()
-        response = await table.query(
-            IndexName="upload_id-index",
-            KeyConditionExpression="#upload_id = :upload_id",
-            ExpressionAttributeNames={"#upload_id": "upload_id"},
-            ExpressionAttributeValues={":upload_id": upload_id},
-            Limit=1,
+        # Multipart continuation reads are authoritative on the base-table
+        # alias row keyed by upload_id, so the read can stay strongly
+        # consistent without any GSI dependency.
+        direct = await table.get_item(
+            Key={"session_id": upload_id},
+            ConsistentRead=True,
         )
-        items = cast(list[dict[str, Any]], response.get("Items", []))
-        if not items:
+        direct_item = cast(dict[str, Any] | None, direct.get("Item"))
+        if direct_item is None or not _is_upload_lookup_item(direct_item):
             return None
-        record = _item_to_record(items[0])
+        record = _item_to_record(direct_item)
         if _is_expired(record):
             return None
         return record
@@ -257,7 +253,8 @@ class DynamoUploadSessionRepository:
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one upload session record in DynamoDB."""
         table = await self._resolve_table()
-        await table.put_item(Item=_record_to_item(record))
+        for item in _record_to_items(record):
+            await table.put_item(Item=item)
 
     async def list_expired_multipart(
         self,
@@ -272,16 +269,20 @@ class DynamoUploadSessionRepository:
         while len(records) < limit:
             scan_kwargs: dict[str, object] = {
                 "FilterExpression": (
-                    "#strategy = :multipart "
+                    "(attribute_not_exists(#record_type) "
+                    "OR #record_type = :session_record) "
+                    "AND #strategy = :multipart "
                     "AND #status IN (:initiated, :active) "
                     "AND #resumable_until_epoch <= :now_epoch"
                 ),
                 "ExpressionAttributeNames": {
+                    "#record_type": "record_type",
                     "#strategy": "strategy",
                     "#status": "status",
                     "#resumable_until_epoch": "resumable_until_epoch",
                 },
                 "ExpressionAttributeValues": {
+                    ":session_record": _UPLOAD_SESSION_RECORD_TYPE,
                     ":multipart": UploadStrategy.MULTIPART.value,
                     ":initiated": UploadSessionStatus.INITIATED.value,
                     ":active": UploadSessionStatus.ACTIVE.value,
@@ -325,10 +326,16 @@ class DynamoUploadSessionRepository:
         return self._table
 
 
-def _record_to_item(record: UploadSessionRecord) -> dict[str, object]:
-    return {
-        "session_id": record.session_id,
-        "upload_id": record.upload_id,
+def _record_to_item(
+    record: UploadSessionRecord,
+    *,
+    record_type: str,
+    session_lookup_key: str,
+    include_upload_id: bool,
+) -> dict[str, object]:
+    item: dict[str, object] = {
+        "session_id": session_lookup_key,
+        "canonical_session_id": record.session_id,
         "scope_id": record.scope_id,
         "key": record.key,
         "filename": record.filename,
@@ -348,10 +355,35 @@ def _record_to_item(record: UploadSessionRecord) -> dict[str, object]:
         "resumable_until": record.resumable_until.isoformat(),
         "resumable_until_epoch": record.resumable_until_epoch,
         "status": record.status.value,
+        "record_type": record_type,
         "request_id": record.request_id,
         "created_at": record.created_at.isoformat(),
         "last_activity_at": record.last_activity_at.isoformat(),
     }
+    if include_upload_id and record.upload_id is not None:
+        item["upload_id"] = record.upload_id
+    return item
+
+
+def _record_to_items(record: UploadSessionRecord) -> list[dict[str, object]]:
+    items = [
+        _record_to_item(
+            record,
+            record_type=_UPLOAD_SESSION_RECORD_TYPE,
+            session_lookup_key=record.session_id,
+            include_upload_id=True,
+        )
+    ]
+    if record.upload_id is not None:
+        items.append(
+            _record_to_item(
+                record,
+                record_type=_UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE,
+                session_lookup_key=record.upload_id,
+                include_upload_id=False,
+            )
+        )
+    return items
 
 
 def _parse_checksum_mode(item: dict[str, Any]) -> str:
@@ -400,13 +432,24 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
             )
         raise TypeError("upload session timestamps must be datetime strings")
 
+    record_type = _record_type(item)
     upload_id = _as_str(item.get("upload_id"))
+    if (
+        upload_id is None
+        and record_type == _UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE
+    ):
+        upload_id = _as_str(item.get("session_id"))
+    session_id = _as_str(item.get("canonical_session_id"))
+    if session_id is None:
+        session_id = _as_str(item.get("session_id"))
+    if session_id is None:
+        raise TypeError("upload session session_id must be a string")
     strategy = UploadStrategy(str(item["strategy"]))
     status = UploadSessionStatus(str(item["status"]))
     checksum_algorithm = _as_str(item.get("checksum_algorithm"))
     checksum_mode = _parse_checksum_mode(item)
     return UploadSessionRecord(
-        session_id=str(item["session_id"]),
+        session_id=session_id,
         upload_id=upload_id,
         scope_id=str(item["scope_id"]),
         key=str(item["key"]),
@@ -431,6 +474,15 @@ def _item_to_record(item: dict[str, Any]) -> UploadSessionRecord:
         created_at=_parse_datetime(item["created_at"]),
         last_activity_at=_parse_datetime(item["last_activity_at"]),
     )
+
+
+def _record_type(item: Mapping[str, Any]) -> str | None:
+    raw = item.get("record_type")
+    return raw if isinstance(raw, str) else None
+
+
+def _is_upload_lookup_item(item: Mapping[str, Any]) -> bool:
+    return _record_type(item) == _UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE
 
 
 def new_upload_session_id() -> str:

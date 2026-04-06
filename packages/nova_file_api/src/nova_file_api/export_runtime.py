@@ -105,7 +105,7 @@ class ExportRepository(Protocol):
         """Persist a new export record."""
 
     async def get(self, export_id: str) -> ExportRecord | None:
-        """Return export record by id if present."""
+        """Return one export by primary key with strong read semantics."""
 
     async def update(self, record: ExportRecord) -> None:
         """Replace an export record."""
@@ -121,7 +121,10 @@ class ExportRepository(Protocol):
     async def list_for_scope(
         self, *, scope_id: str, limit: int
     ) -> list[ExportRecord]:
-        """List exports visible to the provided caller scope."""
+        """List exports visible to the provided caller scope.
+
+        This path is GSI-backed and therefore eventually consistent.
+        """
 
     async def healthcheck(self) -> bool:
         """Return readiness of the backing storage dependency."""
@@ -329,7 +332,10 @@ class DynamoExportRepository:
     async def get(self, export_id: str) -> ExportRecord | None:
         """Return an export record by id when present."""
         table = await self._resolve_table()
-        response = await table.get_item(Key={"export_id": export_id})
+        response = await table.get_item(
+            Key={"export_id": export_id},
+            ConsistentRead=True,
+        )
         item = response.get("Item")
         if item is None:
             return None
@@ -369,7 +375,7 @@ class DynamoExportRepository:
     async def list_for_scope(
         self, *, scope_id: str, limit: int
     ) -> list[ExportRecord]:
-        """List caller-scoped exports newest-first."""
+        """List caller-scoped exports newest-first via the eventual GSI."""
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
 
@@ -441,7 +447,10 @@ class DynamoExportRepository:
         """Return whether the DynamoDB table is reachable."""
         try:
             table = await self._resolve_table()
-            await table.get_item(Key={"export_id": "__health_check__"})
+            await table.get_item(
+                Key={"export_id": "__health_check__"},
+                ConsistentRead=True,
+            )
         except (ClientError, BotoCoreError):
             return False
         return True

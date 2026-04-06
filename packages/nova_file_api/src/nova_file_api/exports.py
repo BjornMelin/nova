@@ -115,7 +115,10 @@ class ExportService:
     async def list_for_scope(
         self, *, scope_id: str, limit: int = 50
     ) -> list[ExportRecord]:
-        """List exports for caller scope, newest first."""
+        """List exports for caller scope, newest first.
+
+        This scoped list is intentionally eventual because it is GSI-backed.
+        """
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
         return await self.repository.list_for_scope(

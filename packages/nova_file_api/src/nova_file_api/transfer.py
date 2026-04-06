@@ -1106,7 +1106,7 @@ class TransferService:
         upload_id: str,
     ) -> UploadSessionRecord | None:
         try:
-            return await self._upload_sessions.get_by_upload_id(
+            return await self._upload_sessions.get_for_upload_id(
                 upload_id=upload_id
             )
         except Exception as exc:
