@@ -10,9 +10,7 @@ from typing import (
 from attrs import define as _attrs_define
 
 if TYPE_CHECKING:
-    from nova_sdk_py.models.readiness_response_checks import (
-        ReadinessResponseChecks,
-    )
+    from nova_sdk_py.models.readiness_checks import ReadinessChecks
 
 
 T = TypeVar("T", bound="ReadinessResponse")
@@ -24,12 +22,12 @@ class ReadinessResponse:
     Readiness endpoint response body.
 
     Attributes:
-        checks: Per-dependency readiness results keyed by check name.
+        checks: Canonical live traffic-gate results.
         ok: Whether every required traffic dependency is ready.
     """
 
-    checks: ReadinessResponseChecks
-    """Per-dependency readiness results keyed by check name."""
+    checks: ReadinessChecks
+    """Canonical live traffic gates reported by readiness."""
     ok: bool
     """Whether every required traffic dependency is ready."""
 
@@ -51,12 +49,10 @@ class ReadinessResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from nova_sdk_py.models.readiness_response_checks import (
-            ReadinessResponseChecks,
-        )
+        from nova_sdk_py.models.readiness_checks import ReadinessChecks
 
         d = dict(src_dict)
-        checks = ReadinessResponseChecks.from_dict(d.pop("checks"))
+        checks = ReadinessChecks.from_dict(d.pop("checks"))
 
         ok = d.pop("ok")
 

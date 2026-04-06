@@ -481,17 +481,41 @@ export type PresignDownloadResponse = {
 };
 
 /**
+ * Canonical live traffic gates reported by readiness.
+ */
+export type ReadinessChecks = {
+    /**
+     * Whether the activity store is reachable for diagnostic rollups.
+     */
+    activity_store: boolean;
+    /**
+     * Whether the configured bearer-token verifier can currently resolve signing keys.
+     */
+    auth_dependency: boolean;
+    /**
+     * Whether the export publisher and export repository are ready.
+     */
+    export_runtime: boolean;
+    /**
+     * Whether the idempotency store is reachable when idempotency is enabled.
+     */
+    idempotency_store: boolean;
+    /**
+     * Whether transfer persistence and the configured S3 bucket are ready.
+     */
+    transfer_runtime: boolean;
+};
+
+/**
  * ReadinessResponse
  *
  * Readiness endpoint response body.
  */
 export type ReadinessResponse = {
     /**
-     * Per-dependency readiness results keyed by check name.
+     * Canonical live traffic-gate results.
      */
-    checks: {
-        [key: string]: boolean;
-    };
+    checks: ReadinessChecks;
     /**
      * Whether every required traffic dependency is ready.
      */
@@ -1178,7 +1202,7 @@ export type HealthReadyError = HealthReadyErrors[keyof HealthReadyErrors];
  */
 export type HealthReadyResponses = {
     /**
-     * Readiness status plus per-dependency readiness checks.
+     * Readiness status plus per-dependency results for the live traffic gates only.
      */
     200: ReadinessResponse;
 };

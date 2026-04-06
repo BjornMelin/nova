@@ -437,6 +437,52 @@ def test_apply_typescript_compatibility_fix_rewrites_sdk_docblocks(
     )
 
 
+def test_typescript_compatibility_fix_rewrites_readiness_to_fixed_type(
+    tmp_path: Path,
+) -> None:
+    """Generated readiness types should stay explicit instead of map-shaped."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        (
+            "export const getParseAs = (contentType: string | null): "
+            "Exclude<Config['parseAs'], 'auto'> | undefined => {\n"
+            "  return;\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    types_path = generated_root / "types.gen.ts"
+    types_path.write_text(
+        "/**\n"
+        " * ReadinessResponse\n"
+        " *\n"
+        " * Readiness endpoint response body.\n"
+        " */\n"
+        "export type ReadinessResponse = {\n"
+        "    /**\n"
+        "     * Per-dependency readiness results keyed by check name.\n"
+        "     */\n"
+        "    checks: {\n"
+        "        [key: string]: boolean;\n"
+        "    };\n"
+        "    /**\n"
+        "     * Whether every required traffic dependency is ready.\n"
+        "     */\n"
+        "    ok: boolean;\n"
+        "};\n",
+        encoding="utf-8",
+    )
+
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+    source = types_path.read_text(encoding="utf-8")
+    assert "export type ReadinessChecks = {" in source
+    assert "checks: ReadinessChecks;" in source
+    assert "[key: string]: boolean;" not in source
+
+
 def test_typescript_compatibility_fix_allows_undefined_parse_as(
     tmp_path: Path,
 ) -> None:

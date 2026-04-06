@@ -31,8 +31,8 @@ from .metrics_summary_response_latencies_ms import (
 )
 from .presign_download_request import PresignDownloadRequest
 from .presign_download_response import PresignDownloadResponse
+from .readiness_checks import ReadinessChecks
 from .readiness_response import ReadinessResponse
-from .readiness_response_checks import ReadinessResponseChecks
 from .release_info_response import ReleaseInfoResponse
 from .resource_plan_item import ResourcePlanItem
 from .resource_plan_request import ResourcePlanRequest
@@ -82,8 +82,8 @@ __all__ = (
     "MetricsSummaryResponseLatenciesMs",
     "PresignDownloadRequest",
     "PresignDownloadResponse",
+    "ReadinessChecks",
     "ReadinessResponse",
-    "ReadinessResponseChecks",
     "ReleaseInfoResponse",
     "ResourcePlanItem",
     "ResourcePlanRequest",
