@@ -10,15 +10,12 @@ T = TypeVar("T", bound="ExportOutput")
 
 @_attrs_define
 class ExportOutput:
-    """Completed export output metadata.
-
-    Attributes:
-        download_filename (str): Filename presented to clients when downloading.
-        key (str): Storage key for the exported object.
-    """
+    """Completed export output metadata."""
 
     download_filename: str
+    """ Filename presented to clients when downloading. """
     key: str
+    """ Storage key for the exported object. """
 
     def to_dict(self) -> dict[str, Any]:
         download_filename = self.download_filename

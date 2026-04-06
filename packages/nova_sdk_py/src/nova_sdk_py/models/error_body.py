@@ -19,14 +19,7 @@ T = TypeVar("T", bound="ErrorBody")
 
 @_attrs_define
 class ErrorBody:
-    """Standard API error body.
-
-    Attributes:
-        code (str):
-        details (ErrorBodyDetails):
-        message (str):
-        request_id (None | str):
-    """
+    """Standard API error body."""
 
     code: str
     details: ErrorBodyDetails

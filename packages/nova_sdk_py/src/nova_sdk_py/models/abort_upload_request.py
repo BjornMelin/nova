@@ -10,12 +10,7 @@ T = TypeVar("T", bound="AbortUploadRequest")
 
 @_attrs_define
 class AbortUploadRequest:
-    """Multipart abort request.
-
-    Attributes:
-        key (str):
-        upload_id (str):
-    """
+    """Multipart abort request."""
 
     key: str
     upload_id: str

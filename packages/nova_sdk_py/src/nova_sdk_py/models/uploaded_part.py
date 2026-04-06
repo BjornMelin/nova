@@ -10,12 +10,7 @@ T = TypeVar("T", bound="UploadedPart")
 
 @_attrs_define
 class UploadedPart:
-    """Part state returned for multipart upload introspection.
-
-    Attributes:
-        etag (str):
-        part_number (int):
-    """
+    """Part state returned for multipart upload introspection."""
 
     etag: str
     part_number: int

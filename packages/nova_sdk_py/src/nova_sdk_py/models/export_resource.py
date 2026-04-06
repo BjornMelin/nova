@@ -24,26 +24,14 @@ T = TypeVar("T", bound="ExportResource")
 
 @_attrs_define
 class ExportResource:
-    """Public export workflow resource.
-
-    Attributes:
-        created_at (datetime.datetime):
-        export_id (str):
-        filename (str):
-        source_key (str):
-        status (ExportStatus): Lifecycle status of an export workflow.
-        updated_at (datetime.datetime):
-        cancel_requested_at (datetime.datetime | None | Unset):
-        error (None | str | Unset):
-        execution_arn (None | str | Unset):
-        output (ExportOutput | None | Unset):
-    """
+    """Public export workflow resource."""
 
     created_at: datetime.datetime
     export_id: str
     filename: str
     source_key: str
     status: ExportStatus
+    """ Lifecycle status of an export workflow. """
     updated_at: datetime.datetime
     cancel_requested_at: datetime.datetime | None | Unset = UNSET
     error: None | str | Unset = UNSET

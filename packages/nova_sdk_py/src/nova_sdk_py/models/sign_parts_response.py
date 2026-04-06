@@ -20,12 +20,7 @@ T = TypeVar("T", bound="SignPartsResponse")
 
 @_attrs_define
 class SignPartsResponse:
-    """Multipart sign-parts response.
-
-    Attributes:
-        expires_in_seconds (int):
-        urls (SignPartsResponseUrls):
-    """
+    """Multipart sign-parts response."""
 
     expires_in_seconds: int
     urls: SignPartsResponseUrls

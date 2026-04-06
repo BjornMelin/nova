@@ -10,12 +10,7 @@ T = TypeVar("T", bound="UploadIntrospectionRequest")
 
 @_attrs_define
 class UploadIntrospectionRequest:
-    """Multipart upload introspection request.
-
-    Attributes:
-        key (str):
-        upload_id (str):
-    """
+    """Multipart upload introspection request."""
 
     key: str
     upload_id: str

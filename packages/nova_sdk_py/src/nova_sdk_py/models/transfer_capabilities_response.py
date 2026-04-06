@@ -19,27 +19,7 @@ T = TypeVar("T", bound="TransferCapabilitiesResponse")
 
 @_attrs_define
 class TransferCapabilitiesResponse:
-    """Transfer policy capabilities exposed to clients and operators.
-
-    Attributes:
-        accelerate_enabled (bool):
-        active_multipart_upload_limit (int):
-        checksum_mode (TransferCapabilitiesResponseChecksumMode):
-        daily_ingress_budget_bytes (int):
-        large_export_worker_threshold_bytes (int):
-        max_concurrency_hint (int):
-        max_upload_bytes (int):
-        maximum_part_size_bytes (int):
-        minimum_part_size_bytes (int):
-        multipart_threshold_bytes (int):
-        policy_id (str):
-        policy_version (str):
-        resumable_ttl_seconds (int):
-        sign_batch_size_hint (int):
-        sign_requests_per_upload_limit (int):
-        target_upload_part_count (int):
-        checksum_algorithm (None | str | Unset):
-    """
+    """Transfer policy capabilities exposed to clients and operators."""
 
     accelerate_enabled: bool
     active_multipart_upload_limit: int

@@ -22,26 +22,7 @@ T = TypeVar("T", bound="InitiateUploadResponse")
 
 @_attrs_define
 class InitiateUploadResponse:
-    """Initiate-upload response model.
-
-    Attributes:
-        accelerate_enabled (bool):
-        bucket (str):
-        checksum_mode (InitiateUploadResponseChecksumMode):
-        expires_in_seconds (int):
-        key (str):
-        max_concurrency_hint (int):
-        policy_id (str):
-        policy_version (str):
-        resumable_until (datetime.datetime):
-        session_id (str):
-        sign_batch_size_hint (int):
-        strategy (UploadStrategy): Upload strategy options returned by initiate endpoint.
-        checksum_algorithm (None | str | Unset):
-        part_size_bytes (int | None | Unset):
-        upload_id (None | str | Unset):
-        url (None | str | Unset):
-    """
+    """Initiate-upload response model."""
 
     accelerate_enabled: bool
     bucket: str
@@ -55,6 +36,7 @@ class InitiateUploadResponse:
     session_id: str
     sign_batch_size_hint: int
     strategy: UploadStrategy
+    """ Upload strategy options returned by initiate endpoint. """
     checksum_algorithm: None | str | Unset = UNSET
     part_size_bytes: int | None | Unset = UNSET
     upload_id: None | str | Unset = UNSET

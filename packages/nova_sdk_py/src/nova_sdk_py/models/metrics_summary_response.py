@@ -26,13 +26,7 @@ T = TypeVar("T", bound="MetricsSummaryResponse")
 
 @_attrs_define
 class MetricsSummaryResponse:
-    """Metrics summary endpoint response body.
-
-    Attributes:
-        activity (MetricsSummaryResponseActivity):
-        counters (MetricsSummaryResponseCounters):
-        latencies_ms (MetricsSummaryResponseLatenciesMs):
-    """
+    """Metrics summary endpoint response body."""
 
     activity: MetricsSummaryResponseActivity
     counters: MetricsSummaryResponseCounters

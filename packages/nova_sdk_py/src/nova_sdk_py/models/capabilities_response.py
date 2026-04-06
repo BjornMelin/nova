@@ -18,11 +18,7 @@ T = TypeVar("T", bound="CapabilitiesResponse")
 
 @_attrs_define
 class CapabilitiesResponse:
-    """Capabilities endpoint response.
-
-    Attributes:
-        capabilities (list[CapabilityDescriptor]):
-    """
+    """Capabilities endpoint response."""
 
     capabilities: list[CapabilityDescriptor]
 

@@ -18,13 +18,7 @@ T = TypeVar("T", bound="CompleteUploadRequest")
 
 @_attrs_define
 class CompleteUploadRequest:
-    """Multipart completion request.
-
-    Attributes:
-        key (str):
-        parts (list[CompletedPart]):
-        upload_id (str):
-    """
+    """Multipart completion request."""
 
     key: str
     parts: list[CompletedPart]

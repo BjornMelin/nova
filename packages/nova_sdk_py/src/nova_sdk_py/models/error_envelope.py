@@ -18,13 +18,10 @@ T = TypeVar("T", bound="ErrorEnvelope")
 
 @_attrs_define
 class ErrorEnvelope:
-    """Standard API error envelope.
-
-    Attributes:
-        error (ErrorBody): Standard API error body.
-    """
+    """Standard API error envelope."""
 
     error: ErrorBody
+    """ Standard API error body. """
 
     def to_dict(self) -> dict[str, Any]:
         error = self.error.to_dict()

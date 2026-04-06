@@ -10,8 +10,6 @@ T = TypeVar("T", bound="SignPartsResponseUrls")
 
 @_attrs_define
 class SignPartsResponseUrls:
-    """Model representing SignPartsResponseUrls."""
-
     additional_properties: dict[str, str] = _attrs_field(
         init=False, factory=dict
     )

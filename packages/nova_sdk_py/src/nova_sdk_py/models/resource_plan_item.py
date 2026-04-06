@@ -16,13 +16,7 @@ T = TypeVar("T", bound="ResourcePlanItem")
 
 @_attrs_define
 class ResourcePlanItem:
-    """Resource planning decision per requested resource.
-
-    Attributes:
-        resource (str):
-        supported (bool):
-        reason (None | str | Unset):
-    """
+    """Resource planning decision per requested resource."""
 
     resource: str
     supported: bool

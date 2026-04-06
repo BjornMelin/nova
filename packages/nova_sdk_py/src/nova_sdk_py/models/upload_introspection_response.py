@@ -18,15 +18,7 @@ T = TypeVar("T", bound="UploadIntrospectionResponse")
 
 @_attrs_define
 class UploadIntrospectionResponse:
-    """Multipart upload introspection response.
-
-    Attributes:
-        bucket (str):
-        key (str):
-        part_size_bytes (int):
-        parts (list[UploadedPart]):
-        upload_id (str):
-    """
+    """Multipart upload introspection response."""
 
     bucket: str
     key: str

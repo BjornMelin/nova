@@ -20,12 +20,7 @@ T = TypeVar("T", bound="ReadinessResponse")
 
 @_attrs_define
 class ReadinessResponse:
-    """Readiness endpoint response body.
-
-    Attributes:
-        checks (ReadinessResponseChecks):
-        ok (bool):
-    """
+    """Readiness endpoint response body."""
 
     checks: ReadinessResponseChecks
     ok: bool

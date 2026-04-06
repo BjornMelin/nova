@@ -16,14 +16,7 @@ T = TypeVar("T", bound="CompleteUploadResponse")
 
 @_attrs_define
 class CompleteUploadResponse:
-    """Multipart completion response.
-
-    Attributes:
-        bucket (str):
-        key (str):
-        etag (None | str | Unset):
-        version_id (None | str | Unset):
-    """
+    """Multipart completion response."""
 
     bucket: str
     key: str

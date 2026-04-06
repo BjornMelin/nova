@@ -16,14 +16,7 @@ T = TypeVar("T", bound="PresignDownloadRequest")
 
 @_attrs_define
 class PresignDownloadRequest:
-    """Presign download request.
-
-    Attributes:
-        key (str):
-        content_disposition (None | str | Unset):
-        content_type (None | str | Unset):
-        filename (None | str | Unset):
-    """
+    """Presign download request."""
 
     key: str
     content_disposition: None | str | Unset = UNSET

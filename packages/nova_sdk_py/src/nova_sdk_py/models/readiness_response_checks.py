@@ -10,8 +10,6 @@ T = TypeVar("T", bound="ReadinessResponseChecks")
 
 @_attrs_define
 class ReadinessResponseChecks:
-    """Model representing ReadinessResponseChecks."""
-
     additional_properties: dict[str, bool] = _attrs_field(
         init=False, factory=dict
     )

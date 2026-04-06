@@ -10,13 +10,7 @@ T = TypeVar("T", bound="ReleaseInfoResponse")
 
 @_attrs_define
 class ReleaseInfoResponse:
-    """Release metadata for conformance/debug clients.
-
-    Attributes:
-        environment (str):
-        name (str):
-        version (str):
-    """
+    """Release metadata for conformance/debug clients."""
 
     environment: str
     name: str

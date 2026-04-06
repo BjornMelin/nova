@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
@@ -647,34 +646,6 @@ def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
     _repair_sign_parts_request_checksum_parser(root)
     _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
-    _repair_blank_model_docstrings(root)
-    _repair_model_docstring_indentation(root)
-
-
-def _repair_model_docstring_indentation(root: Path) -> None:
-    model_dir = root / "models"
-    if not model_dir.exists():
-        return
-    for path in sorted(model_dir.glob("*.py")):
-        lines = path.read_text(encoding="utf-8").splitlines()
-        updated_lines: list[str] = []
-        in_attributes_block = False
-        for line in lines:
-            if line == "        Attributes:":
-                updated_lines.append("    Attributes:")
-                in_attributes_block = True
-                continue
-            if in_attributes_block:
-                if line.startswith("            ") and line.strip():
-                    updated_lines.append(line[4:])
-                    continue
-                if line.strip() in {'"""', "'''"} or not line.strip():
-                    in_attributes_block = False
-            updated_lines.append(line)
-        updated = "\n".join(updated_lines) + "\n"
-        original = "\n".join(lines) + "\n"
-        if updated != original:
-            path.write_text(updated, encoding="utf-8")
 
 
 def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:
@@ -691,45 +662,6 @@ def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:
         )
         if updated != content:
             path.write_text(updated, encoding="utf-8")
-
-
-def _render_model_docstring(class_name: str) -> str:
-    return f'    """Model representing {class_name}."""\n'
-
-
-def _render_blank_model_docstring_replacement(
-    match: re.Match[str],
-    *,
-    class_name: str,
-) -> str:
-    return f'{match.group("indent")}"""Model representing {class_name}."""\n'
-
-
-def _repair_blank_model_docstrings(root: Path) -> None:
-    model_dir = root / "models"
-    if not model_dir.exists():
-        return
-
-    for path in sorted(model_dir.glob("*.py")):
-        content = path.read_text(encoding="utf-8")
-        class_name = "".join(part.capitalize() for part in path.stem.split("_"))
-        replacement = partial(
-            _render_blank_model_docstring_replacement,
-            class_name=class_name,
-        )
-
-        for pattern in (
-            re.compile(r'(?m)^(?P<indent>\s*)"""\s+"""\s*$'),
-            re.compile(r'(?m)^(?P<indent>\s*)"""\s*\n\s*"""\s*$'),
-        ):
-            updated, replaced = pattern.subn(
-                replacement,
-                content,
-                count=1,
-            )
-            if replaced:
-                path.write_text(updated, encoding="utf-8")
-                break
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:

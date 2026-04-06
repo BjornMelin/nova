@@ -12,11 +12,7 @@ T = TypeVar("T", bound="AbortUploadResponse")
 
 @_attrs_define
 class AbortUploadResponse:
-    """Multipart abort response.
-
-    Attributes:
-        ok (bool | Unset):  Default: True.
-    """
+    """Multipart abort response."""
 
     ok: bool | Unset = True
 

@@ -1,3 +1,4 @@
 project_name_override: nova-sdk-py
 package_name_override: nova_sdk_py
+docstrings_on_attributes: true
 post_hooks: []

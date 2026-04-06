@@ -25,14 +25,6 @@ class InitiateUploadRequest:
     client preference; preference is not the same enum as mode mapping and the
     final mode decision happens server-side.
 
-    Attributes:
-        filename (str):
-        size_bytes (int):
-        checksum_preference (None | str | Unset):
-        checksum_value (None | str | Unset):
-        content_type (None | str | Unset):
-        policy_hint (None | str | Unset):
-        workload_class (None | str | Unset):
     """
 
     filename: str

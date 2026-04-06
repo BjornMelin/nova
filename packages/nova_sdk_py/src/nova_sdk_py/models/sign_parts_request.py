@@ -23,14 +23,7 @@ T = TypeVar("T", bound="SignPartsRequest")
 
 @_attrs_define
 class SignPartsRequest:
-    """Multipart sign-parts request.
-
-    Attributes:
-        key (str):
-        part_numbers (list[int]):
-        upload_id (str):
-        checksums_sha256 (None | SignPartsRequestChecksumsSha256Type0 | Unset):
-    """
+    """Multipart sign-parts request."""
 
     key: str
     part_numbers: list[int]

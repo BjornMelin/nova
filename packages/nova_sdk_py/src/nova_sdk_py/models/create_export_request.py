@@ -10,15 +10,12 @@ T = TypeVar("T", bound="CreateExportRequest")
 
 @_attrs_define
 class CreateExportRequest:
-    """Request payload for export creation.
-
-    Attributes:
-        filename (str): Client-facing filename to preserve in the export.
-        source_key (str): Storage key of the source object to export.
-    """
+    """Request payload for export creation."""
 
     filename: str
+    """ Client-facing filename to preserve in the export. """
     source_key: str
+    """ Storage key of the source object to export. """
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename

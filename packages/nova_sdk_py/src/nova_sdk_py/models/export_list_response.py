@@ -18,11 +18,7 @@ T = TypeVar("T", bound="ExportListResponse")
 
 @_attrs_define
 class ExportListResponse:
-    """Response payload for export listing endpoint.
-
-    Attributes:
-        exports (list[ExportResource]):
-    """
+    """Response payload for export listing endpoint."""
 
     exports: list[ExportResource]
 

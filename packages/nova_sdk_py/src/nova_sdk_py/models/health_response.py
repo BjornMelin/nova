@@ -10,11 +10,7 @@ T = TypeVar("T", bound="HealthResponse")
 
 @_attrs_define
 class HealthResponse:
-    """Health endpoint response body.
-
-    Attributes:
-        ok (bool):
-    """
+    """Health endpoint response body."""
 
     ok: bool
 

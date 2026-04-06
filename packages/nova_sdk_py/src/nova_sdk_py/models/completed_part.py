@@ -16,13 +16,7 @@ T = TypeVar("T", bound="CompletedPart")
 
 @_attrs_define
 class CompletedPart:
-    """Part metadata needed for multipart completion.
-
-    Attributes:
-        etag (str):
-        part_number (int):
-        checksum_sha256 (None | str | Unset):
-    """
+    """Part metadata needed for multipart completion."""
 
     etag: str
     part_number: int

@@ -10,8 +10,6 @@ T = TypeVar("T", bound="MetricsSummaryResponseActivity")
 
 @_attrs_define
 class MetricsSummaryResponseActivity:
-    """Model representing MetricsSummaryResponseActivity."""
-
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict
     )

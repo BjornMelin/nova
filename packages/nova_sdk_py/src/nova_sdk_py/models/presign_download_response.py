@@ -10,14 +10,7 @@ T = TypeVar("T", bound="PresignDownloadResponse")
 
 @_attrs_define
 class PresignDownloadResponse:
-    """Presign download response.
-
-    Attributes:
-        bucket (str):
-        expires_in_seconds (int):
-        key (str):
-        url (str):
-    """
+    """Presign download response."""
 
     bucket: str
     expires_in_seconds: int

@@ -18,11 +18,7 @@ T = TypeVar("T", bound="ResourcePlanResponse")
 
 @_attrs_define
 class ResourcePlanResponse:
-    """Resource planning response body.
-
-    Attributes:
-        plan (list[ResourcePlanItem]):
-    """
+    """Resource planning response body."""
 
     plan: list[ResourcePlanItem]
 

@@ -14,11 +14,7 @@ T = TypeVar("T", bound="ResourcePlanRequest")
 
 @_attrs_define
 class ResourcePlanRequest:
-    """Resource planning request body.
-
-    Attributes:
-        resources (list[str]):
-    """
+    """Resource planning request body."""
 
     resources: list[str]
 
