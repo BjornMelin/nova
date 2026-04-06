@@ -707,14 +707,6 @@ class NovaRuntimeStack(Stack):
             point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
-        upload_sessions_table.add_global_secondary_index(
-            index_name="upload_id-index",
-            partition_key=dynamodb.Attribute(
-                name="upload_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            projection_type=dynamodb.ProjectionType.ALL,
-        )
         transfer_usage_table = dynamodb.Table(
             self,
             "TransferUsageTable",

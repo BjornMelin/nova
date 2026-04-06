@@ -196,6 +196,18 @@ def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
         "@returns The response from the "
         "`getTransferCapabilities` operation." in source
     )
+    assert "@returns The response from the `listExports` operation." in source
+
+
+def test_public_sdk_operation_docblocks_exclude_python_docstring_sections() -> (
+    None
+):
+    """Public TSDoc must not echo server Google-style docstring sections."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
+    assert "Args:" not in source
+    assert "Returns:" not in source
+    assert "Raises:" not in source
+    assert "Yields:" not in source
 
 
 def test_public_sdk_types_include_sentence_style_alias_docblocks() -> None:

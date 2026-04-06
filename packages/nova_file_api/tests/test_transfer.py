@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime
+from copy import deepcopy
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from boto3.dynamodb.types import (
+    TypeDeserializer,  # type: ignore[import-untyped]
+)
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import ValidationError
 
@@ -20,6 +25,7 @@ from nova_file_api.models import (
     PresignDownloadRequest,
     Principal,
     SignPartsRequest,
+    UploadedPart,
     UploadIntrospectionRequest,
     UploadStrategy,
 )
@@ -30,8 +36,10 @@ from nova_file_api.transfer_usage import (
     TransferUsageWindowRepository,
 )
 from nova_file_api.upload_sessions import (
+    DynamoUploadSessionRepository,
     MemoryUploadSessionRepository,
     UploadSessionRecord,
+    UploadSessionRepository,
     UploadSessionStatus,
     _item_to_record,
 )
@@ -193,6 +201,191 @@ class _FailingUploadSessionRepository(MemoryUploadSessionRepository):
         await super().create(record)
 
 
+class _LaggingUploadSessionTable:
+    def __init__(self) -> None:
+        self._items: dict[str, dict[str, Any]] = {}
+        self.get_item_calls: list[dict[str, Any]] = []
+        self.put_item_calls: list[dict[str, Any]] = []
+        self.scan_calls: list[dict[str, Any]] = []
+        self.transact_write_calls: list[dict[str, Any]] = []
+        self.fail_transact_write = False
+        self.meta = type(
+            "_Meta",
+            (),
+            {"client": _LaggingUploadSessionClient(self)},
+        )()
+
+    async def put_item(self, **kwargs: object) -> dict[str, object]:
+        item = deepcopy(cast(dict[str, Any], kwargs["Item"]))
+        session_id = item["session_id"]
+        assert isinstance(session_id, str)
+        self.put_item_calls.append(dict(kwargs))
+        self._items[session_id] = item
+        return {}
+
+    async def get_item(self, **kwargs: object) -> dict[str, object]:
+        self.get_item_calls.append(deepcopy(dict(kwargs)))
+        key = cast(dict[str, Any], kwargs["Key"])
+        session_id = key["session_id"]
+        assert isinstance(session_id, str)
+        item = self._items.get(session_id)
+        return {"Item": deepcopy(item)} if item is not None else {}
+
+    async def scan(self, **kwargs: object) -> dict[str, object]:
+        self.scan_calls.append(deepcopy(dict(kwargs)))
+        filter_expression = cast(str, kwargs["FilterExpression"])
+        names = cast(dict[str, str], kwargs["ExpressionAttributeNames"])
+        values = cast(dict[str, Any], kwargs["ExpressionAttributeValues"])
+        now_epoch = values[":now_epoch"]
+        assert isinstance(now_epoch, int)
+        allowed_record_types: set[str | None] | None = None
+        record_type_name = names.get("#record_type")
+        if (
+            record_type_name == "record_type"
+            and "#record_type = :session_record" in filter_expression
+        ):
+            allowed_record_types = {values[":session_record"]}
+            if "attribute_not_exists(#record_type)" in filter_expression:
+                allowed_record_types.add(None)
+        allowed_statuses = {
+            values[":initiated"],
+            values[":active"],
+        }
+        multipart_value = values[":multipart"]
+        items = [
+            deepcopy(item)
+            for item in self._items.values()
+            if (
+                allowed_record_types is None
+                or item.get("record_type") in allowed_record_types
+            )
+            and item.get("strategy") == multipart_value
+            and item.get("status") in allowed_statuses
+            and int(item["resumable_until_epoch"]) <= now_epoch
+        ]
+        limit = kwargs.get("Limit")
+        if isinstance(limit, int):
+            items = items[:limit]
+        return {"Items": items}
+
+
+_TYPE_DESERIALIZER = TypeDeserializer()
+
+
+class _LaggingUploadSessionClient:
+    def __init__(self, table: _LaggingUploadSessionTable) -> None:
+        self._table = table
+
+    async def transact_write_items(self, **kwargs: object) -> dict[str, object]:
+        self._table.transact_write_calls.append(deepcopy(dict(kwargs)))
+        if self._table.fail_transact_write:
+            raise RuntimeError("transaction write failed")
+        for request in cast(list[dict[str, Any]], kwargs["TransactItems"]):
+            if "Put" in request:
+                put = cast(dict[str, Any], request["Put"])
+                item = _deserialize_item(cast(dict[str, Any], put["Item"]))
+                session_id = item["session_id"]
+                assert isinstance(session_id, str)
+                self._table._items[session_id] = item
+                continue
+            delete = cast(dict[str, Any], request["Delete"])
+            key = _deserialize_item(cast(dict[str, Any], delete["Key"]))
+            session_id = key["session_id"]
+            assert isinstance(session_id, str)
+            self._table._items.pop(session_id, None)
+        return {}
+
+
+def _deserialize_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: _TYPE_DESERIALIZER.deserialize(value)
+        for key, value in item.items()
+    }
+
+
+class _LaggingUploadSessionResource:
+    def __init__(self, table: _LaggingUploadSessionTable) -> None:
+        self.table = table
+
+    def Table(self, table_name: str) -> _LaggingUploadSessionTable:
+        assert table_name == "upload-sessions"
+        return self.table
+
+
+class _TableWithoutTransactionClient:
+    async def put_item(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+    async def get_item(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+    async def scan(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+
+class _ResourceWithoutTransactionClient:
+    def Table(self, table_name: str) -> _TableWithoutTransactionClient:
+        assert table_name == "upload-sessions"
+        return _TableWithoutTransactionClient()
+
+
+def _upload_session_record(
+    *,
+    key: str = "uploads/scope-1/report.csv",
+    upload_id: str = "upload-1",
+    created_at: datetime | None = None,
+    resumable_until: datetime | None = None,
+) -> UploadSessionRecord:
+    now = datetime.now(tz=UTC) if created_at is None else created_at
+    session_resumable_until = (
+        (now + timedelta(hours=1)).replace(microsecond=0)
+        if resumable_until is None
+        else resumable_until
+    )
+    return UploadSessionRecord(
+        session_id="session-1",
+        upload_id=upload_id,
+        scope_id="scope-1",
+        key=key,
+        filename="report.csv",
+        size_bytes=1024,
+        content_type="text/csv",
+        strategy=UploadStrategy.MULTIPART,
+        part_size_bytes=256 * 1024 * 1024,
+        policy_id="default",
+        policy_version="2026-04-03",
+        max_concurrency_hint=4,
+        sign_batch_size_hint=32,
+        accelerate_enabled=False,
+        checksum_algorithm=None,
+        checksum_mode="none",
+        sign_requests_count=0,
+        sign_requests_limit=None,
+        resumable_until=session_resumable_until,
+        resumable_until_epoch=int(session_resumable_until.timestamp()),
+        status=UploadSessionStatus.INITIATED,
+        request_id="request-1",
+        created_at=now,
+        last_activity_at=now,
+    )
+
+
+def _lagging_upload_session_repository(
+    table: _LaggingUploadSessionTable | None = None,
+) -> tuple[DynamoUploadSessionRepository, _LaggingUploadSessionTable]:
+    resolved_table = _LaggingUploadSessionTable() if table is None else table
+    return (
+        DynamoUploadSessionRepository(
+            table_name="upload-sessions",
+            dynamodb_resource=_LaggingUploadSessionResource(resolved_table),
+        ),
+        resolved_table,
+    )
+
+
 @pytest.fixture
 def _service() -> tuple[TransferService, _FakeS3Client]:
     fake_s3 = _FakeS3Client()
@@ -204,7 +397,7 @@ def _transfer_service(
     *,
     settings: Settings,
     s3_client: _FakeS3Client,
-    upload_session_repository: MemoryUploadSessionRepository | None = None,
+    upload_session_repository: UploadSessionRepository | None = None,
     transfer_usage_repository: TransferUsageWindowRepository | None = None,
 ) -> TransferService:
     return TransferService(
@@ -1005,7 +1198,282 @@ async def test_upload_session_repository_ignores_expired_records() -> None:
 
     await repository.create(expired)
 
-    assert await repository.get_by_upload_id(upload_id="upload-1") is None
+    assert await repository.get_for_upload_id(upload_id="upload-1") is None
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_uses_strong_upload_alias_lookup() -> (
+    None
+):
+    repository, table = _lagging_upload_session_repository()
+    record = _upload_session_record()
+
+    await repository.create(record)
+
+    loaded = await repository.get_for_upload_id(upload_id="upload-1")
+
+    assert loaded == record
+    assert table.get_item_calls[-1]["ConsistentRead"] is True
+    assert len(table.transact_write_calls) == 1
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_create_is_atomic() -> None:
+    repository, table = _lagging_upload_session_repository()
+    table.fail_transact_write = True
+
+    with pytest.raises(RuntimeError, match="transaction write failed"):
+        await repository.create(_upload_session_record())
+
+    assert table._items == {}
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_update_is_atomic() -> None:
+    repository, table = _lagging_upload_session_repository()
+    original = _upload_session_record()
+    await repository.create(original)
+    table.fail_transact_write = True
+    updated = replace(
+        original,
+        status=UploadSessionStatus.ACTIVE,
+        sign_requests_count=2,
+        last_activity_at=original.last_activity_at + timedelta(minutes=5),
+    )
+
+    with pytest.raises(RuntimeError, match="transaction write failed"):
+        await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") == original
+
+
+@pytest.mark.anyio
+async def test_memory_upload_repository_update_removes_stale_alias() -> None:
+    repository = MemoryUploadSessionRepository()
+    original = _upload_session_record(upload_id="upload-1")
+    await repository.create(original)
+    updated = replace(original, upload_id="upload-2")
+
+    await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") is None
+    assert await repository.get_for_upload_id(upload_id="upload-2") == updated
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_update_removes_stale_alias() -> None:
+    repository, _table = _lagging_upload_session_repository()
+    original = _upload_session_record(upload_id="upload-1")
+    await repository.create(original)
+    updated = replace(original, upload_id="upload-2")
+
+    await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") is None
+    assert await repository.get_for_upload_id(upload_id="upload-2") == updated
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_requires_transaction_client() -> None:
+    repository = DynamoUploadSessionRepository(
+        table_name="upload-sessions",
+        dynamodb_resource=_ResourceWithoutTransactionClient(),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match=r"transact_write_items",
+    ):
+        await repository.create(_upload_session_record())
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_scan_ignores_upload_alias_rows() -> (
+    None
+):
+    repository, table = _lagging_upload_session_repository()
+    now = datetime.now(tz=UTC)
+    record = _upload_session_record(
+        created_at=now,
+        resumable_until=now,
+    )
+
+    await repository.create(record)
+
+    expired = await repository.list_expired_multipart(
+        now_epoch=int(now.timestamp()),
+        limit=10,
+    )
+
+    assert expired == [record]
+    assert "#record_type = :session_record" in cast(
+        str, table.scan_calls[-1]["FilterExpression"]
+    )
+
+
+@pytest.mark.anyio
+async def test_immediate_sign_parts_uses_authoritative_upload_lookup() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+    )
+    repository, table = _lagging_upload_session_repository()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    response = await service.sign_parts(
+        request=SignPartsRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+            part_numbers=[1, 2],
+        ),
+        principal=_principal(),
+    )
+
+    assert set(response.urls) == {1, 2}
+    assert table.get_item_calls[-1]["ConsistentRead"] is True
+
+
+@pytest.mark.anyio
+async def test_immediate_introspect_uses_authoritative_upload_lookup() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+    )
+    repository, _table = _lagging_upload_session_repository()
+    fake_s3 = _FakeS3Client()
+    fake_s3.list_parts_responses = [
+        {
+            "Parts": [
+                {"PartNumber": 1, "ETag": '"etag-1"', "Size": 1},
+            ],
+            "IsTruncated": False,
+        }
+    ]
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    response = await service.introspect_upload(
+        request=UploadIntrospectionRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+        ),
+        principal=_principal(),
+    )
+    stored = await repository.get_for_upload_id(
+        upload_id=initiated.upload_id or ""
+    )
+
+    assert response.parts == [UploadedPart(part_number=1, etag='"etag-1"')]
+    assert stored is not None
+    assert stored.status == UploadSessionStatus.ACTIVE
+
+
+@pytest.mark.anyio
+async def test_immediate_complete_updates_authoritative_upload_lookup() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+    )
+    repository, _table = _lagging_upload_session_repository()
+    fake_s3 = _FakeS3Client()
+    fake_s3.list_parts_responses = [
+        {
+            "Parts": [{"PartNumber": 1, "ETag": '"etag-1"', "Size": 3}],
+            "IsTruncated": False,
+        }
+    ]
+    fake_s3.head_responses = [{"ContentLength": 3}]
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    response = await service.complete_upload(
+        request=CompleteUploadRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+            parts=[CompletedPart(part_number=1, etag='"etag-1"')],
+        ),
+        principal=_principal(),
+    )
+    stored = await repository.get_for_upload_id(
+        upload_id=initiated.upload_id or ""
+    )
+
+    assert response.etag == "etag"
+    assert stored is not None
+    assert stored.status == UploadSessionStatus.COMPLETED
+
+
+@pytest.mark.anyio
+async def test_immediate_abort_updates_authoritative_upload_lookup() -> None:
+    settings = _settings(
+        FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES=5 * 1024 * 1024,
+    )
+    repository, _table = _lagging_upload_session_repository()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(
+        settings=settings,
+        s3_client=fake_s3,
+        upload_session_repository=repository,
+    )
+
+    initiated = await service.initiate_upload(
+        request=InitiateUploadRequest(
+            filename="report.csv",
+            content_type="text/csv",
+            size_bytes=6 * 1024 * 1024,
+        ),
+        principal=_principal(),
+    )
+
+    response = await service.abort_upload(
+        request=AbortUploadRequest(
+            key=initiated.key,
+            upload_id=initiated.upload_id or "",
+        ),
+        principal=_principal(),
+    )
+    stored = await repository.get_for_upload_id(
+        upload_id=initiated.upload_id or ""
+    )
+
+    assert response.ok is True
+    assert stored is not None
+    assert stored.status == UploadSessionStatus.ABORTED
 
 
 def test_transfer_config_preferred_part_size_remains_lower_bound() -> None:

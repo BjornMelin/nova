@@ -229,7 +229,9 @@ uv run --package nova-cdk python app.py
   runtime policy keeps acceleration disabled unless an allow-listed profile
   turns it on for presigned upload requests.
 - The runtime stack now provisions:
-  - `UploadSessionsTable` for durable multipart session state
+  - `UploadSessionsTable` for durable multipart session state, including
+    authoritative upload-id alias items on the base table for strong
+    multipart continuation reads
   - `TransferUsageTable` for quota accounting
   - `ExportCopyPartsTable` for durable worker-lane multipart copy state with
     TTL cleanup on `expires_at_epoch`
@@ -262,6 +264,9 @@ uv run --package nova-cdk python app.py
   - `NovaTransferPolicyAppConfigApplicationId`
   - `NovaTransferPolicyAppConfigEnvironmentId`
   - `NovaTransferPolicyAppConfigProfileId`
+- Multipart upload-session continuation reads use an authoritative upload-id
+  alias row in the base table, so request-path lookups stay strongly
+  consistent without any GSI dependency.
 - The transfer policy document now covers:
   - policy-scoped acceleration enablement
   - checksum mode (`none`, `optional`, `required`)

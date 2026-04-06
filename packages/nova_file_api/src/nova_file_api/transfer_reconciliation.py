@@ -270,7 +270,7 @@ class TransferReconciliationService:
                     continue
                 if prefix == self.config.upload_prefix:
                     session = (
-                        await self.upload_session_repository.get_by_upload_id(
+                        await self.upload_session_repository.get_for_upload_id(
                             upload_id=upload_id
                         )
                     )

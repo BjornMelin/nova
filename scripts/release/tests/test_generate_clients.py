@@ -30,8 +30,10 @@ from scripts.release.typescript_sdk import (
     _COMPAT_GET_PARSE_AS_SIGNATURE,
     _UPSTREAM_GET_PARSE_AS_SIGNATURE,
     _apply_typescript_upstream_compatibility_fixes,
+    _assert_sdk_docblock_body_sanitized,
     _check_typescript_generated_output,
     _run_openapi_ts,
+    _sanitize_sdk_operation_docblock_body,
 )
 
 
@@ -349,6 +351,86 @@ def test_check_typescript_generated_output_flags_drift_and_legacy_files(
         "obsolete TypeScript SDK artifact still present" in issue
         for issue in issues
     )
+
+
+def test_sanitize_sdk_operation_docblock_body_strips_google_sections() -> None:
+    """Captured SDK docblocks must strip server-only Arg/Return sections."""
+    body = (
+        " * Introspect Upload.\n"
+        " *\n"
+        " * Return uploaded multipart part state for resume flows.\n"
+        " *\n"
+        " * Args:\n"
+        " * payload: Multipart introspection input payload.\n"
+        " *\n"
+        " * Returns:\n"
+        " * UploadIntrospectionResponse: Multipart state for resume "
+        "operations.\n"
+        " *\n"
+        " * @returns The response from the `introspectUpload` operation.\n"
+    )
+    sanitized = _sanitize_sdk_operation_docblock_body(body)
+    _assert_sdk_docblock_body_sanitized(sanitized)
+    assert "Args:" not in sanitized
+    assert "payload:" not in sanitized
+    assert "Returns:" not in sanitized
+    assert "Introspect Upload." in sanitized
+    assert (
+        "@returns The response from the `introspectUpload` operation."
+        in sanitized
+    )
+
+
+def test_assert_sdk_docblock_body_sanitized_raises_on_leaked_args() -> None:
+    """Regression guard: forbidden tokens must fail the sanitizer contract."""
+    with pytest.raises(RuntimeError, match="Args"):
+        _assert_sdk_docblock_body_sanitized(" * Summary.\n * Args:\n * x.\n")
+
+
+def test_apply_typescript_compatibility_fix_rewrites_sdk_docblocks(
+    tmp_path: Path,
+) -> None:
+    """sdk.gen.ts docblocks with server sections must be sanitized on fixup."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        (
+            "export const getParseAs = (contentType: string | null): "
+            "Exclude<Config['parseAs'], 'auto'> | undefined => {\n"
+            "  return;\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    sdk_path = generated_root / "sdk.gen.ts"
+    sdk_path.write_text(
+        "/**\n"
+        " * Introspect Upload.\n"
+        " *\n"
+        " * Return uploaded multipart part state for resume flows.\n"
+        " *\n"
+        " * Args:\n"
+        " * payload: Multipart introspection input payload.\n"
+        " *\n"
+        " * Returns:\n"
+        " * UploadIntrospectionResponse: Multipart state for resume "
+        "operations.\n"
+        " *\n"
+        " * @returns The response from the `introspectUpload` operation.\n"
+        " */\n"
+        "export const introspectUpload = <ThrowOnError extends boolean = false>"
+        "(options: Options<IntrospectUploadData, ThrowOnError>) => "
+        "(options.client ?? client).post({});\n",
+        encoding="utf-8",
+    )
+
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+    source = sdk_path.read_text(encoding="utf-8")
+    assert "Args:" not in source
+    assert "Returns:" not in source
+    assert "Return uploaded multipart part state for resume flows." in source
 
 
 def test_typescript_compatibility_fix_allows_undefined_parse_as(

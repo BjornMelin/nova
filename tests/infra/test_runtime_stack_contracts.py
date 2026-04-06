@@ -308,8 +308,8 @@ def test_runtime_stack_packages_api_lambda_as_native_zip() -> None:
     assert workflow_env["FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE"]
 
 
-def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
-    """Runtime stack should provision durable upload-session storage."""
+def test_runtime_stack_adds_upload_session_table() -> None:
+    """Runtime stack should provision canonical upload-session storage."""
     bundle = _build_bundle()
     tables = _resources_of_type(bundle.resources, "AWS::DynamoDB::Table")
     upload_session_tables = [
@@ -326,12 +326,7 @@ def test_runtime_stack_adds_upload_session_table_with_upload_index() -> None:
         "AttributeName": "resumable_until_epoch",
         "Enabled": True,
     }
-    global_indexes = table["GlobalSecondaryIndexes"]
-    assert {
-        "IndexName": "upload_id-index",
-        "KeySchema": [{"AttributeName": "upload_id", "KeyType": "HASH"}],
-        "Projection": {"ProjectionType": "ALL"},
-    } in global_indexes
+    assert "GlobalSecondaryIndexes" not in table
     alarms = _resources_of_type(bundle.resources, "AWS::CloudWatch::Alarm")
     assert any(
         logical_id.startswith("UploadSessionsTableThrottlesAlarm")

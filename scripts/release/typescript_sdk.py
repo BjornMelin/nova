@@ -55,14 +55,64 @@ _GET_PARSE_AS_SIGNATURE_PATTERN = re.compile(
     r"(?P<compat>\|\s*undefined\s*)?=>\s*{"
 )
 _SDK_OPERATION_DOCBLOCK_PATTERN = re.compile(
-    r"/\*\*\n"
-    r" \* (?P<title>[^\n]+)\n"
-    r" \*\n"
-    r" \* (?P<description>[^\n]+)\n"
-    r" \*/\n"
-    r"export const (?P<name>\w+) =",
+    r"/\*\*\n(?P<body>(?: \*.*\n)+?) \*/\nexport const (?P<name>\w+) =",
     re.MULTILINE,
 )
+# Google-style / FastAPI docstring sections excluded from public TSDoc.
+_SDK_SERVER_DOC_SECTION_HEADER = re.compile(
+    r"^(Args|Returns|Raises|Yields):\s*",
+)
+_SDK_FORBIDDEN_DOCBLOCK_TOKENS = ("Args:", "Returns:", "Raises:", "Yields:")
+
+
+def _strip_ts_docblock_line(line: str) -> str:
+    """Return the text after the leading `` * `` / `` *`` doc line prefix."""
+    if line.startswith(" * "):
+        return line[3:]
+    if line.startswith(" *"):
+        return line[2:].lstrip(" ") if len(line) > 2 else ""
+    return line
+
+
+def _sanitize_sdk_operation_docblock_body(body: str) -> str:
+    """Remove server-only docstring sections from a captured TSDoc body.
+
+    Strips paragraphs that begin with Python-style ``Args:`` / ``Returns:`` /
+    ``Raises:`` / ``Yields:`` headings and their continuations (until a blank
+    `` *`` line or the next section heading), leaving user-facing summary lines.
+    """
+    lines = body.splitlines()
+    out: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        content = _strip_ts_docblock_line(line)
+        if _SDK_SERVER_DOC_SECTION_HEADER.match(content):
+            index += 1
+            while index < len(lines):
+                inner = _strip_ts_docblock_line(lines[index])
+                if inner == "":
+                    index += 1
+                    break
+                if _SDK_SERVER_DOC_SECTION_HEADER.match(inner):
+                    break
+                index += 1
+            continue
+        out.append(line)
+        index += 1
+    return "\n".join(out) + ("\n" if body.endswith("\n") else "")
+
+
+def _assert_sdk_docblock_body_sanitized(body: str) -> None:
+    """Fail loudly if server-only headings leaked into SDK-facing TSDoc."""
+    for token in _SDK_FORBIDDEN_DOCBLOCK_TOKENS:
+        if token in body:
+            raise RuntimeError(
+                "TypeScript SDK operation docblock sanitization left forbidden "
+                f"token {token!r} in docblock body:\n{body!r}"
+            )
+
+
 _UNDOCUMENTED_TYPE_EXPORT_PATTERN = re.compile(
     r"(?m)^(?P<export>export type (?P<name>[A-Z][A-Za-z0-9]+) = )"
 )
@@ -203,15 +253,25 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
     sdk_text = sdk_path.read_text(encoding="utf-8")
 
     def _normalize_docblock(match: re.Match[str]) -> str:
-        description = match.group("description").strip()
-        if not description.endswith("."):
-            description = f"{description}."
         operation_name = match.group("name")
+        body = match.group("body")
+        body = _sanitize_sdk_operation_docblock_body(body)
+        _assert_sdk_docblock_body_sanitized(body)
+        normalized_lines = body.splitlines()
+        for index, line in enumerate(normalized_lines):
+            stripped = line.removeprefix(" * ").strip()
+            if stripped and stripped != "*" and not stripped.endswith("."):
+                normalized_lines[index] = f" * {stripped}."
+                break
+        if "@returns" not in body:
+            if normalized_lines and normalized_lines[-1] != " *":
+                normalized_lines.append(" *")
+            normalized_lines.append(
+                " * @returns The response from the "
+                f"`{operation_name}` operation."
+            )
         return (
-            "/**\n"
-            f" * {description}\n"
-            " *\n"
-            f" * @returns The response from the `{operation_name}` operation.\n"
+            "/**\n" + "\n".join(normalized_lines) + "\n"
             " */\n"
             f"export const {operation_name} ="
         )

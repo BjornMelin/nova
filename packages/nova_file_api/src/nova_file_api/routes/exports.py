@@ -152,7 +152,11 @@ async def list_exports(
     principal: PrincipalDep,
     limit: ExportsLimitQuery = 50,
 ) -> ExportListResponse:
-    """List caller-owned exports with most recent first."""
+    """List caller-owned exports with most recent first.
+
+    This endpoint is intentionally eventual because it is backed by a scoped
+    DynamoDB global secondary index.
+    """
     exports = await export_service.list_for_scope(
         scope_id=principal.scope_id,
         limit=limit,
