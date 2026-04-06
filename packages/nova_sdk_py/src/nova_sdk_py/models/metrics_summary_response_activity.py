@@ -10,6 +10,8 @@ T = TypeVar("T", bound="MetricsSummaryResponseActivity")
 
 @_attrs_define
 class MetricsSummaryResponseActivity:
+    """Activity rollups derived from the activity store."""
+
     additional_properties: dict[str, int] = _attrs_field(
         init=False, factory=dict
     )

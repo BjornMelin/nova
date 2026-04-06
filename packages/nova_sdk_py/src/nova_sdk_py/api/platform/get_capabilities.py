@@ -47,16 +47,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[CapabilitiesResponse]:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[CapabilitiesResponse]
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +67,11 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> CapabilitiesResponse | None:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        CapabilitiesResponse | None
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
     """
 
     return sync_detailed(
@@ -93,16 +83,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[CapabilitiesResponse]:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[CapabilitiesResponse]
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +101,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> CapabilitiesResponse | None:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        CapabilitiesResponse | None
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
     """
 
     return (

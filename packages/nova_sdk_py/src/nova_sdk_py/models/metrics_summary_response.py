@@ -26,11 +26,21 @@ T = TypeVar("T", bound="MetricsSummaryResponse")
 
 @_attrs_define
 class MetricsSummaryResponse:
-    """Metrics summary endpoint response body."""
+    """
+    Metrics summary endpoint response body.
+
+    Attributes:
+        activity: Activity rollups derived from the activity store.
+        counters: Low-cardinality request and workflow counters.
+        latencies_ms: Aggregated request-latency summaries in milliseconds.
+    """
 
     activity: MetricsSummaryResponseActivity
+    """ Activity rollups derived from the activity store. """
     counters: MetricsSummaryResponseCounters
+    """ Low-cardinality request and workflow counters. """
     latencies_ms: MetricsSummaryResponseLatenciesMs
+    """ Aggregated request-latency summaries in milliseconds. """
 
     def to_dict(self) -> dict[str, Any]:
         activity = self.activity.to_dict()

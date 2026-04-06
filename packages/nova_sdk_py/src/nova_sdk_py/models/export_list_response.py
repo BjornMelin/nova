@@ -18,9 +18,15 @@ T = TypeVar("T", bound="ExportListResponse")
 
 @_attrs_define
 class ExportListResponse:
-    """Response payload for export listing endpoint."""
+    """
+    Response payload for export listing endpoint.
+
+    Attributes:
+        exports: Caller-owned export workflow resources ordered by recency.
+    """
 
     exports: list[ExportResource]
+    """ Caller-owned export workflow resources ordered by recency. """
 
     def to_dict(self) -> dict[str, Any]:
         exports = []

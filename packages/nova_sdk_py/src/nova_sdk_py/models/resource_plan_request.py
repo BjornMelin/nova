@@ -14,9 +14,15 @@ T = TypeVar("T", bound="ResourcePlanRequest")
 
 @_attrs_define
 class ResourcePlanRequest:
-    """Resource planning request body."""
+    """
+    Resource planning request body.
+
+    Attributes:
+        resources: Resource keys whose supportability should be evaluated.
+    """
 
     resources: list[str]
+    """ Resource keys whose supportability should be evaluated. """
 
     def to_dict(self) -> dict[str, Any]:
         resources = self.resources

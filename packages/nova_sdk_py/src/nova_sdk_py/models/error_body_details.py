@@ -10,6 +10,8 @@ T = TypeVar("T", bound="ErrorBodyDetails")
 
 @_attrs_define
 class ErrorBodyDetails:
+    """Additional structured details for the error."""
+
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )

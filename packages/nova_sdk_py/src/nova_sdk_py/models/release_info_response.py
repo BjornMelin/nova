@@ -10,11 +10,21 @@ T = TypeVar("T", bound="ReleaseInfoResponse")
 
 @_attrs_define
 class ReleaseInfoResponse:
-    """Release metadata for conformance/debug clients."""
+    """
+    Release metadata for conformance/debug clients.
+
+    Attributes:
+        environment: Deployment environment name.
+        name: Public application name for the deployment.
+        version: Published application version string.
+    """
 
     environment: str
+    """ Deployment environment name. """
     name: str
+    """ Public application name for the deployment. """
     version: str
+    """ Published application version string. """
 
     def to_dict(self) -> dict[str, Any]:
         environment = self.environment

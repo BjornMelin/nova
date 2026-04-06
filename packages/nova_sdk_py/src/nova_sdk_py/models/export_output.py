@@ -10,7 +10,13 @@ T = TypeVar("T", bound="ExportOutput")
 
 @_attrs_define
 class ExportOutput:
-    """Completed export output metadata."""
+    """
+    Completed export output metadata.
+
+    Attributes:
+        download_filename: Filename presented to clients when downloading.
+        key: Storage key for the exported object.
+    """
 
     download_filename: str
     """ Filename presented to clients when downloading. """

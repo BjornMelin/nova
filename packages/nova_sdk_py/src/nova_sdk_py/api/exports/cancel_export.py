@@ -74,19 +74,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Cancel Export
+    """
+    Cancel an export workflow
 
-     Cancel a caller-owned non-terminal export.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Persist cancel intent for a caller-owned export that has not yet reached
+    a terminal state.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +97,11 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Cancel Export
+    """
+    Cancel an export workflow
 
-     Cancel a caller-owned non-terminal export.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Persist cancel intent for a caller-owned export that has not yet reached
+    a terminal state.
     """
 
     return sync_detailed(
@@ -131,19 +115,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Cancel Export
+    """
+    Cancel an export workflow
 
-     Cancel a caller-owned non-terminal export.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Persist cancel intent for a caller-owned export that has not yet reached
+    a terminal state.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +136,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Cancel Export
+    """
+    Cancel an export workflow
 
-     Cancel a caller-owned non-terminal export.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Persist cancel intent for a caller-owned export that has not yet reached
+    a terminal state.
     """
 
     return (

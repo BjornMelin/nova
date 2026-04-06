@@ -18,7 +18,12 @@ T = TypeVar("T", bound="ErrorEnvelope")
 
 @_attrs_define
 class ErrorEnvelope:
-    """Standard API error envelope."""
+    """
+    Standard API error envelope.
+
+    Attributes:
+        error: Standard API error payload.
+    """
 
     error: ErrorBody
     """ Standard API error body. """

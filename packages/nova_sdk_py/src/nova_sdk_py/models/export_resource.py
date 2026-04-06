@@ -24,19 +24,46 @@ T = TypeVar("T", bound="ExportResource")
 
 @_attrs_define
 class ExportResource:
-    """Public export workflow resource."""
+    """
+    Public export workflow resource.
+
+    Attributes:
+        cancel_requested_at: Timestamp when cancel intent was persisted for
+        the export.
+        created_at: Timestamp when the export workflow resource was created.
+        error: Terminal error message when the export fails.
+        execution_arn: Step Functions execution ARN for the active export
+        workflow.
+        export_id: Identifier of the caller-owned export workflow resource.
+        filename: Filename presented to callers when downloading the export.
+        output: Completed output metadata when the export succeeds.
+        source_key: Storage key of the object managed by the export
+        workflow.
+        status: Current lifecycle state of the export workflow.
+        updated_at: Timestamp when the export workflow resource last
+        changed.
+    """
 
     created_at: datetime.datetime
+    """ Timestamp when the export workflow resource was created. """
     export_id: str
+    """ Identifier of the caller-owned export workflow resource. """
     filename: str
+    """ Filename presented to callers when downloading the export. """
     source_key: str
+    """ Storage key of the object managed by the export workflow. """
     status: ExportStatus
     """ Lifecycle status of an export workflow. """
     updated_at: datetime.datetime
+    """ Timestamp when the export workflow resource last changed. """
     cancel_requested_at: datetime.datetime | None | Unset = UNSET
+    """ Timestamp when cancel intent was persisted for the export. """
     error: None | str | Unset = UNSET
+    """ Terminal error message when the export fails. """
     execution_arn: None | str | Unset = UNSET
+    """ Step Functions execution ARN for the active export workflow. """
     output: ExportOutput | None | Unset = UNSET
+    """ Completed output metadata when the export succeeds. """
 
     def to_dict(self) -> dict[str, Any]:
         from nova_sdk_py.models.export_output import ExportOutput

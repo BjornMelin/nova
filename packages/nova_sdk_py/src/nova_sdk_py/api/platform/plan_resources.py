@@ -64,19 +64,11 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> Response[ErrorEnvelope | ResourcePlanResponse]:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
-
-    Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ResourcePlanResponse]
+    Report whether each requested resource is currently supported in the
+    active deployment.
     """
 
     kwargs = _get_kwargs(
@@ -95,19 +87,11 @@ def sync(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> ErrorEnvelope | ResourcePlanResponse | None:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
-
-    Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ResourcePlanResponse | None
+    Report whether each requested resource is currently supported in the
+    active deployment.
     """
 
     return sync_detailed(
@@ -121,19 +105,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> Response[ErrorEnvelope | ResourcePlanResponse]:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
-
-    Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ResourcePlanResponse]
+    Report whether each requested resource is currently supported in the
+    active deployment.
     """
 
     kwargs = _get_kwargs(
@@ -150,19 +126,11 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> ErrorEnvelope | ResourcePlanResponse | None:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
-
-    Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ResourcePlanResponse | None
+    Report whether each requested resource is currently supported in the
+    active deployment.
     """
 
     return (

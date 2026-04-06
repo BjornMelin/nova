@@ -22,10 +22,20 @@ T = TypeVar("T", bound="CapabilityDescriptor")
 
 @_attrs_define
 class CapabilityDescriptor:
-    """Machine-readable capability declaration."""
+    """
+    Machine-readable capability declaration.
+
+    Attributes:
+        details: Additional capability metadata.
+        enabled: Whether the capability is enabled in the current
+        deployment.
+        key: Stable capability identifier.
+    """
 
     enabled: bool
+    """ Whether the capability is enabled in the current deployment. """
     key: str
+    """ Stable capability identifier. """
     details: CapabilityDescriptorDetails | Unset = UNSET
     """ Additional capability metadata. """
 

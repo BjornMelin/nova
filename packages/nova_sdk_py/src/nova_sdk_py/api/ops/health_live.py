@@ -47,16 +47,10 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[HealthResponse]:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[HealthResponse]
+    Return a shallow liveness signal for the API runtime process.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +66,10 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> HealthResponse | None:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        HealthResponse | None
+    Return a shallow liveness signal for the API runtime process.
     """
 
     return sync_detailed(
@@ -93,16 +81,10 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[HealthResponse]:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[HealthResponse]
+    Return a shallow liveness signal for the API runtime process.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +98,10 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> HealthResponse | None:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        HealthResponse | None
+    Return a shallow liveness signal for the API runtime process.
     """
 
     return (

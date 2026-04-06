@@ -19,12 +19,25 @@ T = TypeVar("T", bound="ErrorBody")
 
 @_attrs_define
 class ErrorBody:
-    """Standard API error body."""
+    """
+    Standard API error body.
+
+    Attributes:
+        code: Stable machine-readable error code.
+        details: Additional structured details for the error.
+        message: Human-readable error summary.
+        request_id: Request identifier associated with the failure when
+        available.
+    """
 
     code: str
+    """ Stable machine-readable error code. """
     details: ErrorBodyDetails
+    """ Additional structured details for the error. """
     message: str
+    """ Human-readable error summary. """
     request_id: None | str
+    """ Request identifier associated with the failure when available. """
 
     def to_dict(self) -> dict[str, Any]:
         code = self.code

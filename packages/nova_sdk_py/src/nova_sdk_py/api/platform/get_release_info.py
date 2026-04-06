@@ -47,16 +47,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReleaseInfoResponse]:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ReleaseInfoResponse]
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +67,11 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReleaseInfoResponse | None:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ReleaseInfoResponse | None
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
     """
 
     return sync_detailed(
@@ -93,16 +83,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReleaseInfoResponse]:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ReleaseInfoResponse]
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +101,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReleaseInfoResponse | None:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ReleaseInfoResponse | None
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
     """
 
     return (

@@ -74,29 +74,11 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> Response[ErrorEnvelope | UploadIntrospectionResponse]:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
-
-    Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
-
-    Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | UploadIntrospectionResponse]
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
     """
 
     kwargs = _get_kwargs(
@@ -115,29 +97,11 @@ def sync(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> ErrorEnvelope | UploadIntrospectionResponse | None:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
-
-    Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
-
-    Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | UploadIntrospectionResponse | None
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
     """
 
     return sync_detailed(
@@ -151,29 +115,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> Response[ErrorEnvelope | UploadIntrospectionResponse]:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
-
-    Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
-
-    Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | UploadIntrospectionResponse]
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
     """
 
     kwargs = _get_kwargs(
@@ -190,29 +136,11 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> ErrorEnvelope | UploadIntrospectionResponse | None:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
-
-    Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
-
-    Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | UploadIntrospectionResponse | None
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
     """
 
     return (

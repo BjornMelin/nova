@@ -88,20 +88,11 @@ def sync_detailed(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
-
-    Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
     """
 
     kwargs = _get_kwargs(
@@ -122,20 +113,11 @@ def sync(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
-
-    Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
     """
 
     return sync_detailed(
@@ -151,20 +133,11 @@ async def asyncio_detailed(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
-
-    Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
     """
 
     kwargs = _get_kwargs(
@@ -183,20 +156,11 @@ async def asyncio(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
-
-    Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
     """
 
     return (

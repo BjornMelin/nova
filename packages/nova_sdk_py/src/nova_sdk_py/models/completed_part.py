@@ -16,11 +16,23 @@ T = TypeVar("T", bound="CompletedPart")
 
 @_attrs_define
 class CompletedPart:
-    """Part metadata needed for multipart completion."""
+    """
+    Part metadata needed for multipart completion.
+
+    Attributes:
+        checksum_sha256: Optional SHA-256 checksum for the completed
+        multipart part.
+        etag: ETag returned by S3 for the completed multipart part.
+        part_number: Multipart part number included in the completion
+        request.
+    """
 
     etag: str
+    """ ETag returned by S3 for the completed multipart part. """
     part_number: int
+    """ Multipart part number included in the completion request. """
     checksum_sha256: None | str | Unset = UNSET
+    """ Optional SHA-256 checksum for the completed multipart part. """
 
     def to_dict(self) -> dict[str, Any]:
         etag = self.etag

@@ -10,6 +10,8 @@ T = TypeVar("T", bound="ReadinessResponseChecks")
 
 @_attrs_define
 class ReadinessResponseChecks:
+    """Per-dependency readiness results keyed by check name."""
+
     additional_properties: dict[str, bool] = _attrs_field(
         init=False, factory=dict
     )

@@ -47,7 +47,7 @@
 \section{nova_metrics_summary}{
   \code{nova_metrics_summary(client, headers = NULL)}
 
-  Metrics Summary
+  Get metrics summary
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -59,7 +59,7 @@
 \section{nova_get_capabilities}{
   \code{nova_get_capabilities(client, headers = NULL)}
 
-  Get Capabilities
+  Get runtime capability declarations
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -71,7 +71,7 @@
 \section{nova_get_transfer_capabilities}{
   \code{nova_get_transfer_capabilities(client, policy_hint = NULL, workload_class = NULL, headers = NULL)}
 
-  Get Transfer Capabilities
+  Get the effective transfer policy
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -85,7 +85,7 @@
 \section{nova_list_exports}{
   \code{nova_list_exports(client, limit = NULL, headers = NULL)}
 
-  List Exports
+  List export workflows
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -98,7 +98,7 @@
 \section{nova_create_export}{
   \code{nova_create_export(client, body, headers = NULL)}
 
-  Create Export
+  Create an export workflow
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -111,7 +111,7 @@
 \section{nova_get_export}{
   \code{nova_get_export(client, export_id, headers = NULL)}
 
-  Get Export
+  Get an export workflow
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -124,7 +124,7 @@
 \section{nova_cancel_export}{
   \code{nova_cancel_export(client, export_id, headers = NULL)}
 
-  Cancel Export
+  Cancel an export workflow
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -137,7 +137,7 @@
 \section{nova_health_live}{
   \code{nova_health_live(client, headers = NULL)}
 
-  Health Live
+  Check liveness
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -149,7 +149,7 @@
 \section{nova_health_ready}{
   \code{nova_health_ready(client, headers = NULL)}
 
-  Health Ready
+  Check readiness
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -161,7 +161,7 @@
 \section{nova_get_release_info}{
   \code{nova_get_release_info(client, headers = NULL)}
 
-  Get Release Info
+  Get public release metadata
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -173,7 +173,7 @@
 \section{nova_plan_resources}{
   \code{nova_plan_resources(client, body, headers = NULL)}
 
-  Plan Resources
+  Plan resource support
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -186,7 +186,7 @@
 \section{nova_presign_download}{
   \code{nova_presign_download(client, body, headers = NULL)}
 
-  Presign Download
+  Presign a direct download
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -199,7 +199,7 @@
 \section{nova_abort_upload}{
   \code{nova_abort_upload(client, body, headers = NULL)}
 
-  Abort Upload
+  Abort a multipart upload
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -212,7 +212,7 @@
 \section{nova_complete_upload}{
   \code{nova_complete_upload(client, body, headers = NULL)}
 
-  Complete Upload
+  Complete a multipart upload
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -225,7 +225,7 @@
 \section{nova_initiate_upload}{
   \code{nova_initiate_upload(client, body, headers = NULL)}
 
-  Initiate Upload
+  Initiate a direct-to-S3 upload session
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -238,7 +238,7 @@
 \section{nova_introspect_upload}{
   \code{nova_introspect_upload(client, body, headers = NULL)}
 
-  Introspect Upload
+  Inspect multipart upload state
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}
@@ -251,7 +251,7 @@
 \section{nova_sign_upload_parts}{
   \code{nova_sign_upload_parts(client, body, headers = NULL)}
 
-  Sign Upload Parts
+  Sign multipart upload parts
 
   \describe{
     \item{client}{Thin client created by \code{create_nova_client()}.}

@@ -82,20 +82,11 @@ def sync_detailed(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | TransferCapabilitiesResponse]:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
-
-    Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[HTTPValidationError | TransferCapabilitiesResponse]
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
     """
 
     kwargs = _get_kwargs(
@@ -116,20 +107,11 @@ def sync(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> HTTPValidationError | TransferCapabilitiesResponse | None:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
-
-    Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        HTTPValidationError | TransferCapabilitiesResponse | None
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
     """
 
     return sync_detailed(
@@ -145,20 +127,11 @@ async def asyncio_detailed(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | TransferCapabilitiesResponse]:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
-
-    Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[HTTPValidationError | TransferCapabilitiesResponse]
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
     """
 
     kwargs = _get_kwargs(
@@ -177,20 +150,11 @@ async def asyncio(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> HTTPValidationError | TransferCapabilitiesResponse | None:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
-
-    Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        HTTPValidationError | TransferCapabilitiesResponse | None
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
     """
 
     return (

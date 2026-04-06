@@ -52,16 +52,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReadinessResponse]:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ReadinessResponse]
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
     """
 
     kwargs = _get_kwargs()
@@ -77,16 +72,11 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReadinessResponse | None:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ReadinessResponse | None
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
     """
 
     return sync_detailed(
@@ -98,16 +88,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReadinessResponse]:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ReadinessResponse]
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
     """
 
     kwargs = _get_kwargs()
@@ -121,16 +106,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReadinessResponse | None:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ReadinessResponse | None
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
     """
 
     return (

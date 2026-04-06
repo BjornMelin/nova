@@ -74,19 +74,10 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Return the current state of a caller-owned export workflow resource.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +96,10 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Return the current state of a caller-owned export workflow resource.
     """
 
     return sync_detailed(
@@ -131,19 +113,10 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | ExportResource]
+    Return the current state of a caller-owned export workflow resource.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +133,10 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
-
-    Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | ExportResource | None
+    Return the current state of a caller-owned export workflow resource.
     """
 
     return (

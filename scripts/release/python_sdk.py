@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -130,6 +131,166 @@ def _load_spec_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise TypeError(f"OpenAPI spec must decode to an object: {path}")
     return payload
+
+
+def _snake_case_name(value: str) -> str:
+    normalized = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", value)
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+    return normalized.replace("-", "_").lower()
+
+
+def _docstring_block(*, indent: str, lines: list[str]) -> str:
+    rendered = [f'{indent}"""']
+    rendered.extend(f"{indent}{line}" if line else indent for line in lines)
+    rendered.append(f'{indent}"""')
+    return "\n".join(rendered) + "\n"
+
+
+def _wrap_doc_line(text: str, *, width: int = 72) -> list[str]:
+    return textwrap.wrap(
+        " ".join(text.split()),
+        width=width,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _build_python_model_docstring(
+    *,
+    schema_name: str,
+    schema: dict[str, Any],
+) -> str | None:
+    description = schema.get("description")
+    if not isinstance(description, str) or not description.strip():
+        return None
+
+    lines: list[str] = [description.strip()]
+    properties = cast(dict[str, Any], schema.get("properties", {}))
+    attribute_lines: list[str] = []
+    for property_name, property_schema in properties.items():
+        if not isinstance(property_schema, dict):
+            continue
+        property_description = property_schema.get("description")
+        if not isinstance(property_description, str):
+            continue
+        attribute_lines.extend(
+            _wrap_doc_line(
+                f"{property_name}: {property_description.strip()}",
+                width=68,
+            )
+        )
+    if attribute_lines:
+        lines.extend(["", "Attributes:"])
+        lines.extend(f"    {line}" for line in attribute_lines)
+    return _docstring_block(indent="    ", lines=lines)
+
+
+def _apply_python_model_reference_docs(
+    root: Path,
+    *,
+    spec: dict[str, Any],
+) -> None:
+    components = cast(dict[str, Any], spec.get("components", {}))
+    schemas = cast(dict[str, Any], components.get("schemas", {}))
+    for schema_name, schema in schemas.items():
+        if not isinstance(schema, dict):
+            continue
+        model_path = root / "models" / f"{_snake_case_name(schema_name)}.py"
+        if not model_path.exists():
+            continue
+        docstring = _build_python_model_docstring(
+            schema_name=schema_name,
+            schema=schema,
+        )
+        if docstring is None:
+            continue
+        content = model_path.read_text(encoding="utf-8")
+        if "@_attrs_define" not in content:
+            continue
+        class_pattern = re.compile(
+            r"(@_attrs_define\nclass [A-Za-z0-9_]+:\n)"
+            r"(?:    \"\"\".*?\"\"\"\n)?",
+            flags=re.DOTALL,
+        )
+        updated, replaced = class_pattern.subn(
+            r"\1" + docstring,
+            content,
+            count=1,
+        )
+        if replaced == 0:
+            continue
+        if updated != content:
+            model_path.write_text(updated, encoding="utf-8")
+
+
+def _build_python_operation_docstring(operation: dict[str, Any]) -> str | None:
+    summary = operation.get("summary")
+    description = operation.get("description")
+    if not isinstance(summary, str) and not isinstance(description, str):
+        return None
+    lines: list[str] = []
+    if isinstance(summary, str) and summary.strip():
+        lines.extend(_wrap_doc_line(summary.strip()))
+    if isinstance(description, str) and description.strip():
+        if lines:
+            lines.append("")
+        lines.extend(_wrap_doc_line(description.strip()))
+    if not lines:
+        return None
+    return _docstring_block(indent="    ", lines=lines)
+
+
+def _apply_python_operation_reference_docs(
+    root: Path,
+    *,
+    spec: dict[str, Any],
+) -> None:
+    paths = cast(dict[str, Any], spec.get("paths", {}))
+    function_doc_pattern = re.compile(
+        r"(?P<prefix>def "
+        r"(?:sync_detailed|sync|asyncio_detailed|asyncio)\("
+        r"[\s\S]*?\)\s*-> [^:]+:\n)"
+        r"(?P<doc>    \"\"\"[\s\S]*?    \"\"\"\n)",
+        flags=re.DOTALL,
+    )
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            operation_id = operation.get("operationId")
+            tags = operation.get("tags")
+            if not isinstance(operation_id, str):
+                continue
+            if (
+                not isinstance(tags, list)
+                or not tags
+                or not isinstance(tags[0], str)
+            ):
+                continue
+            module_path = root / "api" / tags[0] / f"{operation_id}.py"
+            if not module_path.exists():
+                continue
+            docstring = _build_python_operation_docstring(operation)
+            if docstring is None:
+                continue
+            content = module_path.read_text(encoding="utf-8")
+
+            def _replace_docstring(
+                match: re.Match[str],
+                replacement_docstring: str = docstring,
+            ) -> str:
+                return match.group("prefix") + replacement_docstring
+
+            updated, replaced = function_doc_pattern.subn(
+                _replace_docstring,
+                content,
+            )
+            if replaced == 0:
+                continue
+            if updated != content:
+                module_path.write_text(updated, encoding="utf-8")
 
 
 def _filter_internal_operations_for_public_sdk(
@@ -639,7 +800,15 @@ class ValidationErrorContext:
     )
 
 
-def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
+def _apply_python_sdk_repairs(
+    root: Path,
+    package_name: str,
+    *,
+    spec: dict[str, Any] | None = None,
+) -> None:
+    if spec is not None:
+        _apply_python_model_reference_docs(root, spec=spec)
+        _apply_python_operation_reference_docs(root, spec=spec)
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
@@ -791,7 +960,11 @@ def _generate_target_tree(
         description=f"openapi-python-client generation for {target.spec_path}",
     )
 
-    _apply_python_sdk_repairs(destination, target.package_name)
+    _apply_python_sdk_repairs(
+        destination,
+        target.package_name,
+        spec=filtered_spec,
+    )
     _run_generated_ruff(destination)
     return destination
 

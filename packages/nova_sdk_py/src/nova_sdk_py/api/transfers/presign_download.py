@@ -74,19 +74,11 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> Response[ErrorEnvelope | PresignDownloadResponse]:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
-
-    Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +97,11 @@ def sync(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> ErrorEnvelope | PresignDownloadResponse | None:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
-
-    Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
     """
 
     return sync_detailed(
@@ -131,19 +115,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> Response[ErrorEnvelope | PresignDownloadResponse]:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
-
-    Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +136,11 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> ErrorEnvelope | PresignDownloadResponse | None:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
-
-    Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
     """
 
     return (

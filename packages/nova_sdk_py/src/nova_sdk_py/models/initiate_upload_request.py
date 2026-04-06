@@ -16,7 +16,8 @@ T = TypeVar("T", bound="InitiateUploadRequest")
 
 @_attrs_define
 class InitiateUploadRequest:
-    """Initiate-upload request model.
+    """
+        Initiate-upload request model.
 
     Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
     are inputs only. The effective persisted transfer policy exposes
@@ -25,15 +26,34 @@ class InitiateUploadRequest:
     client preference; preference is not the same enum as mode mapping and the
     final mode decision happens server-side.
 
+        Attributes:
+            checksum_preference: Preferred checksum strictness requested by the
+            client.
+            checksum_value: Optional checksum value supplied with the initiate
+            request.
+            content_type: Optional MIME type that should be persisted with the
+            object.
+            filename: Client-facing filename for the object being uploaded.
+            policy_hint: Optional transfer-policy hint evaluated by the API.
+            size_bytes: Total size of the object being uploaded, in bytes.
+            workload_class: Optional workload-class hint for transfer policy
+            selection.
     """
 
     filename: str
+    """ Client-facing filename for the object being uploaded. """
     size_bytes: int
+    """ Total size of the object being uploaded, in bytes. """
     checksum_preference: None | str | Unset = UNSET
+    """ Preferred checksum strictness requested by the client. """
     checksum_value: None | str | Unset = UNSET
+    """ Optional checksum value supplied with the initiate request. """
     content_type: None | str | Unset = UNSET
+    """ Optional MIME type that should be persisted with the object. """
     policy_hint: None | str | Unset = UNSET
+    """ Optional transfer-policy hint evaluated by the API. """
     workload_class: None | str | Unset = UNSET
+    """ Optional workload-class hint for transfer policy selection. """
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename

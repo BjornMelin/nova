@@ -10,10 +10,18 @@ T = TypeVar("T", bound="AbortUploadRequest")
 
 @_attrs_define
 class AbortUploadRequest:
-    """Multipart abort request."""
+    """
+    Multipart abort request.
+
+    Attributes:
+        key: Storage key reserved for the multipart upload.
+        upload_id: S3 multipart upload identifier being aborted.
+    """
 
     key: str
+    """ Storage key reserved for the multipart upload. """
     upload_id: str
+    """ S3 multipart upload identifier being aborted. """
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

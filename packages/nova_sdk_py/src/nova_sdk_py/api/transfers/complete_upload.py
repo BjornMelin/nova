@@ -74,19 +74,11 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
 ) -> Response[CompleteUploadResponse | ErrorEnvelope]:
-    """Complete Upload
+    """
+    Complete a multipart upload
 
-     Complete multipart upload.
-
-    Args:
-        body (CompleteUploadRequest): Multipart completion request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[CompleteUploadResponse | ErrorEnvelope]
+    Finalize a multipart upload after the caller has uploaded every required
+    part.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +97,11 @@ def sync(
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
 ) -> CompleteUploadResponse | ErrorEnvelope | None:
-    """Complete Upload
+    """
+    Complete a multipart upload
 
-     Complete multipart upload.
-
-    Args:
-        body (CompleteUploadRequest): Multipart completion request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        CompleteUploadResponse | ErrorEnvelope | None
+    Finalize a multipart upload after the caller has uploaded every required
+    part.
     """
 
     return sync_detailed(
@@ -131,19 +115,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
 ) -> Response[CompleteUploadResponse | ErrorEnvelope]:
-    """Complete Upload
+    """
+    Complete a multipart upload
 
-     Complete multipart upload.
-
-    Args:
-        body (CompleteUploadRequest): Multipart completion request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[CompleteUploadResponse | ErrorEnvelope]
+    Finalize a multipart upload after the caller has uploaded every required
+    part.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +136,11 @@ async def asyncio(
     client: AuthenticatedClient,
     body: CompleteUploadRequest,
 ) -> CompleteUploadResponse | ErrorEnvelope | None:
-    """Complete Upload
+    """
+    Complete a multipart upload
 
-     Complete multipart upload.
-
-    Args:
-        body (CompleteUploadRequest): Multipart completion request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        CompleteUploadResponse | ErrorEnvelope | None
+    Finalize a multipart upload after the caller has uploaded every required
+    part.
     """
 
     return (

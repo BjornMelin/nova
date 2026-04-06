@@ -16,12 +16,26 @@ T = TypeVar("T", bound="PresignDownloadRequest")
 
 @_attrs_define
 class PresignDownloadRequest:
-    """Presign download request."""
+    """
+    Presign download request.
+
+    Attributes:
+        content_disposition: Optional Content-Disposition override for the
+        download response.
+        content_type: Optional Content-Type override for the download
+        response.
+        filename: Optional filename hint applied to Content-Disposition.
+        key: Storage key of the object to download.
+    """
 
     key: str
+    """ Storage key of the object to download. """
     content_disposition: None | str | Unset = UNSET
+    """ Optional Content-Disposition override for the download response. """
     content_type: None | str | Unset = UNSET
+    """ Optional Content-Type override for the download response. """
     filename: None | str | Unset = UNSET
+    """ Optional filename hint applied to Content-Disposition. """
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key
