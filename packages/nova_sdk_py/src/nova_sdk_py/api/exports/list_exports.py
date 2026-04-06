@@ -80,6 +80,9 @@ def sync_detailed(
 
      List caller-owned exports with most recent first.
 
+    This endpoint is intentionally eventual because it is backed by a scoped
+    DynamoDB global secondary index.
+
     Args:
         limit (int | Unset):  Default: 50.
 
@@ -111,6 +114,9 @@ def sync(
 
      List caller-owned exports with most recent first.
 
+    This endpoint is intentionally eventual because it is backed by a scoped
+    DynamoDB global secondary index.
+
     Args:
         limit (int | Unset):  Default: 50.
 
@@ -136,6 +142,9 @@ async def asyncio_detailed(
     """List Exports
 
      List caller-owned exports with most recent first.
+
+    This endpoint is intentionally eventual because it is backed by a scoped
+    DynamoDB global secondary index.
 
     Args:
         limit (int | Unset):  Default: 50.
@@ -165,6 +174,9 @@ async def asyncio(
     """List Exports
 
      List caller-owned exports with most recent first.
+
+    This endpoint is intentionally eventual because it is backed by a scoped
+    DynamoDB global secondary index.
 
     Args:
         limit (int | Unset):  Default: 50.
