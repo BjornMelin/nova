@@ -729,6 +729,41 @@ class HealthResponse(BaseModel):
     ok: bool = Field(description="Whether the runtime process is alive.")
 
 
+class ReadinessChecks(BaseModel):
+    """Canonical live traffic gates reported by readiness."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    idempotency_store: bool = Field(
+        description=(
+            "Whether the idempotency store is reachable when idempotency is "
+            "enabled."
+        )
+    )
+    export_runtime: bool = Field(
+        description=(
+            "Whether the export publisher and export repository are ready."
+        )
+    )
+    activity_store: bool = Field(
+        description=(
+            "Whether the activity store is reachable for diagnostic rollups."
+        )
+    )
+    transfer_runtime: bool = Field(
+        description=(
+            "Whether transfer persistence and the configured S3 bucket are "
+            "ready."
+        )
+    )
+    auth_dependency: bool = Field(
+        description=(
+            "Whether the configured bearer-token verifier can currently "
+            "resolve signing keys."
+        )
+    )
+
+
 class ReadinessResponse(BaseModel):
     """Readiness endpoint response body."""
 
@@ -737,8 +772,8 @@ class ReadinessResponse(BaseModel):
     ok: bool = Field(
         description="Whether every required traffic dependency is ready."
     )
-    checks: dict[str, bool] = Field(
-        description="Per-dependency readiness results keyed by check name."
+    checks: ReadinessChecks = Field(
+        description="Canonical live traffic-gate results."
     )
 
 

@@ -6,10 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from oidc_jwt_verifier import AuthError
 
-from nova_file_api.auth import (
-    Authenticator,
-    _bearer_auth_error,
-)
+from nova_file_api.auth import Authenticator, _bearer_auth_error
 from nova_file_api.cache import (
     LocalTTLCache,
     TwoTierCache,
@@ -37,6 +34,9 @@ class _VerifierReturningClaims:
     def __init__(self) -> None:
         self.tokens: list[str] = []
         self.closed = False
+        self.healthcheck_calls = 0
+        self.healthcheck_result = True
+        self.healthcheck_error: Exception | None = None
 
     async def verify_access_token(self, token: str) -> dict[str, Any]:
         self.tokens.append(token)
@@ -49,6 +49,13 @@ class _VerifierReturningClaims:
 
     async def aclose(self) -> None:
         self.closed = True
+
+    async def healthcheck(self, *, refresh: bool = False) -> bool:
+        assert refresh is True
+        self.healthcheck_calls += 1
+        if self.healthcheck_error is not None:
+            raise self.healthcheck_error
+        return self.healthcheck_result
 
 
 @pytest.mark.anyio
@@ -80,15 +87,42 @@ async def test_authenticator_aclose_closes_async_verifier() -> None:
 
 
 @pytest.mark.anyio
-async def test_authenticator_healthcheck_reflects_verifier_presence() -> None:
+async def test_authenticator_healthcheck_fails_without_verifier_config() -> (
+    None
+):
     settings = _settings()
     auth = Authenticator(settings=settings, cache=_build_cache())
 
     assert await auth.healthcheck() is False
 
-    auth._verifier = _VerifierReturningClaims()
+
+@pytest.mark.anyio
+async def test_authenticator_healthcheck_uses_cached_probe_result() -> None:
+    settings = _settings()
+    settings.oidc_issuer = "https://issuer.example.com/"
+    settings.oidc_audience = "api://nova"
+    settings.oidc_jwks_url = "https://issuer.example.com/.well-known/jwks.json"
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    verifier = _VerifierReturningClaims()
+    auth._verifier = verifier
 
     assert await auth.healthcheck() is True
+    assert await auth.healthcheck() is True
+    assert verifier.healthcheck_calls == 1
+
+
+@pytest.mark.anyio
+async def test_authenticator_healthcheck_fails_closed_on_jwks_errors() -> None:
+    settings = _settings()
+    settings.oidc_issuer = "https://issuer.example.com/"
+    settings.oidc_audience = "api://nova"
+    settings.oidc_jwks_url = "https://issuer.example.com/.well-known/jwks.json"
+    auth = Authenticator(settings=settings, cache=_build_cache())
+    verifier = _VerifierReturningClaims()
+    verifier.healthcheck_error = RuntimeError("jwks unavailable")
+    auth._verifier = verifier
+
+    assert await auth.healthcheck() is False
 
 
 @pytest.mark.anyio

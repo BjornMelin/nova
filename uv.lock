@@ -1275,7 +1275,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mangum", specifier = ">=0.21.0" },
     { name = "nova-runtime-support", editable = "packages/nova_runtime_support" },
-    { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
+    { name = "oidc-jwt-verifier", specifier = ">=0.1.6" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "structlog", specifier = ">=25.5.0" },
@@ -1295,7 +1295,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.135.3" },
-    { name = "oidc-jwt-verifier", specifier = ">=0.1.5" },
+    { name = "oidc-jwt-verifier", specifier = ">=0.1.6" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "structlog", specifier = ">=25.5.0" },
 ]
@@ -1342,14 +1342,14 @@ requires-dist = [
 
 [[package]]
 name = "oidc-jwt-verifier"
-version = "0.1.5"
+version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3e/37/7a050ddb6412514cf628145231a32a899bff5f4f997609413b1ac520615d/oidc_jwt_verifier-0.1.5.tar.gz", hash = "sha256:6575304e6b6bfdd20a0a11d0803c841bd7ae0dc8ce3dc98e1abb88ad4a8fe336", size = 37219, upload-time = "2026-02-12T11:05:05.344Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/c8/c65cea758ff2b93973d55ea381e6ba6ec0a86fd1417dcc11d54a561310ed/oidc_jwt_verifier-0.1.6.tar.gz", hash = "sha256:43126d633bed2ce9dbdb3c48251912a5ddf3bb3c13c99e8ea82788d7d605794e", size = 42017, upload-time = "2026-04-06T23:27:02.322Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/47/10193fb67854849363c9bb16e7e8cfe085fe78a3cafaad280d44ba02ce30/oidc_jwt_verifier-0.1.5-py3-none-any.whl", hash = "sha256:448fc98c61faa0860b519c620cf011b4557b64d016ca524d1b7fa0dbfe7b30b4", size = 29432, upload-time = "2026-02-12T11:05:03.138Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/17/474c9f727fedaeef09b0d08acace28dbb6710f3821cc117a91a79d797ab7/oidc_jwt_verifier-0.1.6-py3-none-any.whl", hash = "sha256:2bdcbfb1149f6da8a42b468988235bc1bcfc8e093b6d3bba42195bbf245b9a6a", size = 31730, upload-time = "2026-04-06T23:27:00.812Z" },
 ]
 
 [[package]]

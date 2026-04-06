@@ -345,6 +345,26 @@ def test_openapi_route_declared_error_contracts() -> None:
     assert ready_responses["503"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ReadinessResponse"
     }
+    readiness_response = payload["components"]["schemas"]["ReadinessResponse"]
+    readiness_checks_property = readiness_response["properties"]["checks"]
+    assert readiness_checks_property["$ref"] == (
+        "#/components/schemas/ReadinessChecks"
+    )
+    readiness_checks = payload["components"]["schemas"]["ReadinessChecks"]
+    assert set(readiness_checks["properties"]) == {
+        "activity_store",
+        "auth_dependency",
+        "export_runtime",
+        "idempotency_store",
+        "transfer_runtime",
+    }
+    assert set(readiness_checks["required"]) == {
+        "activity_store",
+        "auth_dependency",
+        "export_runtime",
+        "idempotency_store",
+        "transfer_runtime",
+    }
 
     get_export_responses = payload["paths"]["/v1/exports/{export_id}"]["get"][
         "responses"

@@ -40,17 +40,47 @@ class _FailingActivityStore(MemoryActivityStore):
         return False
 
 
+class _FailingTransferService(StubTransferService):
+    async def healthcheck(self) -> bool:
+        return False
+
+
+class _ExplodingAuthenticator(StubAuthenticator):
+    async def healthcheck(self) -> bool:
+        raise RuntimeError("jwks endpoint unavailable")
+
+
+class _UnreadyAuthenticator(StubAuthenticator):
+    async def healthcheck(self) -> bool:
+        return False
+
+
+def _expected_ready_checks(**overrides: bool) -> dict[str, bool]:
+    checks = {
+        "idempotency_store": True,
+        "export_runtime": True,
+        "activity_store": True,
+        "transfer_runtime": True,
+        "auth_dependency": True,
+    }
+    checks.update(overrides)
+    return checks
+
+
 def _build_deps(
     *,
     exports_enabled: bool = True,
-    file_transfer_bucket: str | None = "test-transfer-bucket",
 ) -> RuntimeDeps:
     """Build in-memory test doubles for readiness and health checks."""
     settings = Settings.model_validate(
-        {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
+        {
+            "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",
+            "OIDC_ISSUER": "https://issuer.example.com/",
+            "OIDC_AUDIENCE": "api://nova",
+            "OIDC_JWKS_URL": "https://issuer.example.com/.well-known/jwks.json",
+        }
     )
     settings.exports_enabled = exports_enabled
-    settings.file_transfer_bucket = file_transfer_bucket
     metrics = MetricsCollector(namespace="Tests")
     cache = build_cache_stack()
     export_service = ExportService(
@@ -96,14 +126,7 @@ async def test_v1_health_ready_returns_expected_checks() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": True,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
+    assert payload["checks"] == _expected_ready_checks()
 
 
 @pytest.mark.anyio
@@ -114,14 +137,7 @@ async def test_readyz_stays_ok_when_exports_are_disabled() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": True,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
+    assert payload["checks"] == _expected_ready_checks()
 
 
 @pytest.mark.anyio
@@ -140,14 +156,7 @@ async def test_readyz_idempotency_store_not_gate_when_idempotency_off() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": False,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
+    assert payload["checks"] == _expected_ready_checks(idempotency_store=False)
 
 
 @pytest.mark.anyio
@@ -165,14 +174,7 @@ async def test_readyz_fails_when_idempotency_requires_store() -> None:
     assert response.status_code == 503
     payload = response.json()
     assert payload["ok"] is False
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": False,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
+    assert payload["checks"] == _expected_ready_checks(idempotency_store=False)
 
 
 @pytest.mark.anyio
@@ -187,32 +189,7 @@ async def test_readyz_reports_activity_store_failures_without_gating() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ok"] is True
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": True,
-        "export_runtime": True,
-        "activity_store": False,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
-
-
-@pytest.mark.anyio
-async def test_readyz_fails_when_bucket_is_missing() -> None:
-    """Verify readiness fails when FILE_TRANSFER_BUCKET is not configured."""
-    app = build_test_app(_build_deps(file_transfer_bucket=None))
-    response = await request_app(app, "GET", "/v1/health/ready")
-    assert response.status_code == 503
-    payload = response.json()
-    assert payload["ok"] is False
-    assert payload["checks"] == {
-        "bucket_configured": False,
-        "idempotency_store": True,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": True,
-    }
+    assert payload["checks"] == _expected_ready_checks(activity_store=False)
 
 
 @pytest.mark.anyio
@@ -233,14 +210,57 @@ async def test_readyz_fails_when_oidc_bearer_settings_are_incomplete() -> None:
     assert response.status_code == 503
     payload = response.json()
     assert payload["ok"] is False
-    assert payload["checks"] == {
-        "bucket_configured": True,
-        "idempotency_store": True,
-        "export_runtime": True,
-        "activity_store": True,
-        "transfer_runtime": True,
-        "auth_dependency": False,
-    }
+    assert payload["checks"] == _expected_ready_checks(auth_dependency=False)
+
+
+@pytest.mark.anyio
+async def test_readyz_fails_when_transfer_runtime_probe_fails() -> None:
+    """Live transfer dependency failures should fail readiness."""
+    deps = _build_deps()
+    deps.transfer_service = _FailingTransferService()
+    app = build_test_app(deps)
+
+    response = await request_app(app, "GET", "/v1/health/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == _expected_ready_checks(transfer_runtime=False)
+
+
+@pytest.mark.anyio
+async def test_readyz_fails_closed_when_auth_probe_raises() -> None:
+    """Auth probe exceptions should fail readiness without crashing."""
+    deps = _build_deps()
+    deps.authenticator = _ExplodingAuthenticator()
+    app = build_test_app(deps)
+
+    response = await request_app(
+        app,
+        "GET",
+        "/v1/health/ready",
+        raise_app_exceptions=False,
+    )
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == _expected_ready_checks(auth_dependency=False)
+
+
+@pytest.mark.anyio
+async def test_readyz_fails_when_auth_probe_reports_false() -> None:
+    """Auth readiness should reflect a false verifier probe directly."""
+    deps = _build_deps()
+    deps.authenticator = _UnreadyAuthenticator()
+    app = build_test_app(deps)
+
+    response = await request_app(app, "GET", "/v1/health/ready")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["ok"] is False
+    assert payload["checks"] == _expected_ready_checks(auth_dependency=False)
 
 
 @pytest.mark.anyio

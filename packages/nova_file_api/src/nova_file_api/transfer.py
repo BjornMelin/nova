@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import suppress
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -73,6 +74,8 @@ from nova_file_api.upload_sessions import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_TRANSFER_HEALTHCHECK_CACHE_TTL_SECONDS = 10.0
+_TRANSFER_HEALTHCHECK_TIMEOUT_SECONDS = 3.0
 
 
 def _upstream_s3_err(message: str) -> Exception:
@@ -140,6 +143,9 @@ class TransferService:
         self._upload_prefix = normalize_prefix(self.config.upload_prefix)
         self._export_prefix = normalize_prefix(self.config.export_prefix)
         self._tmp_prefix = normalize_prefix(self.config.tmp_prefix)
+        self._healthcheck_cached_result = False
+        self._healthcheck_cached_until = 0.0
+        self._healthcheck_lock = asyncio.Lock()
 
     async def initiate_upload(
         self,
@@ -1224,12 +1230,53 @@ class TransferService:
 
     async def healthcheck(self) -> bool:
         """Return readiness for the transfer service dependencies."""
+        cached_result = self._cached_healthcheck_result()
+        if cached_result is not None:
+            return cached_result
+
+        async with self._healthcheck_lock:
+            cached_result = self._cached_healthcheck_result()
+            if cached_result is not None:
+                return cached_result
+            try:
+                result = await asyncio.wait_for(
+                    self._probe_transfer_dependencies(),
+                    timeout=_TRANSFER_HEALTHCHECK_TIMEOUT_SECONDS,
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "transfer_runtime_healthcheck_failed",
+                    extra={"bucket": self.config.bucket},
+                    exc_info=True,
+                )
+                result = False
+            self._cache_healthcheck_result(result)
+            return result
+
+    async def _probe_transfer_dependencies(self) -> bool:
+        bucket = self.config.bucket.strip()
+        if not bucket:
+            return False
         try:
             sessions_ready = await self._upload_sessions.healthcheck()
             usage_ready = await self._transfer_usage.healthcheck()
         except Exception:
             return False
-        return sessions_ready and usage_ready
+        if not sessions_ready or not usage_ready:
+            return False
+        await self._s3.head_bucket(Bucket=bucket)
+        return True
+
+    def _cached_healthcheck_result(self) -> bool | None:
+        if time.monotonic() >= self._healthcheck_cached_until:
+            return None
+        return self._healthcheck_cached_result
+
+    def _cache_healthcheck_result(self, result: bool) -> None:
+        self._healthcheck_cached_result = result
+        self._healthcheck_cached_until = (
+            time.monotonic() + _TRANSFER_HEALTHCHECK_CACHE_TTL_SECONDS
+        )
 
     async def resolve_policy(
         self,

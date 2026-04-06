@@ -25,6 +25,7 @@ from nova_file_api.models import (
     CapabilityDescriptor,
     HealthResponse,
     MetricsSummaryResponse,
+    ReadinessChecks,
     ReadinessResponse,
     ReleaseInfoResponse,
     ResourcePlanItem,
@@ -314,7 +315,8 @@ async def health_live() -> HealthResponse:
         "auth, transfers, exports, and idempotency."
     ),
     response_description=(
-        "Readiness status plus per-dependency readiness checks."
+        "Readiness status plus per-dependency results for the live traffic "
+        "gates only."
     ),
     responses=READINESS_UNAVAILABLE_RESPONSE,
 )
@@ -388,25 +390,21 @@ async def health_ready(
         )
         auth_dependency = False
 
-    checks = {
-        "bucket_configured": bool(
-            (settings.file_transfer_bucket or "").strip()
-        ),
-        "idempotency_store": idempotency_store_ready,
-        "export_runtime": export_runtime,
-        "activity_store": activity_store_ready,
-        "transfer_runtime": transfer_runtime_ready,
-        "auth_dependency": auth_dependency,
-    }
+    checks = ReadinessChecks(
+        idempotency_store=idempotency_store_ready,
+        export_runtime=export_runtime,
+        activity_store=activity_store_ready,
+        transfer_runtime=transfer_runtime_ready,
+        auth_dependency=auth_dependency,
+    )
     required_checks: tuple[str, ...] = (
-        "bucket_configured",
         "auth_dependency",
         "export_runtime",
         "transfer_runtime",
     )
     if settings.idempotency_enabled:
         required_checks = (*required_checks, "idempotency_store")
-    is_ready = all(checks[name] for name in required_checks)
+    is_ready = all(getattr(checks, name) for name in required_checks)
     if not is_ready:
         response.status_code = 503
     return ReadinessResponse(ok=is_ready, checks=checks)

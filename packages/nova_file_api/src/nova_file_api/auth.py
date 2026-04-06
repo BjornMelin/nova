@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 from typing import Any, Protocol, runtime_checkable
 
@@ -20,6 +22,9 @@ from nova_runtime_support.auth_claims import (
     normalized_principal_claims,
 )
 
+_LOGGER = logging.getLogger(__name__)
+_AUTH_HEALTHCHECK_CACHE_TTL_SECONDS = 10.0
+
 
 @runtime_checkable
 class SupportsAuthenticatorAsyncClose(Protocol):
@@ -34,6 +39,10 @@ class AccessTokenVerifier(Protocol):
 
     async def verify_access_token(self, token: str) -> dict[str, Any]:
         """Verify one access token and return decoded claims."""
+        ...
+
+    async def healthcheck(self, *, refresh: bool = False) -> bool:
+        """Probe the live auth dependency."""
         ...
 
     async def aclose(self) -> None:
@@ -54,6 +63,9 @@ class Authenticator:
         self._settings = settings
         self._cache = cache
         self._verifier = self._build_verifier(settings)
+        self._healthcheck_cached_result = False
+        self._healthcheck_cached_until = 0.0
+        self._healthcheck_lock = asyncio.Lock()
 
     async def authenticate(
         self,
@@ -88,7 +100,23 @@ class Authenticator:
 
     async def healthcheck(self) -> bool:
         """Return readiness of the active auth dependency."""
-        return self._verifier is not None
+        if (
+            self._verifier is None
+            or not self._settings.oidc_bearer_verifier_configured
+        ):
+            return False
+
+        cached_result = self._cached_healthcheck_result()
+        if cached_result is not None:
+            return cached_result
+
+        async with self._healthcheck_lock:
+            cached_result = self._cached_healthcheck_result()
+            if cached_result is not None:
+                return cached_result
+            result = await self._probe_auth_dependency()
+            self._cache_healthcheck_result(result)
+            return result
 
     async def aclose(self) -> None:
         """Close verifier-owned async resources when configured."""
@@ -145,6 +173,31 @@ class Authenticator:
             audience=settings.oidc_audience,
             jwks_url=settings.oidc_jwks_url,
             clock_skew_seconds=settings.oidc_clock_skew_seconds,
+        )
+
+    async def _probe_auth_dependency(self) -> bool:
+        verifier = self._verifier
+        if verifier is None:
+            return False
+        try:
+            return await verifier.healthcheck(refresh=True)
+        except Exception:
+            _LOGGER.warning(
+                "auth_dependency_healthcheck_failed",
+                extra={"jwks_url": self._settings.oidc_jwks_url},
+                exc_info=True,
+            )
+            return False
+
+    def _cached_healthcheck_result(self) -> bool | None:
+        if time.monotonic() >= self._healthcheck_cached_until:
+            return None
+        return self._healthcheck_cached_result
+
+    def _cache_healthcheck_result(self, result: bool) -> None:
+        self._healthcheck_cached_result = result
+        self._healthcheck_cached_until = (
+            time.monotonic() + _AUTH_HEALTHCHECK_CACHE_TTL_SECONDS
         )
 
 
