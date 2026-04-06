@@ -47,16 +47,23 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[CapabilitiesResponse]:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[CapabilitiesResponse]
+        Response[CapabilitiesResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +79,23 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> CapabilitiesResponse | None:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        CapabilitiesResponse | None
+        CapabilitiesResponse | None: Parsed response payload, or ``None``
+            when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -93,16 +107,23 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[CapabilitiesResponse]:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[CapabilitiesResponse]
+        Response[CapabilitiesResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +137,23 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> CapabilitiesResponse | None:
-    """Get Capabilities
+    """
+    Get runtime capability declarations
 
-     Expose runtime capability declarations.
+    Expose the major runtime capabilities enabled for the current Nova
+    deployment.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        CapabilitiesResponse | None
+        CapabilitiesResponse | None: Parsed response payload, or ``None``
+            when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

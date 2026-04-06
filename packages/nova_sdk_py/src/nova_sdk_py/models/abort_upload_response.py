@@ -12,13 +12,15 @@ T = TypeVar("T", bound="AbortUploadResponse")
 
 @_attrs_define
 class AbortUploadResponse:
-    """Multipart abort response.
+    """
+    Multipart abort response.
 
     Attributes:
-        ok (bool | Unset):  Default: True.
+        ok: Whether the multipart abort request was accepted.
     """
 
     ok: bool | Unset = True
+    """Whether the multipart abort request was accepted."""
 
     def to_dict(self) -> dict[str, Any]:
         ok = self.ok

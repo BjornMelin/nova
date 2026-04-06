@@ -24,6 +24,27 @@
 
 Delete repo code whenever an upstream dependency or native platform capability can replace it cleanly without increasing hidden complexity.
 
+## Current applied posture
+
+### Security refreshes applied in the current lock
+
+- Refresh vulnerable transitive packages in `uv.lock` with targeted `uv lock --upgrade-package …` updates instead of a broad resolver sweep.
+- Current targeted refresh set: `aiohttp`, `cryptography`, `pygments`, `pyjwt`, `requests`.
+- Do not replace this with `uv lock --upgrade` unless the branch explicitly revalidates the broader transitive moves that follow from a full-resolution update.
+
+### Explicit holds
+
+- Keep `typescript` pinned to `5.9.3`.
+- Keep the async AWS stack pinned as one unit: `aioboto3`, `aiobotocore`, `boto3`, `botocore`, `types-aiobotocore-s3`.
+- Keep the local `@hey-api/openapi-ts` compatibility patch until upstream output no longer emits the `getParseAs` and `RequestOptions<never, …>` cases Nova currently repairs.
+- Keep the retained Python SDK typed `additionalProperties` and parser repairs until stock generator output matches the committed SDK without local correction.
+
+### Current native-leverage deletions
+
+- Use shared Pydantic-backed optional env-string normalization instead of repeated local blank-string handling in runtime settings.
+- Enable `openapi-python-client` `docstrings_on_attributes` and delete the local Python SDK blank-docstring repair pass.
+- Rely on `httr2::req_headers()` plus Nova's named-list normalization and delete the redundant R null-header pruning helper.
+
 ## Best dependency/platform leverage moves in this program
 
 ### `oidc-jwt-verifier`

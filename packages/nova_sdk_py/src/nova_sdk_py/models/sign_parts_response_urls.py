@@ -10,7 +10,7 @@ T = TypeVar("T", bound="SignPartsResponseUrls")
 
 @_attrs_define
 class SignPartsResponseUrls:
-    """Model representing SignPartsResponseUrls."""
+    """Presigned upload URL for each requested multipart part number."""
 
     additional_properties: dict[str, str] = _attrs_field(
         init=False, factory=dict

@@ -11,11 +11,11 @@ export type ClientOptions = {
  */
 export type AbortUploadRequest = {
     /**
-     * Key
+     * Storage key reserved for the multipart upload.
      */
     key: string;
     /**
-     * Upload Id
+     * S3 multipart upload identifier being aborted.
      */
     upload_id: string;
 };
@@ -27,7 +27,7 @@ export type AbortUploadRequest = {
  */
 export type AbortUploadResponse = {
     /**
-     * Ok
+     * Whether the multipart abort request was accepted.
      */
     ok?: boolean;
 };
@@ -39,7 +39,7 @@ export type AbortUploadResponse = {
  */
 export type CapabilitiesResponse = {
     /**
-     * Capabilities
+     * Capability declarations exposed by the running API.
      */
     capabilities: Array<CapabilityDescriptor>;
 };
@@ -51,19 +51,17 @@ export type CapabilitiesResponse = {
  */
 export type CapabilityDescriptor = {
     /**
-     * Details
-     *
      * Additional capability metadata.
      */
     details?: {
         [key: string]: unknown;
     };
     /**
-     * Enabled
+     * Whether the capability is enabled in the current deployment.
      */
     enabled: boolean;
     /**
-     * Key
+     * Stable capability identifier.
      */
     key: string;
 };
@@ -75,15 +73,15 @@ export type CapabilityDescriptor = {
  */
 export type CompleteUploadRequest = {
     /**
-     * Key
+     * Storage key reserved for the multipart upload.
      */
     key: string;
     /**
-     * Parts
+     * Ordered multipart parts to finalize in S3.
      */
     parts: Array<CompletedPart>;
     /**
-     * Upload Id
+     * S3 multipart upload identifier being finalized.
      */
     upload_id: string;
 };
@@ -95,19 +93,19 @@ export type CompleteUploadRequest = {
  */
 export type CompleteUploadResponse = {
     /**
-     * Bucket
+     * Bucket that now contains the completed object.
      */
     bucket: string;
     /**
-     * Etag
+     * Object ETag returned by S3 when available.
      */
     etag?: string | null;
     /**
-     * Key
+     * Storage key of the completed object.
      */
     key: string;
     /**
-     * Version Id
+     * S3 object version identifier when bucket versioning is enabled.
      */
     version_id?: string | null;
 };
@@ -119,15 +117,15 @@ export type CompleteUploadResponse = {
  */
 export type CompletedPart = {
     /**
-     * Checksum Sha256
+     * Optional SHA-256 checksum for the completed multipart part.
      */
     checksum_sha256?: string | null;
     /**
-     * Etag
+     * ETag returned by S3 for the completed multipart part.
      */
     etag: string;
     /**
-     * Part Number
+     * Multipart part number included in the completion request.
      */
     part_number: number;
 };
@@ -139,14 +137,10 @@ export type CompletedPart = {
  */
 export type CreateExportRequest = {
     /**
-     * Filename
-     *
      * Client-facing filename to preserve in the export.
      */
     filename: string;
     /**
-     * Source Key
-     *
      * Storage key of the source object to export.
      */
     source_key: string;
@@ -159,21 +153,21 @@ export type CreateExportRequest = {
  */
 export type ErrorBody = {
     /**
-     * Code
+     * Stable machine-readable error code.
      */
     code: string;
     /**
-     * Details
+     * Additional structured details for the error.
      */
     details: {
         [key: string]: unknown;
     };
     /**
-     * Message
+     * Human-readable error summary.
      */
     message: string;
     /**
-     * Request Id
+     * Request identifier associated with the failure when available.
      */
     request_id: string | null;
 };
@@ -184,6 +178,9 @@ export type ErrorBody = {
  * Standard API error envelope.
  */
 export type ErrorEnvelope = {
+    /**
+     * Standard API error payload.
+     */
     error: ErrorBody;
 };
 
@@ -194,7 +191,7 @@ export type ErrorEnvelope = {
  */
 export type ExportListResponse = {
     /**
-     * Exports
+     * Caller-owned export workflow resources ordered by recency.
      */
     exports: Array<ExportResource>;
 };
@@ -206,14 +203,10 @@ export type ExportListResponse = {
  */
 export type ExportOutput = {
     /**
-     * Download Filename
-     *
      * Filename presented to clients when downloading.
      */
     download_filename: string;
     /**
-     * Key
-     *
      * Storage key for the exported object.
      */
     key: string;
@@ -226,37 +219,43 @@ export type ExportOutput = {
  */
 export type ExportResource = {
     /**
-     * Cancel Requested At
+     * Timestamp when cancel intent was persisted for the export.
      */
     cancel_requested_at?: string | null;
     /**
-     * Created At
+     * Timestamp when the export workflow resource was created.
      */
     created_at: string;
     /**
-     * Error
+     * Terminal error message when the export fails.
      */
     error?: string | null;
     /**
-     * Execution Arn
+     * Step Functions execution ARN for the active export workflow.
      */
     execution_arn?: string | null;
     /**
-     * Export Id
+     * Identifier of the caller-owned export workflow resource.
      */
     export_id: string;
     /**
-     * Filename
+     * Filename presented to callers when downloading the export.
      */
     filename: string;
+    /**
+     * Completed output metadata when the export succeeds.
+     */
     output?: ExportOutput | null;
     /**
-     * Source Key
+     * Storage key of the object managed by the export workflow.
      */
     source_key: string;
+    /**
+     * Current lifecycle state of the export workflow.
+     */
     status: ExportStatus;
     /**
-     * Updated At
+     * Timestamp when the export workflow resource last changed.
      */
     updated_at: string;
 };
@@ -274,6 +273,8 @@ export type ExportStatus = 'queued' | 'validating' | 'copying' | 'finalizing' | 
 export type HttpValidationError = {
     /**
      * Detail
+     *
+     * Collection of request-validation issues returned by FastAPI.
      */
     detail?: Array<ValidationError>;
 };
@@ -285,7 +286,7 @@ export type HttpValidationError = {
  */
 export type HealthResponse = {
     /**
-     * Ok
+     * Whether the runtime process is alive.
      */
     ok: boolean;
 };
@@ -304,31 +305,31 @@ export type HealthResponse = {
  */
 export type InitiateUploadRequest = {
     /**
-     * Checksum Preference
+     * Preferred checksum strictness requested by the client.
      */
     checksum_preference?: string | null;
     /**
-     * Checksum Value
+     * Optional checksum value supplied with the initiate request.
      */
     checksum_value?: string | null;
     /**
-     * Content Type
+     * Optional MIME type that should be persisted with the object.
      */
     content_type?: string | null;
     /**
-     * Filename
+     * Client-facing filename for the object being uploaded.
      */
     filename: string;
     /**
-     * Policy Hint
+     * Optional transfer-policy hint evaluated by the API.
      */
     policy_hint?: string | null;
     /**
-     * Size Bytes
+     * Total size of the object being uploaded, in bytes.
      */
     size_bytes: number;
     /**
-     * Workload Class
+     * Optional workload-class hint for transfer policy selection.
      */
     workload_class?: string | null;
 };
@@ -340,64 +341,67 @@ export type InitiateUploadRequest = {
  */
 export type InitiateUploadResponse = {
     /**
-     * Accelerate Enabled
+     * Whether S3 Transfer Acceleration is enabled for the session.
      */
     accelerate_enabled: boolean;
     /**
-     * Bucket
+     * Bucket that will receive the uploaded object.
      */
     bucket: string;
     /**
-     * Checksum Algorithm
+     * Checksum algorithm callers should use when checksums apply.
      */
     checksum_algorithm?: string | null;
     /**
-     * Checksum Mode
+     * Server-resolved checksum enforcement mode for the upload.
      */
     checksum_mode: 'none' | 'optional' | 'required';
     /**
-     * Expires In Seconds
+     * Seconds until the returned presigned inputs expire.
      */
     expires_in_seconds: number;
     /**
-     * Key
+     * Storage key reserved for the uploaded object.
      */
     key: string;
     /**
-     * Max Concurrency Hint
+     * Suggested maximum number of concurrent client uploads.
      */
     max_concurrency_hint: number;
     /**
-     * Part Size Bytes
+     * Target multipart part size in bytes when multipart is required.
      */
     part_size_bytes?: number | null;
     /**
-     * Policy Id
+     * Identifier of the effective transfer policy.
      */
     policy_id: string;
     /**
-     * Policy Version
+     * Version of the effective transfer policy.
      */
     policy_version: string;
     /**
-     * Resumable Until
+     * Timestamp until which multipart resume operations are valid.
      */
     resumable_until: string;
     /**
-     * Session Id
+     * Durable upload-session identifier used for resume flows.
      */
     session_id: string;
     /**
-     * Sign Batch Size Hint
+     * Suggested maximum number of parts per sign-parts request.
      */
     sign_batch_size_hint: number;
+    /**
+     * Upload strategy selected by the API for this transfer.
+     */
     strategy: UploadStrategy;
     /**
-     * Upload Id
+     * S3 multipart upload identifier when multipart is required.
      */
     upload_id?: string | null;
     /**
-     * Url
+     * Presigned single-part upload URL when the strategy is direct.
      */
     url?: string | null;
 };
@@ -409,19 +413,19 @@ export type InitiateUploadResponse = {
  */
 export type MetricsSummaryResponse = {
     /**
-     * Activity
+     * Activity rollups derived from the activity store.
      */
     activity: {
         [key: string]: number;
     };
     /**
-     * Counters
+     * Low-cardinality request and workflow counters.
      */
     counters: {
         [key: string]: number;
     };
     /**
-     * Latencies Ms
+     * Aggregated request-latency summaries in milliseconds.
      */
     latencies_ms: {
         [key: string]: number;
@@ -435,19 +439,19 @@ export type MetricsSummaryResponse = {
  */
 export type PresignDownloadRequest = {
     /**
-     * Content Disposition
+     * Optional Content-Disposition override for the download response.
      */
     content_disposition?: string | null;
     /**
-     * Content Type
+     * Optional Content-Type override for the download response.
      */
     content_type?: string | null;
     /**
-     * Filename
+     * Optional filename hint applied to Content-Disposition.
      */
     filename?: string | null;
     /**
-     * Key
+     * Storage key of the object to download.
      */
     key: string;
 };
@@ -459,19 +463,19 @@ export type PresignDownloadRequest = {
  */
 export type PresignDownloadResponse = {
     /**
-     * Bucket
+     * Bucket that owns the downloadable object.
      */
     bucket: string;
     /**
-     * Expires In Seconds
+     * Seconds until the presigned download URL expires.
      */
     expires_in_seconds: number;
     /**
-     * Key
+     * Storage key of the downloadable object.
      */
     key: string;
     /**
-     * Url
+     * Presigned download URL for the requested object.
      */
     url: string;
 };
@@ -483,13 +487,13 @@ export type PresignDownloadResponse = {
  */
 export type ReadinessResponse = {
     /**
-     * Checks
+     * Per-dependency readiness results keyed by check name.
      */
     checks: {
         [key: string]: boolean;
     };
     /**
-     * Ok
+     * Whether every required traffic dependency is ready.
      */
     ok: boolean;
 };
@@ -501,15 +505,15 @@ export type ReadinessResponse = {
  */
 export type ReleaseInfoResponse = {
     /**
-     * Environment
+     * Deployment environment name.
      */
     environment: string;
     /**
-     * Name
+     * Public application name for the deployment.
      */
     name: string;
     /**
-     * Version
+     * Published application version string.
      */
     version: string;
 };
@@ -521,15 +525,15 @@ export type ReleaseInfoResponse = {
  */
 export type ResourcePlanItem = {
     /**
-     * Reason
+     * Machine-readable reason when the resource is not supported.
      */
     reason?: string | null;
     /**
-     * Resource
+     * Requested resource key.
      */
     resource: string;
     /**
-     * Supported
+     * Whether the resource is supported in the current deployment.
      */
     supported: boolean;
 };
@@ -541,7 +545,7 @@ export type ResourcePlanItem = {
  */
 export type ResourcePlanRequest = {
     /**
-     * Resources
+     * Resource keys whose supportability should be evaluated.
      */
     resources: Array<string>;
 };
@@ -553,7 +557,7 @@ export type ResourcePlanRequest = {
  */
 export type ResourcePlanResponse = {
     /**
-     * Plan
+     * Supportability decision for each requested resource key.
      */
     plan: Array<ResourcePlanItem>;
 };
@@ -565,21 +569,21 @@ export type ResourcePlanResponse = {
  */
 export type SignPartsRequest = {
     /**
-     * Checksums Sha256
+     * Optional SHA-256 checksum map keyed by multipart part number.
      */
     checksums_sha256?: {
         [key: string]: string;
     } | null;
     /**
-     * Key
+     * Storage key reserved for the multipart upload.
      */
     key: string;
     /**
-     * Part Numbers
+     * Multipart part numbers to sign in this request.
      */
     part_numbers: Array<number>;
     /**
-     * Upload Id
+     * S3 multipart upload identifier returned by initiate upload.
      */
     upload_id: string;
 };
@@ -591,11 +595,11 @@ export type SignPartsRequest = {
  */
 export type SignPartsResponse = {
     /**
-     * Expires In Seconds
+     * Seconds until the presigned part URLs expire.
      */
     expires_in_seconds: number;
     /**
-     * Urls
+     * Presigned upload URL for each requested multipart part number.
      */
     urls: {
         [key: string]: string;
@@ -609,71 +613,71 @@ export type SignPartsResponse = {
  */
 export type TransferCapabilitiesResponse = {
     /**
-     * Accelerate Enabled
+     * Whether S3 Transfer Acceleration is enabled.
      */
     accelerate_enabled: boolean;
     /**
-     * Active Multipart Upload Limit
+     * Maximum number of active multipart uploads per scope.
      */
     active_multipart_upload_limit: number;
     /**
-     * Checksum Algorithm
+     * Checksum algorithm callers should use when checksums apply.
      */
     checksum_algorithm?: string | null;
     /**
-     * Checksum Mode
+     * Server-enforced checksum mode for uploads.
      */
     checksum_mode: 'none' | 'optional' | 'required';
     /**
-     * Daily Ingress Budget Bytes
+     * Per-scope daily ingress budget in bytes.
      */
     daily_ingress_budget_bytes: number;
     /**
-     * Large Export Worker Threshold Bytes
+     * Export size threshold in bytes for the worker-backed copy lane.
      */
     large_export_worker_threshold_bytes: number;
     /**
-     * Max Concurrency Hint
+     * Suggested maximum number of concurrent client uploads.
      */
     max_concurrency_hint: number;
     /**
-     * Max Upload Bytes
+     * Maximum allowed upload size in bytes.
      */
     max_upload_bytes: number;
     /**
-     * Maximum Part Size Bytes
+     * Maximum multipart part size accepted by the API.
      */
     maximum_part_size_bytes: number;
     /**
-     * Minimum Part Size Bytes
+     * Minimum multipart part size accepted by the API.
      */
     minimum_part_size_bytes: number;
     /**
-     * Multipart Threshold Bytes
+     * Object size in bytes at which multipart upload becomes required.
      */
     multipart_threshold_bytes: number;
     /**
-     * Policy Id
+     * Identifier of the effective transfer policy.
      */
     policy_id: string;
     /**
-     * Policy Version
+     * Version of the effective transfer policy.
      */
     policy_version: string;
     /**
-     * Resumable Ttl Seconds
+     * How long multipart resume state remains valid, in seconds.
      */
     resumable_ttl_seconds: number;
     /**
-     * Sign Batch Size Hint
+     * Suggested maximum number of parts per sign-parts request.
      */
     sign_batch_size_hint: number;
     /**
-     * Sign Requests Per Upload Limit
+     * Maximum number of sign-parts requests allowed per upload.
      */
     sign_requests_per_upload_limit: number;
     /**
-     * Target Upload Part Count
+     * Target number of multipart parts for large uploads.
      */
     target_upload_part_count: number;
 };
@@ -685,11 +689,11 @@ export type TransferCapabilitiesResponse = {
  */
 export type UploadIntrospectionRequest = {
     /**
-     * Key
+     * Storage key reserved for the multipart upload.
      */
     key: string;
     /**
-     * Upload Id
+     * S3 multipart upload identifier being inspected.
      */
     upload_id: string;
 };
@@ -701,23 +705,23 @@ export type UploadIntrospectionRequest = {
  */
 export type UploadIntrospectionResponse = {
     /**
-     * Bucket
+     * Bucket that owns the multipart upload.
      */
     bucket: string;
     /**
-     * Key
+     * Storage key reserved for the multipart upload.
      */
     key: string;
     /**
-     * Part Size Bytes
+     * Configured multipart part size in bytes for this session.
      */
     part_size_bytes: number;
     /**
-     * Parts
+     * Multipart parts that have already been uploaded.
      */
     parts: Array<UploadedPart>;
     /**
-     * Upload Id
+     * S3 multipart upload identifier.
      */
     upload_id: string;
 };
@@ -736,11 +740,11 @@ export type UploadStrategy = 'single' | 'multipart';
  */
 export type UploadedPart = {
     /**
-     * Etag
+     * ETag returned by S3 for the uploaded multipart part.
      */
     etag: string;
     /**
-     * Part Number
+     * Multipart part number that has already been uploaded.
      */
     part_number: number;
 };
@@ -750,25 +754,25 @@ export type UploadedPart = {
  */
 export type ValidationError = {
     /**
-     * Context
+     * Optional structured context attached to the validation issue.
      */
     ctx?: {
         [key: string]: unknown;
     };
     /**
-     * Input
+     * Original input value that failed validation when FastAPI exposes it.
      */
     input?: unknown;
     /**
-     * Location
+     * Ordered location path that identifies the invalid request field.
      */
     loc: Array<string | number>;
     /**
-     * Message
+     * Human-readable validation message.
      */
     msg: string;
     /**
-     * Error Type
+     * Machine-readable validation error type identifier.
      */
     type: string;
 };
@@ -807,7 +811,7 @@ export type MetricsSummaryError = MetricsSummaryErrors[keyof MetricsSummaryError
  */
 export type MetricsSummaryResponses = {
     /**
-     * Successful Response
+     * Low-cardinality metrics and activity summary.
      */
     200: MetricsSummaryResponse;
 };
@@ -829,7 +833,7 @@ export type GetCapabilitiesData = {
  */
 export type GetCapabilitiesResponses = {
     /**
-     * Successful Response
+     * Runtime capability declarations for the deployment.
      */
     200: CapabilitiesResponse;
 };
@@ -847,11 +851,11 @@ export type GetTransferCapabilitiesData = {
     path?: never;
     query?: {
         /**
-         * Workload Class
+         * Optional workload-class hint used to resolve a narrower effective transfer policy.
          */
         workload_class?: string | null;
         /**
-         * Policy Hint
+         * Optional policy hint evaluated by the transfer policy resolver.
          */
         policy_hint?: string | null;
     };
@@ -878,7 +882,7 @@ export type GetTransferCapabilitiesError = GetTransferCapabilitiesErrors[keyof G
  */
 export type GetTransferCapabilitiesResponses = {
     /**
-     * Successful Response
+     * Effective transfer policy metadata and limits.
      */
     200: TransferCapabilitiesResponse;
 };
@@ -896,7 +900,7 @@ export type ListExportsData = {
     path?: never;
     query?: {
         /**
-         * Limit
+         * Maximum number of caller-owned export workflow resources to return, ordered newest first.
          */
         limit?: number;
     };
@@ -931,7 +935,7 @@ export type ListExportsError = ListExportsErrors[keyof ListExportsErrors];
  */
 export type ListExportsResponses = {
     /**
-     * Successful Response
+     * Page of caller-owned export workflow resources.
      */
     200: ExportListResponse;
 };
@@ -949,6 +953,8 @@ export type CreateExportData = {
     headers?: {
         /**
          * Idempotency-Key
+         *
+         * Client-supplied idempotency key used to deduplicate supported mutation requests.
          */
         'Idempotency-Key'?: string | null;
     };
@@ -993,7 +999,7 @@ export type CreateExportError = CreateExportErrors[keyof CreateExportErrors];
  */
 export type CreateExportResponses = {
     /**
-     * Successful Response
+     * Created export workflow resource.
      */
     201: ExportResource;
 };
@@ -1010,7 +1016,7 @@ export type GetExportData = {
     body?: never;
     path: {
         /**
-         * Export Id
+         * Identifier of the caller-owned export workflow resource.
          */
         export_id: string;
     };
@@ -1050,7 +1056,7 @@ export type GetExportError = GetExportErrors[keyof GetExportErrors];
  */
 export type GetExportResponses = {
     /**
-     * Successful Response
+     * Current export workflow resource.
      */
     200: ExportResource;
 };
@@ -1067,7 +1073,7 @@ export type CancelExportData = {
     body?: never;
     path: {
         /**
-         * Export Id
+         * Identifier of the caller-owned export workflow resource.
          */
         export_id: string;
     };
@@ -1107,7 +1113,7 @@ export type CancelExportError = CancelExportErrors[keyof CancelExportErrors];
  */
 export type CancelExportResponses = {
     /**
-     * Successful Response
+     * Updated export workflow resource after cancel intent.
      */
     200: ExportResource;
 };
@@ -1132,7 +1138,7 @@ export type HealthLiveData = {
  */
 export type HealthLiveResponses = {
     /**
-     * Successful Response
+     * Liveness status for the API runtime.
      */
     200: HealthResponse;
 };
@@ -1172,7 +1178,7 @@ export type HealthReadyError = HealthReadyErrors[keyof HealthReadyErrors];
  */
 export type HealthReadyResponses = {
     /**
-     * Successful Response
+     * Readiness status plus per-dependency readiness checks.
      */
     200: ReadinessResponse;
 };
@@ -1197,7 +1203,7 @@ export type GetReleaseInfoData = {
  */
 export type GetReleaseInfoResponses = {
     /**
-     * Successful Response
+     * Release name, version, and environment metadata.
      */
     200: ReleaseInfoResponse;
 };
@@ -1237,7 +1243,7 @@ export type PlanResourcesError = PlanResourcesErrors[keyof PlanResourcesErrors];
  */
 export type PlanResourcesResponses = {
     /**
-     * Successful Response
+     * Supportability decisions for each requested resource.
      */
     200: ResourcePlanResponse;
 };
@@ -1285,7 +1291,7 @@ export type PresignDownloadError = PresignDownloadErrors[keyof PresignDownloadEr
  */
 export type PresignDownloadResponses = {
     /**
-     * Successful Response
+     * Presigned download URL and associated object metadata.
      */
     200: PresignDownloadResponse;
 };
@@ -1330,7 +1336,7 @@ export type AbortUploadError = AbortUploadErrors[keyof AbortUploadErrors];
  */
 export type AbortUploadResponses = {
     /**
-     * Successful Response
+     * Acknowledgement that the multipart upload was aborted.
      */
     200: AbortUploadResponse;
 };
@@ -1375,7 +1381,7 @@ export type CompleteUploadError = CompleteUploadErrors[keyof CompleteUploadError
  */
 export type CompleteUploadResponses = {
     /**
-     * Successful Response
+     * Completed object metadata for the finalized upload.
      */
     200: CompleteUploadResponse;
 };
@@ -1390,6 +1396,8 @@ export type InitiateUploadData = {
     headers?: {
         /**
          * Idempotency-Key
+         *
+         * Client-supplied idempotency key used to deduplicate supported mutation requests.
          */
         'Idempotency-Key'?: string | null;
     };
@@ -1434,7 +1442,7 @@ export type InitiateUploadError = InitiateUploadErrors[keyof InitiateUploadError
  */
 export type InitiateUploadResponses = {
     /**
-     * Successful Response
+     * Resolved upload session metadata, policy hints, and presigned inputs.
      */
     200: InitiateUploadResponse;
 };
@@ -1479,7 +1487,7 @@ export type IntrospectUploadError = IntrospectUploadErrors[keyof IntrospectUploa
  */
 export type IntrospectUploadResponses = {
     /**
-     * Successful Response
+     * Current multipart upload state, including uploaded parts.
      */
     200: UploadIntrospectionResponse;
 };
@@ -1527,7 +1535,7 @@ export type SignUploadPartsError = SignUploadPartsErrors[keyof SignUploadPartsEr
  */
 export type SignUploadPartsResponses = {
     /**
-     * Successful Response
+     * Presigned multipart part URLs and their TTL.
      */
     200: SignPartsResponse;
 };

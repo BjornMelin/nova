@@ -19,45 +19,74 @@ T = TypeVar("T", bound="TransferCapabilitiesResponse")
 
 @_attrs_define
 class TransferCapabilitiesResponse:
-    """Transfer policy capabilities exposed to clients and operators.
+    """
+    Transfer policy capabilities exposed to clients and operators.
 
     Attributes:
-        accelerate_enabled (bool):
-        active_multipart_upload_limit (int):
-        checksum_mode (TransferCapabilitiesResponseChecksumMode):
-        daily_ingress_budget_bytes (int):
-        large_export_worker_threshold_bytes (int):
-        max_concurrency_hint (int):
-        max_upload_bytes (int):
-        maximum_part_size_bytes (int):
-        minimum_part_size_bytes (int):
-        multipart_threshold_bytes (int):
-        policy_id (str):
-        policy_version (str):
-        resumable_ttl_seconds (int):
-        sign_batch_size_hint (int):
-        sign_requests_per_upload_limit (int):
-        target_upload_part_count (int):
-        checksum_algorithm (None | str | Unset):
+        accelerate_enabled: Whether S3 Transfer Acceleration is enabled.
+        active_multipart_upload_limit: Maximum number of active multipart
+        uploads per scope.
+        checksum_algorithm: Checksum algorithm callers should use when
+        checksums apply.
+        checksum_mode: Server-enforced checksum mode for uploads.
+        daily_ingress_budget_bytes: Per-scope daily ingress budget in bytes.
+        large_export_worker_threshold_bytes: Export size threshold in bytes
+        for the worker-backed copy lane.
+        max_concurrency_hint: Suggested maximum number of concurrent client
+        uploads.
+        max_upload_bytes: Maximum allowed upload size in bytes.
+        maximum_part_size_bytes: Maximum multipart part size accepted by the
+        API.
+        minimum_part_size_bytes: Minimum multipart part size accepted by the
+        API.
+        multipart_threshold_bytes: Object size in bytes at which multipart
+        upload becomes required.
+        policy_id: Identifier of the effective transfer policy.
+        policy_version: Version of the effective transfer policy.
+        resumable_ttl_seconds: How long multipart resume state remains
+        valid, in seconds.
+        sign_batch_size_hint: Suggested maximum number of parts per
+        sign-parts request.
+        sign_requests_per_upload_limit: Maximum number of sign-parts
+        requests allowed per upload.
+        target_upload_part_count: Target number of multipart parts for large
+        uploads.
     """
 
     accelerate_enabled: bool
+    """Whether S3 Transfer Acceleration is enabled."""
     active_multipart_upload_limit: int
+    """Maximum number of active multipart uploads per scope."""
     checksum_mode: TransferCapabilitiesResponseChecksumMode
+    """Server-enforced checksum mode for uploads."""
     daily_ingress_budget_bytes: int
+    """Per-scope daily ingress budget in bytes."""
     large_export_worker_threshold_bytes: int
+    """Export size threshold in bytes for the worker-backed copy lane."""
     max_concurrency_hint: int
+    """Suggested maximum number of concurrent client uploads."""
     max_upload_bytes: int
+    """Maximum allowed upload size in bytes."""
     maximum_part_size_bytes: int
+    """Maximum multipart part size accepted by the API."""
     minimum_part_size_bytes: int
+    """Minimum multipart part size accepted by the API."""
     multipart_threshold_bytes: int
+    """Object size in bytes at which multipart upload becomes required."""
     policy_id: str
+    """Identifier of the effective transfer policy."""
     policy_version: str
+    """Version of the effective transfer policy."""
     resumable_ttl_seconds: int
+    """How long multipart resume state remains valid, in seconds."""
     sign_batch_size_hint: int
+    """Suggested maximum number of parts per sign-parts request."""
     sign_requests_per_upload_limit: int
+    """Maximum number of sign-parts requests allowed per upload."""
     target_upload_part_count: int
+    """Target number of multipart parts for large uploads."""
     checksum_algorithm: None | str | Unset = UNSET
+    """Checksum algorithm callers should use when checksums apply."""
 
     def to_dict(self) -> dict[str, Any]:
         accelerate_enabled = self.accelerate_enabled

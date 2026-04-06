@@ -19,11 +19,12 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Metrics Summary.
+ * Get metrics summary.
  *
- * Return low-cardinality metrics summary for dashboards.
+ * Return low-cardinality counters, latency summaries, and activity rollups for dashboards.
  *
- * @returns The response from the `metricsSummary` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Low-cardinality metrics and activity summary.
  */
 export const metricsSummary = <ThrowOnError extends boolean = false>(options?: Options<MetricsSummaryData, ThrowOnError>) => (options?.client ?? client).get<MetricsSummaryResponses, MetricsSummaryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -32,32 +33,32 @@ export const metricsSummary = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Get Capabilities.
+ * Get runtime capability declarations.
  *
- * Expose runtime capability declarations.
+ * Expose the major runtime capabilities enabled for the current Nova deployment.
  *
- * @returns The response from the `getCapabilities` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Runtime capability declarations for the deployment.
  */
 export const getCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/capabilities', ...options });
 
 /**
- * Get Transfer Capabilities.
+ * Get the effective transfer policy.
  *
- * Expose the current transfer policy envelope.
+ * Expose the current transfer policy envelope that browser and native upload clients should honor.
  *
- * @returns The response from the `getTransferCapabilities` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Effective transfer policy metadata and limits.
  */
 export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, GetTransferCapabilitiesErrors, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
 
 /**
- * List Exports.
+ * List export workflows.
  *
- * List caller-owned exports with most recent first.
+ * List caller-owned export workflow resources with the most recent exports first.
  *
- * This endpoint is intentionally eventual because it is backed by a scoped
- * DynamoDB global secondary index.
- *
- * @returns The response from the `listExports` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Page of caller-owned export workflow resources.
  */
 export const listExports = <ThrowOnError extends boolean = false>(options?: Options<ListExportsData, ThrowOnError>) => (options?.client ?? client).get<ListExportsResponses, ListExportsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -66,11 +67,12 @@ export const listExports = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
- * Create Export.
+ * Create an export workflow.
  *
- * Create an explicit export workflow resource.
+ * Create a caller-owned export resource that copies a source object into a download-oriented export output.
  *
- * @returns The response from the `createExport` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Created export workflow resource.
  */
 export const createExport = <ThrowOnError extends boolean = false>(options: Options<CreateExportData, ThrowOnError>) => (options.client ?? client).post<CreateExportResponses, CreateExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -83,11 +85,12 @@ export const createExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get Export.
+ * Get an export workflow.
  *
- * Return the caller-owned export resource.
+ * Return the current state of a caller-owned export workflow resource.
  *
- * @returns The response from the `getExport` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Current export workflow resource.
  */
 export const getExport = <ThrowOnError extends boolean = false>(options: Options<GetExportData, ThrowOnError>) => (options.client ?? client).get<GetExportResponses, GetExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -96,11 +99,12 @@ export const getExport = <ThrowOnError extends boolean = false>(options: Options
 });
 
 /**
- * Cancel Export.
+ * Cancel an export workflow.
  *
- * Cancel a caller-owned non-terminal export.
+ * Persist cancel intent for a caller-owned export that has not yet reached a terminal state.
  *
- * @returns The response from the `cancelExport` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Updated export workflow resource after cancel intent.
  */
 export const cancelExport = <ThrowOnError extends boolean = false>(options: Options<CancelExportData, ThrowOnError>) => (options.client ?? client).post<CancelExportResponses, CancelExportErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -109,38 +113,42 @@ export const cancelExport = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Health Live.
+ * Check liveness.
  *
- * Return liveness status.
+ * Return a shallow liveness signal for the API runtime process.
  *
- * @returns The response from the `healthLive` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Liveness status for the API runtime.
  */
 export const healthLive = <ThrowOnError extends boolean = false>(options?: Options<HealthLiveData, ThrowOnError>) => (options?.client ?? client).get<HealthLiveResponses, unknown, ThrowOnError>({ url: '/v1/health/live', ...options });
 
 /**
- * Health Ready.
+ * Check readiness.
  *
- * Return readiness checks for traffic-critical dependencies.
+ * Return readiness checks for traffic-critical dependencies such as auth, transfers, exports, and idempotency.
  *
- * @returns The response from the `healthReady` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Readiness status plus per-dependency readiness checks.
  */
 export const healthReady = <ThrowOnError extends boolean = false>(options?: Options<HealthReadyData, ThrowOnError>) => (options?.client ?? client).get<HealthReadyResponses, HealthReadyErrors, ThrowOnError>({ url: '/v1/health/ready', ...options });
 
 /**
- * Get Release Info.
+ * Get public release metadata.
  *
- * Return public release metadata for browser and deploy canaries.
+ * Return public release metadata used by browser clients, diagnostics, and deploy canaries.
  *
- * @returns The response from the `getReleaseInfo` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Release name, version, and environment metadata.
  */
 export const getReleaseInfo = <ThrowOnError extends boolean = false>(options?: Options<GetReleaseInfoData, ThrowOnError>) => (options?.client ?? client).get<GetReleaseInfoResponses, unknown, ThrowOnError>({ url: '/v1/releases/info', ...options });
 
 /**
- * Plan Resources.
+ * Plan resource support.
  *
- * Plan supportability for requested resource keys.
+ * Report whether each requested resource is currently supported in the active deployment.
  *
- * @returns The response from the `planResources` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Supportability decisions for each requested resource.
  */
 export const planResources = <ThrowOnError extends boolean = false>(options: Options<PlanResourcesData, ThrowOnError>) => (options.client ?? client).post<PlanResourcesResponses, PlanResourcesErrors, ThrowOnError>({
     url: '/v1/resources/plan',
@@ -152,11 +160,12 @@ export const planResources = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Presign Download.
+ * Presign a direct download.
  *
- * Issue presigned GET URL for caller-scoped key.
+ * Return a time-limited download URL for an object the caller is authorized to access.
  *
- * @returns The response from the `presignDownload` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Presigned download URL and associated object metadata.
  */
 export const presignDownload = <ThrowOnError extends boolean = false>(options: Options<PresignDownloadData, ThrowOnError>) => (options.client ?? client).post<PresignDownloadResponses, PresignDownloadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -169,11 +178,12 @@ export const presignDownload = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Abort Upload.
+ * Abort a multipart upload.
  *
- * Abort multipart upload.
+ * Cancel an in-progress multipart upload and discard any staged parts.
  *
- * @returns The response from the `abortUpload` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Acknowledgement that the multipart upload was aborted.
  */
 export const abortUpload = <ThrowOnError extends boolean = false>(options: Options<AbortUploadData, ThrowOnError>) => (options.client ?? client).post<AbortUploadResponses, AbortUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -186,11 +196,12 @@ export const abortUpload = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * Complete Upload.
+ * Complete a multipart upload.
  *
- * Complete multipart upload.
+ * Finalize a multipart upload after the caller has uploaded every required part.
  *
- * @returns The response from the `completeUpload` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Completed object metadata for the finalized upload.
  */
 export const completeUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteUploadData, ThrowOnError>) => (options.client ?? client).post<CompleteUploadResponses, CompleteUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -203,11 +214,12 @@ export const completeUpload = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Initiate Upload.
+ * Initiate a direct-to-S3 upload session.
  *
- * Choose upload strategy and return presigned metadata.
+ * Resolve the effective transfer policy for the caller and return the presigned metadata needed to upload directly to S3.
  *
- * @returns The response from the `initiateUpload` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Resolved upload session metadata, policy hints, and presigned inputs.
  */
 export const initiateUpload = <ThrowOnError extends boolean = false>(options: Options<InitiateUploadData, ThrowOnError>) => (options.client ?? client).post<InitiateUploadResponses, InitiateUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -220,11 +232,12 @@ export const initiateUpload = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Introspect Upload.
+ * Inspect multipart upload state.
  *
- * Return uploaded multipart part state for resume flows.
+ * Return the persisted multipart session state so browser or native clients can resume an interrupted upload.
  *
- * @returns The response from the `introspectUpload` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Current multipart upload state, including uploaded parts.
  */
 export const introspectUpload = <ThrowOnError extends boolean = false>(options: Options<IntrospectUploadData, ThrowOnError>) => (options.client ?? client).post<IntrospectUploadResponses, IntrospectUploadErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -237,11 +250,12 @@ export const introspectUpload = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Sign Upload Parts.
+ * Sign multipart upload parts.
  *
- * Return presigned multipart part URLs.
+ * Return presigned URLs for the requested multipart upload part numbers.
  *
- * @returns The response from the `signUploadParts` operation.
+ * @param options - request options including client, security, and request overrides.
+ * @returns Presigned multipart part URLs and their TTL.
  */
 export const signUploadParts = <ThrowOnError extends boolean = false>(options: Options<SignUploadPartsData, ThrowOnError>) => (options.client ?? client).post<SignUploadPartsResponses, SignUploadPartsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

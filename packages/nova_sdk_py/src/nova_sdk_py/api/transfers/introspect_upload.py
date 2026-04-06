@@ -74,29 +74,25 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> Response[ErrorEnvelope | UploadIntrospectionResponse]:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
 
     Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (UploadIntrospectionRequest): Request body payload for this
+            operation.
 
     Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
+        Response[ErrorEnvelope | UploadIntrospectionResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | UploadIntrospectionResponse]
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -115,29 +111,26 @@ def sync(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> ErrorEnvelope | UploadIntrospectionResponse | None:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
 
     Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (UploadIntrospectionRequest): Request body payload for this
+            operation.
 
     Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
+        ErrorEnvelope | UploadIntrospectionResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | UploadIntrospectionResponse | None
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -151,29 +144,25 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> Response[ErrorEnvelope | UploadIntrospectionResponse]:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
 
     Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (UploadIntrospectionRequest): Request body payload for this
+            operation.
 
     Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
+        Response[ErrorEnvelope | UploadIntrospectionResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        Response[ErrorEnvelope | UploadIntrospectionResponse]
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -190,29 +179,26 @@ async def asyncio(
     client: AuthenticatedClient,
     body: UploadIntrospectionRequest,
 ) -> ErrorEnvelope | UploadIntrospectionResponse | None:
-    """Introspect Upload
+    """
+    Inspect multipart upload state
 
-     Return uploaded multipart part state for resume flows.
+    Return the persisted multipart session state so browser or native
+    clients can resume an interrupted upload.
 
     Args:
-        payload: Multipart introspection input payload.
-        metrics: Request-scoped metrics collector dependency.
-        transfer_service: Transfer domain service dependency.
-        activity_store: Activity persistence dependency.
-        principal: Authenticated caller principal.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (UploadIntrospectionRequest): Request body payload for this
+            operation.
 
     Returns:
-        UploadIntrospectionResponse: Multipart state for resume operations.
-
-    Args:
-        body (UploadIntrospectionRequest): Multipart upload introspection request.
+        ErrorEnvelope | UploadIntrospectionResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
 
     Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
-
-    Returns:
-        ErrorEnvelope | UploadIntrospectionResponse | None
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

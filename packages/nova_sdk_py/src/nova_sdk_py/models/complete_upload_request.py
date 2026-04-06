@@ -18,17 +18,21 @@ T = TypeVar("T", bound="CompleteUploadRequest")
 
 @_attrs_define
 class CompleteUploadRequest:
-    """Multipart completion request.
+    """
+    Multipart completion request.
 
     Attributes:
-        key (str):
-        parts (list[CompletedPart]):
-        upload_id (str):
+        key: Storage key reserved for the multipart upload.
+        parts: Ordered multipart parts to finalize in S3.
+        upload_id: S3 multipart upload identifier being finalized.
     """
 
     key: str
+    """Storage key reserved for the multipart upload."""
     parts: list[CompletedPart]
+    """Ordered multipart parts to finalize in S3."""
     upload_id: str
+    """S3 multipart upload identifier being finalized."""
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

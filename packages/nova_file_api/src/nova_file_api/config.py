@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.models import ActivityStoreBackend
 from nova_runtime_support.file_transfer_shared_settings import (
+    ConfiguredOptionalEnvString,
     FileTransferSharedEnvFields,
 )
 from nova_runtime_support.transfer_limits import (
@@ -32,11 +33,6 @@ _DEFAULT_DEV_CORS_ALLOWED_ORIGINS = (
     "http://localhost:8050",
     "http://127.0.0.1:8050",
 )
-
-
-def _is_blank(value: str | None) -> bool:
-    """Return whether an optional environment value is unset or blank."""
-    return value is None or not value.strip()
 
 
 def _default_app_version() -> str:
@@ -184,15 +180,19 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
             validation_alias="FILE_TRANSFER_CHECKSUM_MODE",
         )
     )
-    file_transfer_policy_appconfig_application: str | None = Field(
-        default=None,
-        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+    file_transfer_policy_appconfig_application: ConfiguredOptionalEnvString = (
+        Field(
+            default=None,
+            validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
+        )
     )
-    file_transfer_policy_appconfig_environment: str | None = Field(
-        default=None,
-        validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+    file_transfer_policy_appconfig_environment: ConfiguredOptionalEnvString = (
+        Field(
+            default=None,
+            validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
+        )
     )
-    file_transfer_policy_appconfig_profile: str | None = Field(
+    file_transfer_policy_appconfig_profile: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
     )
@@ -208,13 +208,13 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
         ge=1,
     )
 
-    oidc_issuer: str | None = Field(
+    oidc_issuer: ConfiguredOptionalEnvString = Field(
         default=None, validation_alias="OIDC_ISSUER"
     )
-    oidc_audience: str | None = Field(
+    oidc_audience: ConfiguredOptionalEnvString = Field(
         default=None, validation_alias="OIDC_AUDIENCE"
     )
-    oidc_jwks_url: str | None = Field(
+    oidc_jwks_url: ConfiguredOptionalEnvString = Field(
         default=None, validation_alias="OIDC_JWKS_URL"
     )
     oidc_required_scopes: str = Field(
@@ -272,7 +272,7 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
         ge=60,
         le=86400,
     )
-    idempotency_dynamodb_table: str | None = Field(
+    idempotency_dynamodb_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="IDEMPOTENCY_DYNAMODB_TABLE",
     )
@@ -281,7 +281,7 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
         default=True,
         validation_alias="EXPORTS_ENABLED",
     )
-    exports_dynamodb_table: str | None = Field(
+    exports_dynamodb_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="EXPORTS_DYNAMODB_TABLE",
     )
@@ -294,7 +294,7 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
         default=ActivityStoreBackend.MEMORY,
         validation_alias="ACTIVITY_STORE_BACKEND",
     )
-    activity_rollups_table: str | None = Field(
+    activity_rollups_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="ACTIVITY_ROLLUPS_TABLE",
     )
@@ -380,9 +380,7 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
     @model_validator(mode="after")
     def validate_idempotency_settings(self) -> Settings:
         """Require DynamoDB table wiring for API-side idempotency."""
-        if self.idempotency_enabled and _is_blank(
-            self.idempotency_dynamodb_table
-        ):
+        if self.idempotency_enabled and self.idempotency_dynamodb_table is None:
             raise ValueError(
                 "IDEMPOTENCY_DYNAMODB_TABLE must be configured when "
                 "IDEMPOTENCY_ENABLED=true"

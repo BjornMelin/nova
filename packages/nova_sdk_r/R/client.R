@@ -37,13 +37,6 @@ nova_normalize_named_list <- function(value, label) {
   cleaned
 }
 
-nova_prune_null_headers <- function(value) {
-  if (length(value) == 0L) {
-    return(value)
-  }
-  value[!vapply(value, is.null, logical(1))]
-}
-
 nova_normalize_base_url <- function(base_url) {
   if (!is.character(base_url) || length(base_url) != 1L || !nzchar(base_url)) {
     stop("base_url must be a non-empty string", call. = FALSE)
@@ -257,7 +250,6 @@ nova_api_call <- function(
   if (length(merged_headers) > 0L) {
     merged_headers <- merged_headers[!duplicated(tolower(names(merged_headers)), fromLast = TRUE)]
   }
-  merged_headers <- nova_prune_null_headers(merged_headers)
   resolved_path <- nova_resolve_path(path, path_params)
   if (is.null(body) && isTRUE(requires_body)) {
     stop(sprintf("operation %s requires a request body", operation_id), call. = FALSE)

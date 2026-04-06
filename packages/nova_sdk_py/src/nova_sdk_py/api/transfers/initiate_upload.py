@@ -88,27 +88,27 @@ def sync_detailed(
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | InitiateUploadResponse]:
-    """Initiate Upload
+    """
+    Initiate a direct-to-S3 upload session
 
-     Choose upload strategy and return presigned metadata.
+    Resolve the effective transfer policy for the caller and return the
+    presigned metadata needed to upload directly to S3.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (InitiateUploadRequest): Initiate-upload request model.
-
-            Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
-            are inputs only. The effective persisted transfer policy exposes
-            ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
-            integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode mapping and the
-            final mode decision happens server-side.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        Response[ErrorEnvelope | InitiateUploadResponse]
+        Response[ErrorEnvelope | InitiateUploadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -129,27 +129,28 @@ def sync(
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | InitiateUploadResponse | None:
-    """Initiate Upload
+    """
+    Initiate a direct-to-S3 upload session
 
-     Choose upload strategy and return presigned metadata.
+    Resolve the effective transfer policy for the caller and return the
+    presigned metadata needed to upload directly to S3.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (InitiateUploadRequest): Initiate-upload request model.
-
-            Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
-            are inputs only. The effective persisted transfer policy exposes
-            ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
-            integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode mapping and the
-            final mode decision happens server-side.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse | None
+        ErrorEnvelope | InitiateUploadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -165,27 +166,27 @@ async def asyncio_detailed(
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | InitiateUploadResponse]:
-    """Initiate Upload
+    """
+    Initiate a direct-to-S3 upload session
 
-     Choose upload strategy and return presigned metadata.
+    Resolve the effective transfer policy for the caller and return the
+    presigned metadata needed to upload directly to S3.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (InitiateUploadRequest): Initiate-upload request model.
-
-            Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
-            are inputs only. The effective persisted transfer policy exposes
-            ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
-            integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode mapping and the
-            final mode decision happens server-side.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        Response[ErrorEnvelope | InitiateUploadResponse]
+        Response[ErrorEnvelope | InitiateUploadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -204,27 +205,28 @@ async def asyncio(
     body: InitiateUploadRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | InitiateUploadResponse | None:
-    """Initiate Upload
+    """
+    Initiate a direct-to-S3 upload session
 
-     Choose upload strategy and return presigned metadata.
+    Resolve the effective transfer policy for the caller and return the
+    presigned metadata needed to upload directly to S3.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (InitiateUploadRequest): Initiate-upload request model.
-
-            Client hints (``workload_class``, ``policy_hint``, ``checksum_preference``)
-            are inputs only. The effective persisted transfer policy exposes
-            ``checksum_mode`` as ``none|optional|required`` per SPEC-0002 (S3
-            integration). ``checksum_preference`` accepts ``none|standard|strict`` as a
-            client preference; preference is not the same enum as mode mapping and the
-            final mode decision happens server-side.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        ErrorEnvelope | InitiateUploadResponse | None
+        ErrorEnvelope | InitiateUploadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

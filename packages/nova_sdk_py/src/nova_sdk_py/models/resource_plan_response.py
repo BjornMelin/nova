@@ -18,13 +18,15 @@ T = TypeVar("T", bound="ResourcePlanResponse")
 
 @_attrs_define
 class ResourcePlanResponse:
-    """Resource planning response body.
+    """
+    Resource planning response body.
 
     Attributes:
-        plan (list[ResourcePlanItem]):
+        plan: Supportability decision for each requested resource key.
     """
 
     plan: list[ResourcePlanItem]
+    """Supportability decision for each requested resource key."""
 
     def to_dict(self) -> dict[str, Any]:
         plan = []

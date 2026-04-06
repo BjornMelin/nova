@@ -74,19 +74,24 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
+    Return the current state of a caller-owned export workflow resource.
 
     Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
 
     Returns:
-        Response[ErrorEnvelope | ExportResource]
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +110,24 @@ def sync(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
+    Return the current state of a caller-owned export workflow resource.
 
     Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
 
     Returns:
-        ErrorEnvelope | ExportResource | None
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -131,19 +141,24 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
+    Return the current state of a caller-owned export workflow resource.
 
     Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
 
     Returns:
-        Response[ErrorEnvelope | ExportResource]
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +175,24 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Get Export
+    """
+    Get an export workflow
 
-     Return the caller-owned export resource.
+    Return the current state of a caller-owned export workflow resource.
 
     Args:
-        export_id (str):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
 
     Returns:
-        ErrorEnvelope | ExportResource | None
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

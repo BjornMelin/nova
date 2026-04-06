@@ -8,8 +8,8 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
@@ -131,6 +131,328 @@ def _load_spec_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise TypeError(f"OpenAPI spec must decode to an object: {path}")
     return payload
+
+
+def _snake_case_name(value: str) -> str:
+    normalized = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", value)
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+    return normalized.replace("-", "_").lower()
+
+
+def _docstring_block(*, indent: str, lines: list[str]) -> str:
+    rendered = [f'{indent}"""']
+    rendered.extend(f"{indent}{line}" if line else indent for line in lines)
+    rendered.append(f'{indent}"""')
+    return "\n".join(rendered) + "\n"
+
+
+def _wrap_doc_line(text: str, *, width: int = 72) -> list[str]:
+    return textwrap.wrap(
+        " ".join(text.split()),
+        width=width,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _wrap_google_doc_entry(
+    *,
+    label: str,
+    description: str,
+    width: int = 72,
+) -> list[str]:
+    wrapper = textwrap.TextWrapper(
+        width=width,
+        initial_indent=f"    {label}: ",
+        subsequent_indent="        ",
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    return wrapper.wrap(" ".join(description.split()))
+
+
+def _python_single_line_docstring(indent: str, text: str) -> str:
+    normalized = " ".join(text.split()).strip()
+    inline = f'{indent}"""{normalized}"""'
+    if len(inline) <= 88:
+        return inline
+    wrapped = _wrap_doc_line(normalized, width=max(24, 84 - len(indent)))
+    lines = [f'{indent}"""']
+    lines.extend(f"{indent}{line}" for line in wrapped)
+    lines.append(f'{indent}"""')
+    return "\n".join(lines)
+
+
+def _build_python_model_docstring(
+    *,
+    schema_name: str,
+    schema: dict[str, Any],
+) -> str | None:
+    description = schema.get("description")
+    if not isinstance(description, str) or not description.strip():
+        return None
+
+    lines: list[str] = [description.strip()]
+    properties = cast(dict[str, Any], schema.get("properties", {}))
+    attribute_lines: list[str] = []
+    for property_name, property_schema in properties.items():
+        if not isinstance(property_schema, dict):
+            continue
+        property_description = property_schema.get("description")
+        if not isinstance(property_description, str):
+            continue
+        attribute_lines.extend(
+            _wrap_doc_line(
+                f"{property_name}: {property_description.strip()}",
+                width=68,
+            )
+        )
+    if attribute_lines:
+        lines.extend(["", "Attributes:"])
+        lines.extend(f"    {line}" for line in attribute_lines)
+    return _docstring_block(indent="    ", lines=lines)
+
+
+def _apply_python_model_reference_docs(
+    root: Path,
+    *,
+    spec: dict[str, Any],
+) -> None:
+    components = cast(dict[str, Any], spec.get("components", {}))
+    schemas = cast(dict[str, Any], components.get("schemas", {}))
+    for schema_name, schema in schemas.items():
+        if not isinstance(schema, dict):
+            continue
+        model_path = root / "models" / f"{_snake_case_name(schema_name)}.py"
+        if not model_path.exists():
+            continue
+        docstring = _build_python_model_docstring(
+            schema_name=schema_name,
+            schema=schema,
+        )
+        if docstring is None:
+            continue
+        class_docstring = docstring
+        content = model_path.read_text(encoding="utf-8")
+        if "@_attrs_define" not in content:
+            continue
+        class_pattern = re.compile(
+            r"(@_attrs_define\nclass [A-Za-z0-9_]+:\n)"
+            r"(?:    \"\"\".*?\"\"\"\n)?",
+            flags=re.DOTALL,
+        )
+
+        def _replace_class_docstring(
+            match: re.Match[str],
+            replacement_docstring: str = class_docstring,
+        ) -> str:
+            return match.group(1) + replacement_docstring
+
+        updated, replaced = class_pattern.subn(
+            _replace_class_docstring,
+            content,
+            count=1,
+        )
+        if replaced == 0:
+            continue
+        if updated != content:
+            model_path.write_text(updated, encoding="utf-8")
+
+
+def _operation_arg_descriptions(
+    operation: dict[str, Any],
+) -> dict[str, str]:
+    arg_descriptions: dict[str, str] = {}
+    for parameter in operation.get("parameters", []):
+        if not isinstance(parameter, dict):
+            continue
+        parameter_name = parameter.get("name")
+        parameter_description = parameter.get("description")
+        if not isinstance(parameter_name, str) or not isinstance(
+            parameter_description, str
+        ):
+            continue
+        arg_descriptions[_snake_case_name(parameter_name)] = (
+            parameter_description.strip()
+        )
+
+    request_body = operation.get("requestBody")
+    if isinstance(request_body, dict):
+        request_body_description = request_body.get("description")
+        if (
+            isinstance(request_body_description, str)
+            and request_body_description.strip()
+        ):
+            arg_descriptions["body"] = request_body_description.strip()
+        else:
+            arg_descriptions["body"] = (
+                "Request body payload for this operation."
+            )
+    return arg_descriptions
+
+
+def _operation_function_parameters(
+    parameter_block: str,
+) -> list[tuple[str, str]]:
+    parameters: list[tuple[str, str]] = []
+    for raw_line in parameter_block.splitlines():
+        line = raw_line.strip().rstrip(",")
+        if not line or line == "*":
+            continue
+        if ":" not in line:
+            continue
+        name, remainder = line.split(":", 1)
+        annotation = remainder.split("=", 1)[0].strip()
+        parameters.append((name.strip(), annotation))
+    return parameters
+
+
+def _build_python_operation_docstring(
+    *,
+    operation: dict[str, Any],
+    function_name: str,
+    parameter_block: str,
+    return_type: str,
+) -> str | None:
+    summary = operation.get("summary")
+    description = operation.get("description")
+    if not isinstance(summary, str) and not isinstance(description, str):
+        return None
+    lines: list[str] = []
+    if isinstance(summary, str) and summary.strip():
+        lines.extend(_wrap_doc_line(summary.strip()))
+    if isinstance(description, str) and description.strip():
+        if lines:
+            lines.append("")
+        lines.extend(_wrap_doc_line(description.strip()))
+    if not lines:
+        return None
+    arg_descriptions = _operation_arg_descriptions(operation)
+    parameters = _operation_function_parameters(parameter_block)
+    if parameters:
+        lines.extend(["", "Args:"])
+        for parameter_name, annotation in parameters:
+            if parameter_name == "client":
+                parameter_description = (
+                    "SDK client used to send the request and parse the "
+                    "response."
+                )
+            else:
+                parameter_description = arg_descriptions.get(
+                    parameter_name,
+                    "Request option passed through to the generated client "
+                    "helper.",
+                )
+            lines.extend(
+                _wrap_google_doc_entry(
+                    label=f"{parameter_name} ({annotation})",
+                    description=parameter_description,
+                )
+            )
+
+    if function_name.endswith("_detailed"):
+        return_description = (
+            "Detailed HTTP response wrapper containing the parsed response "
+            "payload."
+        )
+    else:
+        return_description = (
+            "Parsed response payload, or ``None`` when unexpected statuses "
+            "are ignored by the client."
+        )
+    lines.extend(["", "Returns:"])
+    lines.extend(
+        _wrap_google_doc_entry(
+            label=return_type.strip(),
+            description=return_description,
+        )
+    )
+    lines.extend(["", "Raises:"])
+    lines.extend(
+        _wrap_google_doc_entry(
+            label="errors.UnexpectedStatus",
+            description=(
+                "If ``client.raise_on_unexpected_status`` is enabled and the "
+                "API returns an undocumented status code."
+            ),
+        )
+    )
+    return _docstring_block(indent="    ", lines=lines)
+
+
+def _apply_python_operation_reference_docs(
+    root: Path,
+    *,
+    spec: dict[str, Any],
+) -> None:
+    paths = cast(dict[str, Any], spec.get("paths", {}))
+    function_doc_pattern = re.compile(
+        r"(?P<prefix>def "
+        r"(?P<name>sync_detailed|sync|asyncio_detailed|asyncio)\(\n"
+        r"(?P<params>[\s\S]*?)\)\s*-> (?P<return_type>[^:]+):\n)"
+        r"(?P<doc>    \"\"\"[\s\S]*?\"\"\"\n)",
+        flags=re.DOTALL,
+    )
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            operation_id = operation.get("operationId")
+            tags = operation.get("tags")
+            if not isinstance(operation_id, str):
+                continue
+            if (
+                not isinstance(tags, list)
+                or not tags
+                or not isinstance(tags[0], str)
+            ):
+                continue
+            module_path = root / "api" / tags[0] / f"{operation_id}.py"
+            if not module_path.exists():
+                continue
+            content = module_path.read_text(encoding="utf-8")
+
+            def _replace_docstring(
+                match: re.Match[str],
+                operation_doc: dict[str, Any] = operation,
+            ) -> str:
+                replacement_docstring = _build_python_operation_docstring(
+                    operation=operation_doc,
+                    function_name=match.group("name"),
+                    parameter_block=match.group("params"),
+                    return_type=match.group("return_type"),
+                )
+                if replacement_docstring is None:
+                    return match.group(0)
+                return match.group("prefix") + replacement_docstring
+
+            updated, replaced = function_doc_pattern.subn(
+                _replace_docstring,
+                content,
+            )
+            if replaced == 0:
+                continue
+            if updated != content:
+                module_path.write_text(updated, encoding="utf-8")
+
+
+def _normalize_single_line_docstrings(root: Path) -> None:
+    pattern = re.compile(
+        r'(?m)^(?P<indent>\s*)"""\s*(?P<text>[^"\n][^\n]*?)\s*"""$'
+    )
+    for path in sorted(root.rglob("*.py")):
+        content = path.read_text(encoding="utf-8")
+        updated = pattern.sub(
+            lambda match: _python_single_line_docstring(
+                match.group("indent"),
+                match.group("text"),
+            ),
+            content,
+        )
+        if updated != content:
+            path.write_text(updated, encoding="utf-8")
 
 
 def _filter_internal_operations_for_public_sdk(
@@ -640,41 +962,22 @@ class ValidationErrorContext:
     )
 
 
-def _apply_python_sdk_repairs(root: Path, package_name: str) -> None:
+def _apply_python_sdk_repairs(
+    root: Path,
+    package_name: str,
+    *,
+    spec: dict[str, Any] | None = None,
+) -> None:
+    if spec is not None:
+        _apply_python_model_reference_docs(root, spec=spec)
+        _apply_python_operation_reference_docs(root, spec=spec)
+    _normalize_single_line_docstrings(root)
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
     _repair_sign_parts_request_checksum_parser(root)
     _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
-    _repair_blank_model_docstrings(root)
-    _repair_model_docstring_indentation(root)
-
-
-def _repair_model_docstring_indentation(root: Path) -> None:
-    model_dir = root / "models"
-    if not model_dir.exists():
-        return
-    for path in sorted(model_dir.glob("*.py")):
-        lines = path.read_text(encoding="utf-8").splitlines()
-        updated_lines: list[str] = []
-        in_attributes_block = False
-        for line in lines:
-            if line == "        Attributes:":
-                updated_lines.append("    Attributes:")
-                in_attributes_block = True
-                continue
-            if in_attributes_block:
-                if line.startswith("            ") and line.strip():
-                    updated_lines.append(line[4:])
-                    continue
-                if line.strip() in {'"""', "'''"} or not line.strip():
-                    in_attributes_block = False
-            updated_lines.append(line)
-        updated = "\n".join(updated_lines) + "\n"
-        original = "\n".join(lines) + "\n"
-        if updated != original:
-            path.write_text(updated, encoding="utf-8")
 
 
 def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:
@@ -691,45 +994,6 @@ def _repair_relative_imports_to_absolute(root: Path, package_name: str) -> None:
         )
         if updated != content:
             path.write_text(updated, encoding="utf-8")
-
-
-def _render_model_docstring(class_name: str) -> str:
-    return f'    """Model representing {class_name}."""\n'
-
-
-def _render_blank_model_docstring_replacement(
-    match: re.Match[str],
-    *,
-    class_name: str,
-) -> str:
-    return f'{match.group("indent")}"""Model representing {class_name}."""\n'
-
-
-def _repair_blank_model_docstrings(root: Path) -> None:
-    model_dir = root / "models"
-    if not model_dir.exists():
-        return
-
-    for path in sorted(model_dir.glob("*.py")):
-        content = path.read_text(encoding="utf-8")
-        class_name = "".join(part.capitalize() for part in path.stem.split("_"))
-        replacement = partial(
-            _render_blank_model_docstring_replacement,
-            class_name=class_name,
-        )
-
-        for pattern in (
-            re.compile(r'(?m)^(?P<indent>\s*)"""\s+"""\s*$'),
-            re.compile(r'(?m)^(?P<indent>\s*)"""\s*\n\s*"""\s*$'),
-        ):
-            updated, replaced = pattern.subn(
-                replacement,
-                content,
-                count=1,
-            )
-            if replaced:
-                path.write_text(updated, encoding="utf-8")
-                break
 
 
 def _run_command(*, command: list[str], timeout: int, description: str) -> None:
@@ -859,7 +1123,11 @@ def _generate_target_tree(
         description=f"openapi-python-client generation for {target.spec_path}",
     )
 
-    _apply_python_sdk_repairs(destination, target.package_name)
+    _apply_python_sdk_repairs(
+        destination,
+        target.package_name,
+        spec=filtered_spec,
+    )
     _run_generated_ruff(destination)
     return destination
 

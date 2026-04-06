@@ -18,21 +18,28 @@ T = TypeVar("T", bound="UploadIntrospectionResponse")
 
 @_attrs_define
 class UploadIntrospectionResponse:
-    """Multipart upload introspection response.
+    """
+    Multipart upload introspection response.
 
     Attributes:
-        bucket (str):
-        key (str):
-        part_size_bytes (int):
-        parts (list[UploadedPart]):
-        upload_id (str):
+        bucket: Bucket that owns the multipart upload.
+        key: Storage key reserved for the multipart upload.
+        part_size_bytes: Configured multipart part size in bytes for this
+        session.
+        parts: Multipart parts that have already been uploaded.
+        upload_id: S3 multipart upload identifier.
     """
 
     bucket: str
+    """Bucket that owns the multipart upload."""
     key: str
+    """Storage key reserved for the multipart upload."""
     part_size_bytes: int
+    """Configured multipart part size in bytes for this session."""
     parts: list[UploadedPart]
+    """Multipart parts that have already been uploaded."""
     upload_id: str
+    """S3 multipart upload identifier."""
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

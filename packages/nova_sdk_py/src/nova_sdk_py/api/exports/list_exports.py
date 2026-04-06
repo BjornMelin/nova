@@ -76,22 +76,25 @@ def sync_detailed(
     client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> Response[ErrorEnvelope | ExportListResponse]:
-    """List Exports
+    """
+    List export workflows
 
-     List caller-owned exports with most recent first.
-
-    This endpoint is intentionally eventual because it is backed by a scoped
-    DynamoDB global secondary index.
+    List caller-owned export workflow resources with the most recent exports
+    first.
 
     Args:
-        limit (int | Unset):  Default: 50.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
 
     Returns:
-        Response[ErrorEnvelope | ExportListResponse]
+        Response[ErrorEnvelope | ExportListResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -110,22 +113,25 @@ def sync(
     client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> ErrorEnvelope | ExportListResponse | None:
-    """List Exports
+    """
+    List export workflows
 
-     List caller-owned exports with most recent first.
-
-    This endpoint is intentionally eventual because it is backed by a scoped
-    DynamoDB global secondary index.
+    List caller-owned export workflow resources with the most recent exports
+    first.
 
     Args:
-        limit (int | Unset):  Default: 50.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
 
     Returns:
-        ErrorEnvelope | ExportListResponse | None
+        ErrorEnvelope | ExportListResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -139,22 +145,25 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> Response[ErrorEnvelope | ExportListResponse]:
-    """List Exports
+    """
+    List export workflows
 
-     List caller-owned exports with most recent first.
-
-    This endpoint is intentionally eventual because it is backed by a scoped
-    DynamoDB global secondary index.
+    List caller-owned export workflow resources with the most recent exports
+    first.
 
     Args:
-        limit (int | Unset):  Default: 50.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
 
     Returns:
-        Response[ErrorEnvelope | ExportListResponse]
+        Response[ErrorEnvelope | ExportListResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -171,22 +180,25 @@ async def asyncio(
     client: AuthenticatedClient,
     limit: int | Unset = 50,
 ) -> ErrorEnvelope | ExportListResponse | None:
-    """List Exports
+    """
+    List export workflows
 
-     List caller-owned exports with most recent first.
-
-    This endpoint is intentionally eventual because it is backed by a scoped
-    DynamoDB global secondary index.
+    List caller-owned export workflow resources with the most recent exports
+    first.
 
     Args:
-        limit (int | Unset):  Default: 50.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
 
     Returns:
-        ErrorEnvelope | ExportListResponse | None
+        ErrorEnvelope | ExportListResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

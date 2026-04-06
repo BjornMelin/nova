@@ -46,6 +46,44 @@ _CORS_ALLOWED_HEADERS = [
 ]
 _CORS_ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
 _CORS_EXPOSE_HEADERS = ["ETag", "X-Request-Id"]
+_OPENAPI_DESCRIPTION = (
+    "Typed control-plane API for direct-to-S3 uploads, presigned downloads, "
+    "and durable export workflows.\n\n"
+    "This API coordinates transfer policy discovery, multipart session state, "
+    "and export workflow lifecycle metadata. It is not a bulk data-plane "
+    "proxy; clients transfer object bytes directly with S3 using the returned "
+    "metadata."
+)
+_OPENAPI_TAGS = [
+    {
+        "name": "transfers",
+        "description": (
+            "Direct-to-S3 upload and download planning endpoints, including "
+            "multipart session orchestration."
+        ),
+    },
+    {
+        "name": "exports",
+        "description": (
+            "Durable export workflow resources used to create, inspect, list, "
+            "and cancel caller-owned exports."
+        ),
+    },
+    {
+        "name": "platform",
+        "description": (
+            "Capability, release, and supportability endpoints that describe "
+            "the current deployment contract."
+        ),
+    },
+    {
+        "name": "ops",
+        "description": (
+            "Operational liveness, readiness, and metrics endpoints for "
+            "runtime health and observability."
+        ),
+    },
+]
 
 # Cap HTTPValidationError.detail[] (FastAPI how-to: extending-openapi).
 _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS = 256
@@ -56,6 +94,18 @@ _HTTP_VALIDATION_ERROR_DESCRIPTION = (
 _VALIDATION_ERROR_DESCRIPTION = (
     "One request-validation issue with location, message, and error type."
 )
+_HTTP_VALIDATION_ERROR_DETAIL_DESCRIPTION = (
+    "Collection of request-validation issues returned by FastAPI."
+)
+_VALIDATION_ERROR_PROPERTY_DESCRIPTIONS = {
+    "ctx": "Optional structured context attached to the validation issue.",
+    "input": (
+        "Original input value that failed validation when FastAPI exposes it."
+    ),
+    "loc": "Ordered location path that identifies the invalid request field.",
+    "msg": "Human-readable validation message.",
+    "type": "Machine-readable validation error type identifier.",
+}
 
 
 def _patch_http_validation_error_detail_max_items(
@@ -85,7 +135,27 @@ def _patch_http_validation_error_detail_max_items(
         else None
     )
     if isinstance(detail, dict) and detail.get("type") == "array":
+        detail.setdefault(
+            "description",
+            _HTTP_VALIDATION_ERROR_DETAIL_DESCRIPTION,
+        )
         detail["maxItems"] = _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS
+    validation_error_properties = (
+        validation_error.get("properties", {})
+        if isinstance(validation_error, dict)
+        else None
+    )
+    if isinstance(validation_error_properties, dict):
+        for (
+            property_name,
+            property_description,
+        ) in _VALIDATION_ERROR_PROPERTY_DESCRIPTIONS.items():
+            property_schema = validation_error_properties.get(property_name)
+            if isinstance(property_schema, dict):
+                property_schema.setdefault(
+                    "description",
+                    property_description,
+                )
     loc = (
         validation_error.get("properties", {}).get("loc")
         if isinstance(validation_error, dict)
@@ -278,9 +348,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="nova-file-api",
+        description=_OPENAPI_DESCRIPTION,
         version=settings.app_version,
         lifespan=lifespan,
         middleware=_cors_middleware(settings=settings),
+        openapi_tags=_OPENAPI_TAGS,
         strict_content_type=True,
     )
     app.add_middleware(cast(Any, RequestContextASGIMiddleware))

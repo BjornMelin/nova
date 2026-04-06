@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nova_file_api.workflow_facade import ExportTransferConfig
 from nova_runtime_support.file_transfer_shared_settings import (
+    ConfiguredOptionalEnvString,
     FileTransferSharedEnvFields,
 )
 
@@ -37,11 +38,11 @@ class WorkflowSettings(FileTransferSharedEnvFields, BaseSettings):
         ge=60,
         le=24 * 60 * 60,
     )
-    file_transfer_export_copy_parts_table: str | None = Field(
+    file_transfer_export_copy_parts_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
     )
-    file_transfer_export_copy_queue_url: str | None = Field(
+    file_transfer_export_copy_queue_url: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
     )
@@ -60,7 +61,7 @@ class WorkflowSettings(FileTransferSharedEnvFields, BaseSettings):
         default=True,
         validation_alias="EXPORTS_ENABLED",
     )
-    exports_dynamodb_table: str | None = Field(
+    exports_dynamodb_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="EXPORTS_DYNAMODB_TABLE",
     )
@@ -72,9 +73,7 @@ class WorkflowSettings(FileTransferSharedEnvFields, BaseSettings):
     @model_validator(mode="after")
     def validate_exports_dynamodb_table(self) -> WorkflowSettings:
         """Require durable export state storage when exports are enabled."""
-        if self.exports_enabled and not (
-            self.exports_dynamodb_table and self.exports_dynamodb_table.strip()
-        ):
+        if self.exports_enabled and self.exports_dynamodb_table is None:
             raise ValueError(
                 "EXPORTS_DYNAMODB_TABLE must be configured when "
                 "EXPORTS_ENABLED=true"
@@ -84,8 +83,8 @@ class WorkflowSettings(FileTransferSharedEnvFields, BaseSettings):
     @model_validator(mode="after")
     def validate_export_copy_worker_backends_pair(self) -> WorkflowSettings:
         """Require copy-parts table and worker queue together."""
-        table = (self.file_transfer_export_copy_parts_table or "").strip()
-        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        table = self.file_transfer_export_copy_parts_table
+        queue = self.file_transfer_export_copy_queue_url
         if bool(table) != bool(queue):
             raise ValueError(
                 "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "
@@ -101,8 +100,8 @@ class WorkflowSettings(FileTransferSharedEnvFields, BaseSettings):
         """Require queued copy backends when durable exports are enabled."""
         if not self.exports_enabled:
             return self
-        table = (self.file_transfer_export_copy_parts_table or "").strip()
-        queue = (self.file_transfer_export_copy_queue_url or "").strip()
+        table = self.file_transfer_export_copy_parts_table
+        queue = self.file_transfer_export_copy_queue_url
         if not table or not queue:
             raise ValueError(
                 "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE and "

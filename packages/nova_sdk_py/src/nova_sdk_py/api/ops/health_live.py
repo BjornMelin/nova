@@ -47,16 +47,22 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[HealthResponse]:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
+    Return a shallow liveness signal for the API runtime process.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[HealthResponse]
+        Response[HealthResponse]: Detailed HTTP response wrapper containing
+            the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +78,22 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> HealthResponse | None:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
+    Return a shallow liveness signal for the API runtime process.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        HealthResponse | None
+        HealthResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -93,16 +105,22 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[HealthResponse]:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
+    Return a shallow liveness signal for the API runtime process.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[HealthResponse]
+        Response[HealthResponse]: Detailed HTTP response wrapper containing
+            the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +134,22 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> HealthResponse | None:
-    """Health Live
+    """
+    Check liveness
 
-     Return liveness status.
+    Return a shallow liveness signal for the API runtime process.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        HealthResponse | None
+        HealthResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

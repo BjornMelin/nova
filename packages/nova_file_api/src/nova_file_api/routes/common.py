@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import Header, Query
+from fastapi import Header, Path, Query
 
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request
@@ -16,9 +16,33 @@ OpenApiResponses = dict[int | str, OpenApiResponse]
 
 IdempotencyKeyHeader = Annotated[
     str | None,
-    Header(alias="Idempotency-Key"),
+    Header(
+        alias="Idempotency-Key",
+        description=(
+            "Client-supplied idempotency key used to deduplicate supported "
+            "mutation requests."
+        ),
+    ),
 ]
-ExportsLimitQuery = Annotated[int, Query(ge=1, le=200)]
+ExportIdPath = Annotated[
+    str,
+    Path(
+        min_length=1,
+        max_length=128,
+        description="Identifier of the caller-owned export workflow resource.",
+    ),
+]
+ExportsLimitQuery = Annotated[
+    int,
+    Query(
+        ge=1,
+        le=200,
+        description=(
+            "Maximum number of caller-owned export workflow resources to "
+            "return, ordered newest first."
+        ),
+    ),
+]
 
 
 def _response(

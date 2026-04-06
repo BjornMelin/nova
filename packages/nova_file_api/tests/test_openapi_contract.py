@@ -260,6 +260,43 @@ def test_openapi_schema_generation_smoke() -> None:
     ] == (
         "One request-validation issue with location, message, and error type."
     )
+    assert schema["info"]["description"] == (
+        "Typed control-plane API for direct-to-S3 uploads, presigned "
+        "downloads, and durable export workflows.\n\n"
+        "This API coordinates transfer policy discovery, multipart session "
+        "state, and export workflow lifecycle metadata. It is not a bulk "
+        "data-plane proxy; clients transfer object bytes directly with S3 "
+        "using the returned metadata."
+    )
+
+
+def test_openapi_tag_descriptions_capture_runtime_domain_boundaries() -> None:
+    """OpenAPI tags should describe the active public API surface areas."""
+    app = _build_openapi_app()
+    schema = app.openapi()
+    tag_map = {
+        tag["name"]: tag["description"]
+        for tag in cast(list[dict[str, str]], schema["tags"])
+    }
+
+    assert tag_map == {
+        "transfers": (
+            "Direct-to-S3 upload and download planning endpoints, including "
+            "multipart session orchestration."
+        ),
+        "exports": (
+            "Durable export workflow resources used to create, inspect, list, "
+            "and cancel caller-owned exports."
+        ),
+        "platform": (
+            "Capability, release, and supportability endpoints that describe "
+            "the current deployment contract."
+        ),
+        "ops": (
+            "Operational liveness, readiness, and metrics endpoints for "
+            "runtime health and observability."
+        ),
+    }
 
 
 def test_openapi_declares_bearer_auth_scheme() -> None:
@@ -282,7 +319,9 @@ def test_openapi_route_declared_error_contracts() -> None:
     assert exports_post["201"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ExportResource"
     }
-    assert exports_post["201"]["description"] == "Successful Response"
+    assert exports_post["201"]["description"] == (
+        "Created export workflow resource."
+    )
     assert exports_post["409"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ErrorEnvelope"
     }
@@ -319,6 +358,103 @@ def test_openapi_route_declared_error_contracts() -> None:
     assert cancel_export_responses["404"]["content"]["application/json"][
         "schema"
     ] == {"$ref": "#/components/schemas/ErrorEnvelope"}
+
+
+def test_openapi_route_docs_use_explicit_summary_description_and_returns() -> (
+    None
+):
+    """Public operations should publish explicit summary and return text."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    initiate_upload = payload["paths"]["/v1/transfers/uploads/initiate"]["post"]
+    assert (
+        initiate_upload["summary"] == "Initiate a direct-to-S3 upload session"
+    )
+    assert initiate_upload["description"] == (
+        "Resolve the effective transfer policy for the caller and return the "
+        "presigned metadata needed to upload directly to S3."
+    )
+    assert initiate_upload["responses"]["200"]["description"] == (
+        "Resolved upload session metadata, policy hints, and presigned inputs."
+    )
+
+    transfer_caps = payload["paths"]["/v1/capabilities/transfers"]["get"]
+    assert transfer_caps["summary"] == "Get the effective transfer policy"
+    assert transfer_caps["description"] == (
+        "Expose the current transfer policy envelope that browser and native "
+        "upload clients should honor."
+    )
+    assert transfer_caps["responses"]["200"]["description"] == (
+        "Effective transfer policy metadata and limits."
+    )
+
+
+def test_openapi_parameters_and_schema_fields_expose_reference_docs() -> None:
+    """OpenAPI should expose parameter and field descriptions for SDK refs."""
+    app = _build_openapi_app()
+    payload = app.openapi()
+
+    create_export_headers = payload["paths"]["/v1/exports"]["post"][
+        "parameters"
+    ]
+    create_export_headers_by_name = {
+        parameter["name"]: parameter for parameter in create_export_headers
+    }
+    assert create_export_headers_by_name["Idempotency-Key"]["description"] == (
+        "Client-supplied idempotency key used to deduplicate supported "
+        "mutation requests."
+    )
+
+    get_export_params = payload["paths"]["/v1/exports/{export_id}"]["get"][
+        "parameters"
+    ]
+    get_export_params_by_name = {
+        parameter["name"]: parameter for parameter in get_export_params
+    }
+    assert get_export_params_by_name["export_id"]["description"] == (
+        "Identifier of the caller-owned export workflow resource."
+    )
+
+    list_exports_params = payload["paths"]["/v1/exports"]["get"]["parameters"]
+    list_exports_params_by_name = {
+        parameter["name"]: parameter for parameter in list_exports_params
+    }
+    assert list_exports_params_by_name["limit"]["description"] == (
+        "Maximum number of caller-owned export workflow resources to return, "
+        "ordered newest first."
+    )
+
+    capability_params = payload["paths"]["/v1/capabilities/transfers"]["get"][
+        "parameters"
+    ]
+    capability_params_by_name = {
+        parameter["name"]: parameter for parameter in capability_params
+    }
+    assert capability_params_by_name["workload_class"]["description"] == (
+        "Optional workload-class hint used to resolve a narrower effective "
+        "transfer policy."
+    )
+
+    export_resource = payload["components"]["schemas"]["ExportResource"][
+        "properties"
+    ]
+    assert export_resource["export_id"]["description"] == (
+        "Identifier of the caller-owned export workflow resource."
+    )
+    assert export_resource["status"]["description"] == (
+        "Current lifecycle state of the export workflow."
+    )
+
+    initiate_upload_response = payload["components"]["schemas"][
+        "InitiateUploadResponse"
+    ]["properties"]
+    assert initiate_upload_response["max_concurrency_hint"]["description"] == (
+        "Suggested maximum number of concurrent client uploads."
+    )
+    assert initiate_upload_response["session_id"]["description"] == (
+        "Durable upload-session identifier used for resume flows."
+    )
 
 
 def test_openapi_uses_bearer_security_scheme_only() -> None:

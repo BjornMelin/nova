@@ -59,6 +59,14 @@ transfer_router = APIRouter(
     "/uploads/initiate",
     operation_id=INITIATE_UPLOAD_OPERATION_ID,
     response_model=InitiateUploadResponse,
+    summary="Initiate a direct-to-S3 upload session",
+    description=(
+        "Resolve the effective transfer policy for the caller and return the "
+        "presigned metadata needed to upload directly to S3."
+    ),
+    response_description=(
+        "Resolved upload session metadata, policy hints, and presigned inputs."
+    ),
     responses=IDEMPOTENCY_CONFLICT_RESPONSE | IDEMPOTENCY_UNAVAILABLE_RESPONSE,
 )
 async def initiate_upload(
@@ -166,6 +174,11 @@ async def initiate_upload(
     "/uploads/sign-parts",
     operation_id=SIGN_UPLOAD_PARTS_OPERATION_ID,
     response_model=SignPartsResponse,
+    summary="Sign multipart upload parts",
+    description=(
+        "Return presigned URLs for the requested multipart upload part numbers."
+    ),
+    response_description="Presigned multipart part URLs and their TTL.",
 )
 async def sign_upload_parts(
     payload: SignPartsRequest,
@@ -228,6 +241,14 @@ async def sign_upload_parts(
     "/uploads/introspect",
     operation_id=INTROSPECT_UPLOAD_OPERATION_ID,
     response_model=UploadIntrospectionResponse,
+    summary="Inspect multipart upload state",
+    description=(
+        "Return the persisted multipart session state so browser or native "
+        "clients can resume an interrupted upload."
+    ),
+    response_description=(
+        "Current multipart upload state, including uploaded parts."
+    ),
 )
 async def introspect_upload(
     payload: UploadIntrospectionRequest,
@@ -301,6 +322,12 @@ async def introspect_upload(
     "/uploads/complete",
     operation_id=COMPLETE_UPLOAD_OPERATION_ID,
     response_model=CompleteUploadResponse,
+    summary="Complete a multipart upload",
+    description=(
+        "Finalize a multipart upload after the caller has uploaded every "
+        "required part."
+    ),
+    response_description="Completed object metadata for the finalized upload.",
 )
 async def complete_upload(
     payload: CompleteUploadRequest,
@@ -363,6 +390,13 @@ async def complete_upload(
     "/uploads/abort",
     operation_id=ABORT_UPLOAD_OPERATION_ID,
     response_model=AbortUploadResponse,
+    summary="Abort a multipart upload",
+    description=(
+        "Cancel an in-progress multipart upload and discard any staged parts."
+    ),
+    response_description=(
+        "Acknowledgement that the multipart upload was aborted."
+    ),
 )
 async def abort_upload(
     payload: AbortUploadRequest,
@@ -425,6 +459,14 @@ async def abort_upload(
     "/downloads/presign",
     operation_id=PRESIGN_DOWNLOAD_OPERATION_ID,
     response_model=PresignDownloadResponse,
+    summary="Presign a direct download",
+    description=(
+        "Return a time-limited download URL for an object the caller is "
+        "authorized to access."
+    ),
+    response_description=(
+        "Presigned download URL and associated object metadata."
+    ),
 )
 async def presign_download(
     payload: PresignDownloadRequest,

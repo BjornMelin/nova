@@ -10,19 +10,25 @@ T = TypeVar("T", bound="PresignDownloadResponse")
 
 @_attrs_define
 class PresignDownloadResponse:
-    """Presign download response.
+    """
+    Presign download response.
 
     Attributes:
-        bucket (str):
-        expires_in_seconds (int):
-        key (str):
-        url (str):
+        bucket: Bucket that owns the downloadable object.
+        expires_in_seconds: Seconds until the presigned download URL
+        expires.
+        key: Storage key of the downloadable object.
+        url: Presigned download URL for the requested object.
     """
 
     bucket: str
+    """Bucket that owns the downloadable object."""
     expires_in_seconds: int
+    """Seconds until the presigned download URL expires."""
     key: str
+    """Storage key of the downloadable object."""
     url: str = _attrs_field(repr=False)
+    """Presigned download URL for the requested object."""
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

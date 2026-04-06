@@ -88,20 +88,26 @@ def sync_detailed(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        Response[ErrorEnvelope | ExportResource]
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -122,20 +128,26 @@ def sync(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        ErrorEnvelope | ExportResource | None
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -151,20 +163,26 @@ async def asyncio_detailed(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> Response[ErrorEnvelope | ExportResource]:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        Response[ErrorEnvelope | ExportResource]
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -183,20 +201,26 @@ async def asyncio(
     body: CreateExportRequest,
     idempotency_key: None | str | Unset = UNSET,
 ) -> ErrorEnvelope | ExportResource | None:
-    """Create Export
+    """
+    Create an export workflow
 
-     Create an explicit export workflow resource.
+    Create a caller-owned export resource that copies a source object into a
+    download-oriented export output.
 
     Args:
-        idempotency_key (None | str | Unset):
-        body (CreateExportRequest): Request payload for export creation.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
 
     Returns:
-        ErrorEnvelope | ExportResource | None
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

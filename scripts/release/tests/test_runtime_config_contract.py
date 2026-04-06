@@ -96,3 +96,16 @@ def test_runtime_contract_tracks_api_release_digest_and_stepfunctions_env() -> (
     assert "EXPORTS_ENABLED" in workflow_env
     assert "EXPORTS_DYNAMODB_TABLE" in workflow_env
     assert "EXPORT_WORKFLOW_STATE_MACHINE_ARN" not in workflow_env
+
+
+def test_runtime_contract_type_labels_drop_annotated_validation_metadata() -> (
+    None
+):
+    """Contract type labels should expose semantic types, not metadata."""
+    contracts_by_field = {
+        contract.field_name: contract
+        for contract in runtime_setting_contracts()
+    }
+
+    assert contracts_by_field["file_transfer_bucket"].type_label == "str | None"
+    assert contracts_by_field["oidc_issuer"].type_label == "str | None"

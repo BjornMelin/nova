@@ -20,15 +20,18 @@ T = TypeVar("T", bound="SignPartsResponse")
 
 @_attrs_define
 class SignPartsResponse:
-    """Multipart sign-parts response.
+    """
+    Multipart sign-parts response.
 
     Attributes:
-        expires_in_seconds (int):
-        urls (SignPartsResponseUrls):
+        expires_in_seconds: Seconds until the presigned part URLs expire.
+        urls: Presigned upload URL for each requested multipart part number.
     """
 
     expires_in_seconds: int
+    """Seconds until the presigned part URLs expire."""
     urls: SignPartsResponseUrls
+    """Presigned upload URL for each requested multipart part number."""
 
     def to_dict(self) -> dict[str, Any]:
         expires_in_seconds = self.expires_in_seconds

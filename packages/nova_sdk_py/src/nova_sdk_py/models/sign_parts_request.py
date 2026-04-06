@@ -23,21 +23,28 @@ T = TypeVar("T", bound="SignPartsRequest")
 
 @_attrs_define
 class SignPartsRequest:
-    """Multipart sign-parts request.
+    """
+    Multipart sign-parts request.
 
     Attributes:
-        key (str):
-        part_numbers (list[int]):
-        upload_id (str):
-        checksums_sha256 (None | SignPartsRequestChecksumsSha256Type0 | Unset):
+        checksums_sha256: Optional SHA-256 checksum map keyed by multipart
+        part number.
+        key: Storage key reserved for the multipart upload.
+        part_numbers: Multipart part numbers to sign in this request.
+        upload_id: S3 multipart upload identifier returned by initiate
+        upload.
     """
 
     key: str
+    """Storage key reserved for the multipart upload."""
     part_numbers: list[int]
+    """Multipart part numbers to sign in this request."""
     upload_id: str
+    """S3 multipart upload identifier returned by initiate upload."""
     checksums_sha256: None | SignPartsRequestChecksumsSha256Type0 | Unset = (
         UNSET
     )
+    """Optional SHA-256 checksum map keyed by multipart part number."""
 
     def to_dict(self) -> dict[str, Any]:
         from nova_sdk_py.models.sign_parts_request_checksums_sha_256_type_0 import (

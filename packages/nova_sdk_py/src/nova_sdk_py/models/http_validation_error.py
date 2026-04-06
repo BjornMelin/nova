@@ -20,13 +20,15 @@ T = TypeVar("T", bound="HTTPValidationError")
 
 @_attrs_define
 class HTTPValidationError:
-    """Validation error envelope returned for invalid request payloads.
+    """
+    Validation error envelope returned for invalid request payloads.
 
     Attributes:
-        detail (list[ValidationError] | Unset):
+        detail: Collection of request-validation issues returned by FastAPI.
     """
 
     detail: list[ValidationError] | Unset = UNSET
+    """Collection of request-validation issues returned by FastAPI."""
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )

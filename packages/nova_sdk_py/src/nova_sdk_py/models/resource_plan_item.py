@@ -16,17 +16,22 @@ T = TypeVar("T", bound="ResourcePlanItem")
 
 @_attrs_define
 class ResourcePlanItem:
-    """Resource planning decision per requested resource.
+    """
+    Resource planning decision per requested resource.
 
     Attributes:
-        resource (str):
-        supported (bool):
-        reason (None | str | Unset):
+        reason: Machine-readable reason when the resource is not supported.
+        resource: Requested resource key.
+        supported: Whether the resource is supported in the current
+        deployment.
     """
 
     resource: str
+    """Requested resource key."""
     supported: bool
+    """Whether the resource is supported in the current deployment."""
     reason: None | str | Unset = UNSET
+    """Machine-readable reason when the resource is not supported."""
 
     def to_dict(self) -> dict[str, Any]:
         resource = self.resource

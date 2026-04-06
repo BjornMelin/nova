@@ -35,6 +35,7 @@ from nova_file_api.routes.common import (
     COMMON_ERROR_RESPONSES,
     EXPORT_MUTATION_UNAVAILABLE_RESPONSE,
     IDEMPOTENCY_CONFLICT_RESPONSE,
+    ExportIdPath,
     ExportsLimitQuery,
     IdempotencyKeyHeader,
     emit_request_metric,
@@ -55,6 +56,12 @@ exports_router = APIRouter(
     operation_id=CREATE_EXPORT_OPERATION_ID,
     response_model=ExportResource,
     status_code=status.HTTP_201_CREATED,
+    summary="Create an export workflow",
+    description=(
+        "Create a caller-owned export resource that copies a source object "
+        "into a download-oriented export output."
+    ),
+    response_description="Created export workflow resource.",
     responses=(
         IDEMPOTENCY_CONFLICT_RESPONSE | EXPORT_MUTATION_UNAVAILABLE_RESPONSE
     ),
@@ -94,6 +101,11 @@ async def create_export(
     "/exports/{export_id}",
     operation_id=GET_EXPORT_OPERATION_ID,
     response_model=ExportResource,
+    summary="Get an export workflow",
+    description=(
+        "Return the current state of a caller-owned export workflow resource."
+    ),
+    response_description="Current export workflow resource.",
     responses={
         404: {
             "model": ErrorEnvelope,
@@ -102,7 +114,7 @@ async def create_export(
     },
 )
 async def get_export(
-    export_id: str,
+    export_id: ExportIdPath,
     metrics: MetricsDep,
     export_service: ExportServiceDep,
     activity_store: ActivityStoreDep,
@@ -146,6 +158,12 @@ async def get_export(
     "/exports",
     operation_id=LIST_EXPORTS_OPERATION_ID,
     response_model=ExportListResponse,
+    summary="List export workflows",
+    description=(
+        "List caller-owned export workflow resources with the most recent "
+        "exports first."
+    ),
+    response_description="Page of caller-owned export workflow resources.",
 )
 async def list_exports(
     export_service: ExportServiceDep,
@@ -170,6 +188,14 @@ async def list_exports(
     "/exports/{export_id}/cancel",
     operation_id=CANCEL_EXPORT_OPERATION_ID,
     response_model=ExportResource,
+    summary="Cancel an export workflow",
+    description=(
+        "Persist cancel intent for a caller-owned export that has not yet "
+        "reached a terminal state."
+    ),
+    response_description=(
+        "Updated export workflow resource after cancel intent."
+    ),
     responses={
         404: {
             "model": ErrorEnvelope,
@@ -178,7 +204,7 @@ async def list_exports(
     },
 )
 async def cancel_export(
-    export_id: str,
+    export_id: ExportIdPath,
     metrics: MetricsDep,
     export_service: ExportServiceDep,
     activity_store: ActivityStoreDep,

@@ -64,19 +64,24 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> Response[ErrorEnvelope | ResourcePlanResponse]:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
+    Report whether each requested resource is currently supported in the
+    active deployment.
 
     Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
 
     Returns:
-        Response[ErrorEnvelope | ResourcePlanResponse]
+        Response[ErrorEnvelope | ResourcePlanResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -95,19 +100,25 @@ def sync(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> ErrorEnvelope | ResourcePlanResponse | None:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
+    Report whether each requested resource is currently supported in the
+    active deployment.
 
     Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
 
     Returns:
-        ErrorEnvelope | ResourcePlanResponse | None
+        ErrorEnvelope | ResourcePlanResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -121,19 +132,24 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> Response[ErrorEnvelope | ResourcePlanResponse]:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
+    Report whether each requested resource is currently supported in the
+    active deployment.
 
     Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
 
     Returns:
-        Response[ErrorEnvelope | ResourcePlanResponse]
+        Response[ErrorEnvelope | ResourcePlanResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -150,19 +166,25 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: ResourcePlanRequest,
 ) -> ErrorEnvelope | ResourcePlanResponse | None:
-    """Plan Resources
+    """
+    Plan resource support
 
-     Plan supportability for requested resource keys.
+    Report whether each requested resource is currently supported in the
+    active deployment.
 
     Args:
-        body (ResourcePlanRequest): Resource planning request body.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
 
     Returns:
-        ErrorEnvelope | ResourcePlanResponse | None
+        ErrorEnvelope | ResourcePlanResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

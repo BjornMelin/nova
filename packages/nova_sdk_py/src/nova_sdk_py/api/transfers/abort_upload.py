@@ -74,19 +74,23 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> Response[AbortUploadResponse | ErrorEnvelope]:
-    """Abort Upload
+    """
+    Abort a multipart upload
 
-     Abort multipart upload.
+    Cancel an in-progress multipart upload and discard any staged parts.
 
     Args:
-        body (AbortUploadRequest): Multipart abort request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (AbortUploadRequest): Request body payload for this operation.
 
     Returns:
-        Response[AbortUploadResponse | ErrorEnvelope]
+        Response[AbortUploadResponse | ErrorEnvelope]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +109,23 @@ def sync(
     client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> AbortUploadResponse | ErrorEnvelope | None:
-    """Abort Upload
+    """
+    Abort a multipart upload
 
-     Abort multipart upload.
+    Cancel an in-progress multipart upload and discard any staged parts.
 
     Args:
-        body (AbortUploadRequest): Multipart abort request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (AbortUploadRequest): Request body payload for this operation.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope | None
+        AbortUploadResponse | ErrorEnvelope | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -131,19 +139,23 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> Response[AbortUploadResponse | ErrorEnvelope]:
-    """Abort Upload
+    """
+    Abort a multipart upload
 
-     Abort multipart upload.
+    Cancel an in-progress multipart upload and discard any staged parts.
 
     Args:
-        body (AbortUploadRequest): Multipart abort request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (AbortUploadRequest): Request body payload for this operation.
 
     Returns:
-        Response[AbortUploadResponse | ErrorEnvelope]
+        Response[AbortUploadResponse | ErrorEnvelope]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +172,23 @@ async def asyncio(
     client: AuthenticatedClient,
     body: AbortUploadRequest,
 ) -> AbortUploadResponse | ErrorEnvelope | None:
-    """Abort Upload
+    """
+    Abort a multipart upload
 
-     Abort multipart upload.
+    Cancel an in-progress multipart upload and discard any staged parts.
 
     Args:
-        body (AbortUploadRequest): Multipart abort request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (AbortUploadRequest): Request body payload for this operation.
 
     Returns:
-        AbortUploadResponse | ErrorEnvelope | None
+        AbortUploadResponse | ErrorEnvelope | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

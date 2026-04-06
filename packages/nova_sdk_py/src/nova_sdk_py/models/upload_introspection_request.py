@@ -10,15 +10,18 @@ T = TypeVar("T", bound="UploadIntrospectionRequest")
 
 @_attrs_define
 class UploadIntrospectionRequest:
-    """Multipart upload introspection request.
+    """
+    Multipart upload introspection request.
 
     Attributes:
-        key (str):
-        upload_id (str):
+        key: Storage key reserved for the multipart upload.
+        upload_id: S3 multipart upload identifier being inspected.
     """
 
     key: str
+    """Storage key reserved for the multipart upload."""
     upload_id: str
+    """S3 multipart upload identifier being inspected."""
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

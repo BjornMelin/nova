@@ -18,13 +18,15 @@ T = TypeVar("T", bound="CapabilitiesResponse")
 
 @_attrs_define
 class CapabilitiesResponse:
-    """Capabilities endpoint response.
+    """
+    Capabilities endpoint response.
 
     Attributes:
-        capabilities (list[CapabilityDescriptor]):
+        capabilities: Capability declarations exposed by the running API.
     """
 
     capabilities: list[CapabilityDescriptor]
+    """Capability declarations exposed by the running API."""
 
     def to_dict(self) -> dict[str, Any]:
         capabilities = []

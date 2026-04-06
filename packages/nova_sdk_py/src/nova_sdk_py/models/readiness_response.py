@@ -20,15 +20,18 @@ T = TypeVar("T", bound="ReadinessResponse")
 
 @_attrs_define
 class ReadinessResponse:
-    """Readiness endpoint response body.
+    """
+    Readiness endpoint response body.
 
     Attributes:
-        checks (ReadinessResponseChecks):
-        ok (bool):
+        checks: Per-dependency readiness results keyed by check name.
+        ok: Whether every required traffic dependency is ready.
     """
 
     checks: ReadinessResponseChecks
+    """Per-dependency readiness results keyed by check name."""
     ok: bool
+    """Whether every required traffic dependency is ready."""
 
     def to_dict(self) -> dict[str, Any]:
         checks = self.checks.to_dict()

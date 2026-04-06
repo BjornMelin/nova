@@ -74,19 +74,25 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> Response[ErrorEnvelope | PresignDownloadResponse]:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
 
     Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
 
     Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+        Response[ErrorEnvelope | PresignDownloadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -105,19 +111,26 @@ def sync(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> ErrorEnvelope | PresignDownloadResponse | None:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
 
     Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+        ErrorEnvelope | PresignDownloadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -131,19 +144,25 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> Response[ErrorEnvelope | PresignDownloadResponse]:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
 
     Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
 
     Returns:
-        Response[ErrorEnvelope | PresignDownloadResponse]
+        Response[ErrorEnvelope | PresignDownloadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -160,19 +179,26 @@ async def asyncio(
     client: AuthenticatedClient,
     body: PresignDownloadRequest,
 ) -> ErrorEnvelope | PresignDownloadResponse | None:
-    """Presign Download
+    """
+    Presign a direct download
 
-     Issue presigned GET URL for caller-scoped key.
+    Return a time-limited download URL for an object the caller is
+    authorized to access.
 
     Args:
-        body (PresignDownloadRequest): Presign download request.
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
 
     Returns:
-        ErrorEnvelope | PresignDownloadResponse | None
+        ErrorEnvelope | PresignDownloadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

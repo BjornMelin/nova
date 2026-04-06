@@ -82,20 +82,27 @@ def sync_detailed(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | TransferCapabilitiesResponse]:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
 
     Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
 
     Returns:
-        Response[HTTPValidationError | TransferCapabilitiesResponse]
+        Response[HTTPValidationError | TransferCapabilitiesResponse]: Detailed
+            HTTP response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -116,20 +123,28 @@ def sync(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> HTTPValidationError | TransferCapabilitiesResponse | None:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
 
     Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
 
     Returns:
-        HTTPValidationError | TransferCapabilitiesResponse | None
+        HTTPValidationError | TransferCapabilitiesResponse | None: Parsed
+            response payload, or ``None`` when unexpected statuses are
+            ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -145,20 +160,27 @@ async def asyncio_detailed(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | TransferCapabilitiesResponse]:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
 
     Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
 
     Returns:
-        Response[HTTPValidationError | TransferCapabilitiesResponse]
+        Response[HTTPValidationError | TransferCapabilitiesResponse]: Detailed
+            HTTP response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -177,20 +199,28 @@ async def asyncio(
     workload_class: None | str | Unset = UNSET,
     policy_hint: None | str | Unset = UNSET,
 ) -> HTTPValidationError | TransferCapabilitiesResponse | None:
-    """Get Transfer Capabilities
+    """
+    Get the effective transfer policy
 
-     Expose the current transfer policy envelope.
+    Expose the current transfer policy envelope that browser and native
+    upload clients should honor.
 
     Args:
-        workload_class (None | str | Unset):
-        policy_hint (None | str | Unset):
-
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
 
     Returns:
-        HTTPValidationError | TransferCapabilitiesResponse | None
+        HTTPValidationError | TransferCapabilitiesResponse | None: Parsed
+            response payload, or ``None`` when unexpected statuses are
+            ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

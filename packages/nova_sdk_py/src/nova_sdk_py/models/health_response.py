@@ -10,13 +10,15 @@ T = TypeVar("T", bound="HealthResponse")
 
 @_attrs_define
 class HealthResponse:
-    """Health endpoint response body.
+    """
+    Health endpoint response body.
 
     Attributes:
-        ok (bool):
+        ok: Whether the runtime process is alive.
     """
 
     ok: bool
+    """Whether the runtime process is alive."""
 
     def to_dict(self) -> dict[str, Any]:
         ok = self.ok

@@ -47,16 +47,23 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReleaseInfoResponse]:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[ReleaseInfoResponse]
+        Response[ReleaseInfoResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -72,16 +79,23 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReleaseInfoResponse | None:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        ReleaseInfoResponse | None
+        ReleaseInfoResponse | None: Parsed response payload, or ``None``
+            when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -93,16 +107,23 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReleaseInfoResponse]:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[ReleaseInfoResponse]
+        Response[ReleaseInfoResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -116,16 +137,23 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReleaseInfoResponse | None:
-    """Get Release Info
+    """
+    Get public release metadata
 
-     Return public release metadata for browser and deploy canaries.
+    Return public release metadata used by browser clients, diagnostics, and
+    deploy canaries.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        ReleaseInfoResponse | None
+        ReleaseInfoResponse | None: Parsed response payload, or ``None``
+            when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

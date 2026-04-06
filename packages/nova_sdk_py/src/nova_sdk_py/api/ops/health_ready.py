@@ -52,16 +52,23 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReadinessResponse]:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[ReadinessResponse]
+        Response[ReadinessResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -77,16 +84,23 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReadinessResponse | None:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        ReadinessResponse | None
+        ReadinessResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -98,16 +112,23 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
 ) -> Response[ReadinessResponse]:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        Response[ReadinessResponse]
+        Response[ReadinessResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -121,16 +142,23 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
 ) -> ReadinessResponse | None:
-    """Health Ready
+    """
+    Check readiness
 
-     Return readiness checks for traffic-critical dependencies.
+    Return readiness checks for traffic-critical dependencies such as auth,
+    transfers, exports, and idempotency.
 
-    Raises:
-        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
-        httpx.TimeoutException: If the request takes longer than Client.timeout.
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
 
     Returns:
-        ReadinessResponse | None
+        ReadinessResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (
