@@ -2,8 +2,8 @@
 ADR: 0004
 Title: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine
 Status: Accepted
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-04-06
 Related:
   - "[ADR-0000: Implement the File Transfer API as a FastAPI service](./ADR-0000-fastapi-microservice.md)"
   - "[SPEC-0001: Security model](../spec/SPEC-0001-security-model.md)"
@@ -29,9 +29,13 @@ The existing package provides:
 - explicit algorithm allowlisting
 - dangerous header rejection (`jku`, `x5u`, `crit`)
 - JWKS retrieval and caching
+- public JWKS lifecycle/readiness APIs for startup and controlled readiness
+  probes
 - stable error semantics with RFC 6750 `WWW-Authenticate` header construction
 
-The package is synchronous. In FastAPI async dependencies, direct sync verification calls create event-loop blocking risk under cache misses/network delays.
+The current package supports Nova's async-native verifier path and verifier-owned
+JWKS lifecycle/readiness APIs, so Nova does not need a separate auth-service
+wrapper or private JWKS reach-ins.
 
 ## Alternatives
 
@@ -55,8 +59,12 @@ Choose option C: `oidc-jwt-verifier` is the canonical JWT/OIDC verification engi
 
 Implementation commitments:
 
-- `nova-file-api` provides `auth/oidc_verifier.py` as adapter layer.
-- Auth verification in async dependency path runs through threadpool boundary (`anyio.to_thread.run_sync` or equivalent).
+- `nova-file-api` owns in-process auth integration in
+  `src/nova_file_api/auth.py` and delegates JWT/JWKS lifecycle behavior to
+  `oidc-jwt-verifier`.
+- Auth verification on the canonical async request path uses
+  `oidc-jwt-verifier`'s async-native verifier, with verifier-owned JWKS
+  lifecycle/readiness APIs for startup and readiness probes.
 - Auth0 support remains first-class through OIDC config mapping (`issuer`, `audience`, `jwks_url`) without provider-locked verifier classes.
 
 ## Related Requirements
@@ -70,8 +78,12 @@ Implementation commitments:
 
 1. Security policy logic is centralized and reused across services.
 2. Provider lock-in is reduced; Auth0 remains supported via OIDC configuration.
-3. Async integration must enforce non-blocking boundaries to avoid throughput regressions.
+3. Runtime auth integration stays simpler because Nova can delegate request-time
+   verification plus startup/readiness JWKS checks to the same upstream
+   verifier owner.
 
 ## Changelog
 
 - 2026-02-12: Initial ADR accepted.
+- 2026-04-06: Updated the ADR to match Nova's async-native verifier
+  integration and the upstream verifier-owned readiness APIs.

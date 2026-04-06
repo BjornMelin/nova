@@ -2,8 +2,8 @@
 Spec: 0001
 Title: Security Model
 Status: Active
-Version: 1.7
-Date: 2026-03-20
+Version: 1.8
+Date: 2026-04-06
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
@@ -15,8 +15,6 @@ Related:
 References:
   - "[S3 presigned URL overview](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)"
   - "[AWS presigned URL best practices](https://docs.aws.amazon.com/prescriptive-guidance/latest/presigned-url-best-practices/introduction.html)"
-  - "[Starlette thread pool behavior](https://www.starlette.io/threadpool/)"
-  - "[AnyIO threads guidance](https://anyio.readthedocs.io/en/latest/threads.html)"
   - "[RFC 6750 Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750)"
   - "[RFC 8725 JWT Best Current Practices](https://datatracker.ietf.org/doc/html/rfc8725)"
 ---
@@ -48,8 +46,11 @@ not reference `nova-auth-api` or remote-auth runtime configuration.
 - Enforce issuer, audience, expiry, and not-before checks.
 - Enforce strict algorithm allowlist.
 - Reject dangerous JWT header parameters (`jku`, `x5u`, `crit`).
-- Synchronous verifier calls in async dependencies MUST run via threadpool
-  boundary (`anyio.to_thread.run_sync` or equivalent).
+- Nova's canonical async request path MUST use the process-scoped
+  `AsyncJWTVerifier`; do not introduce a threadpool boundary for that path.
+- If a future sync-only verifier path is introduced on an async request
+  surface, that explicit exception MUST run via a threadpool boundary
+  (`anyio.to_thread.run_sync` or equivalent).
 - When verification fails and a `401` is returned, implementations MUST include
   `WWW-Authenticate` per RFC 6750 and preserve verifier semantics from
   `AuthError.www_authenticate_header()` (including token error fields).
