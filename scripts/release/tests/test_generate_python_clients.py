@@ -124,7 +124,11 @@ def test_generate_target_invokes_generator_with_config_and_templates(
 
     assert target == tmp_path / "nova_sdk_py"
     assert formatted_roots == [target]
-    repair_spy.assert_called_once_with(target, generation_target.package_name)
+    repair_spy.assert_called_once_with(
+        target,
+        generation_target.package_name,
+        spec={"openapi": "3.1.0", "paths": {}},
+    )
     assert len(commands) == 1
     command, _timeout, description = commands[0]
     assert description == (

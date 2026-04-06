@@ -191,12 +191,14 @@ def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
     """Generated SDK docblocks should remain sentence-style TSDoc."""
     source = _load_source_text(TS_PACKAGE_DIR, "client/sdk.gen.ts")
 
-    assert "Expose the current transfer policy envelope." in source
+    assert "Get the effective transfer policy." in source
     assert (
-        "@returns The response from the "
-        "`getTransferCapabilities` operation." in source
+        "Expose the current transfer policy envelope that browser and native "
+        "upload clients should honor." in source
     )
-    assert "@returns The response from the `listExports` operation." in source
+    assert "@returns Effective transfer policy metadata and limits." in source
+    assert "Create an export workflow." in source
+    assert "@returns Created export workflow resource." in source
 
 
 def test_public_sdk_operation_docblocks_exclude_python_docstring_sections() -> (
@@ -244,4 +246,53 @@ def test_public_sdk_types_include_sentence_style_alias_docblocks() -> None:
         "error type.\n"
         " */\n"
         "export type ValidationError ="
+    ) in source
+
+
+def test_public_sdk_types_include_schema_property_reference_docs() -> None:
+    """Generated TS model aliases should expose schema field descriptions."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
+
+    assert (
+        "/**\n"
+        "     * Identifier of the caller-owned export workflow resource.\n"
+        "     */\n"
+        "    export_id: string;"
+    ) in source
+    assert (
+        "/**\n"
+        "     * Suggested maximum number of concurrent client uploads.\n"
+        "     */\n"
+        "    max_concurrency_hint: number;"
+    ) in source
+    assert (
+        "/**\n     * Stable capability identifier.\n     */\n    key: string;"
+    ) in source
+
+
+def test_public_sdk_request_data_types_include_parameter_docs() -> None:
+    """Generated TS request-data types should expose parameter descriptions."""
+    source = _load_source_text(TS_PACKAGE_DIR, "client/types.gen.ts")
+
+    assert (
+        "/**\n"
+        "         * Idempotency-Key\n"
+        "         *\n"
+        "         * Client-supplied idempotency key used to deduplicate "
+        "supported mutation requests.\n"
+        "         */\n"
+        "        'Idempotency-Key'?: string | null;"
+    ) in source
+    assert (
+        "/**\n"
+        "         * Identifier of the caller-owned export workflow resource.\n"
+        "         */\n"
+        "        export_id: string;"
+    ) in source
+    assert (
+        "/**\n"
+        "         * Optional workload-class hint used to resolve a narrower "
+        "effective transfer policy.\n"
+        "         */\n"
+        "        workload_class?: string | null;"
     ) in source
