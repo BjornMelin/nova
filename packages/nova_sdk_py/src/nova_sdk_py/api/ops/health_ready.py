@@ -57,6 +57,18 @@ def sync_detailed(
 
     Return readiness checks for traffic-critical dependencies such as auth,
     transfers, exports, and idempotency.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        Response[ReadinessResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -77,6 +89,18 @@ def sync(
 
     Return readiness checks for traffic-critical dependencies such as auth,
     transfers, exports, and idempotency.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        ReadinessResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -93,6 +117,18 @@ async def asyncio_detailed(
 
     Return readiness checks for traffic-critical dependencies such as auth,
     transfers, exports, and idempotency.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        Response[ReadinessResponse]: Detailed HTTP response wrapper
+            containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -111,6 +147,18 @@ async def asyncio(
 
     Return readiness checks for traffic-critical dependencies such as auth,
     transfers, exports, and idempotency.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        ReadinessResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

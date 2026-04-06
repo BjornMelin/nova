@@ -19,9 +19,9 @@ class UploadedPart:
     """
 
     etag: str
-    """ ETag returned by S3 for the uploaded multipart part. """
+    """ETag returned by S3 for the uploaded multipart part."""
     part_number: int
-    """ Multipart part number that has already been uploaded. """
+    """Multipart part number that has already been uploaded."""
 
     def to_dict(self) -> dict[str, Any]:
         etag = self.etag

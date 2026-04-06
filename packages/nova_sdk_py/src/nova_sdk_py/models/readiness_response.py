@@ -29,9 +29,9 @@ class ReadinessResponse:
     """
 
     checks: ReadinessResponseChecks
-    """ Per-dependency readiness results keyed by check name. """
+    """Per-dependency readiness results keyed by check name."""
     ok: bool
-    """ Whether every required traffic dependency is ready. """
+    """Whether every required traffic dependency is ready."""
 
     def to_dict(self) -> dict[str, Any]:
         checks = self.checks.to_dict()

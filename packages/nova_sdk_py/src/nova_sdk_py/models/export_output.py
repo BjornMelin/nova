@@ -19,9 +19,9 @@ class ExportOutput:
     """
 
     download_filename: str
-    """ Filename presented to clients when downloading. """
+    """Filename presented to clients when downloading."""
     key: str
-    """ Storage key for the exported object. """
+    """Storage key for the exported object."""
 
     def to_dict(self) -> dict[str, Any]:
         download_filename = self.download_filename

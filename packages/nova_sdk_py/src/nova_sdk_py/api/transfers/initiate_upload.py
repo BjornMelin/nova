@@ -93,6 +93,22 @@ def sync_detailed(
 
     Resolve the effective transfer policy for the caller and return the
     presigned metadata needed to upload directly to S3.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        Response[ErrorEnvelope | InitiateUploadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -118,6 +134,23 @@ def sync(
 
     Resolve the effective transfer policy for the caller and return the
     presigned metadata needed to upload directly to S3.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        ErrorEnvelope | InitiateUploadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -138,6 +171,22 @@ async def asyncio_detailed(
 
     Resolve the effective transfer policy for the caller and return the
     presigned metadata needed to upload directly to S3.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        Response[ErrorEnvelope | InitiateUploadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -161,6 +210,23 @@ async def asyncio(
 
     Resolve the effective transfer policy for the caller and return the
     presigned metadata needed to upload directly to S3.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (InitiateUploadRequest): Request body payload for this
+            operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        ErrorEnvelope | InitiateUploadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

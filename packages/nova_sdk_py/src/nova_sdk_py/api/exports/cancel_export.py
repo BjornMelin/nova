@@ -79,6 +79,20 @@ def sync_detailed(
 
     Persist cancel intent for a caller-owned export that has not yet reached
     a terminal state.
+
+    Args:
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -102,6 +116,20 @@ def sync(
 
     Persist cancel intent for a caller-owned export that has not yet reached
     a terminal state.
+
+    Args:
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -120,6 +148,20 @@ async def asyncio_detailed(
 
     Persist cancel intent for a caller-owned export that has not yet reached
     a terminal state.
+
+    Args:
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -141,6 +183,20 @@ async def asyncio(
 
     Persist cancel intent for a caller-owned export that has not yet reached
     a terminal state.
+
+    Args:
+        export_id (str): Identifier of the caller-owned export workflow
+            resource.
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

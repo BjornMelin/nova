@@ -87,6 +87,22 @@ def sync_detailed(
 
     Expose the current transfer policy envelope that browser and native
     upload clients should honor.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
+
+    Returns:
+        Response[HTTPValidationError | TransferCapabilitiesResponse]: Detailed
+            HTTP response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -112,6 +128,23 @@ def sync(
 
     Expose the current transfer policy envelope that browser and native
     upload clients should honor.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
+
+    Returns:
+        HTTPValidationError | TransferCapabilitiesResponse | None: Parsed
+            response payload, or ``None`` when unexpected statuses are
+            ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -132,6 +165,22 @@ async def asyncio_detailed(
 
     Expose the current transfer policy envelope that browser and native
     upload clients should honor.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
+
+    Returns:
+        Response[HTTPValidationError | TransferCapabilitiesResponse]: Detailed
+            HTTP response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -155,6 +204,23 @@ async def asyncio(
 
     Expose the current transfer policy envelope that browser and native
     upload clients should honor.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        workload_class (None | str | Unset): Optional workload-class hint
+            used to resolve a narrower effective transfer policy.
+        policy_hint (None | str | Unset): Optional policy hint evaluated by
+            the transfer policy resolver.
+
+    Returns:
+        HTTPValidationError | TransferCapabilitiesResponse | None: Parsed
+            response payload, or ``None`` when unexpected statuses are
+            ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

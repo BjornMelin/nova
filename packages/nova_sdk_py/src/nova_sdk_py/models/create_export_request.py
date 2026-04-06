@@ -19,9 +19,9 @@ class CreateExportRequest:
     """
 
     filename: str
-    """ Client-facing filename to preserve in the export. """
+    """Client-facing filename to preserve in the export."""
     source_key: str
-    """ Storage key of the source object to export. """
+    """Storage key of the source object to export."""
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename

@@ -20,11 +20,11 @@ class ReleaseInfoResponse:
     """
 
     environment: str
-    """ Deployment environment name. """
+    """Deployment environment name."""
     name: str
-    """ Public application name for the deployment. """
+    """Public application name for the deployment."""
     version: str
-    """ Published application version string. """
+    """Published application version string."""
 
     def to_dict(self) -> dict[str, Any]:
         environment = self.environment

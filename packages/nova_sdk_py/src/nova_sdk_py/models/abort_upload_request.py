@@ -19,9 +19,9 @@ class AbortUploadRequest:
     """
 
     key: str
-    """ Storage key reserved for the multipart upload. """
+    """Storage key reserved for the multipart upload."""
     upload_id: str
-    """ S3 multipart upload identifier being aborted. """
+    """S3 multipart upload identifier being aborted."""
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

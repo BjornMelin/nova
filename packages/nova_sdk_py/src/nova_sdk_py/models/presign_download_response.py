@@ -22,13 +22,13 @@ class PresignDownloadResponse:
     """
 
     bucket: str
-    """ Bucket that owns the downloadable object. """
+    """Bucket that owns the downloadable object."""
     expires_in_seconds: int
-    """ Seconds until the presigned download URL expires. """
+    """Seconds until the presigned download URL expires."""
     key: str
-    """ Storage key of the downloadable object. """
+    """Storage key of the downloadable object."""
     url: str = _attrs_field(repr=False)
-    """ Presigned download URL for the requested object. """
+    """Presigned download URL for the requested object."""
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

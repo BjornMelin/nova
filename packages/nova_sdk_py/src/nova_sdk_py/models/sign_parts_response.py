@@ -29,9 +29,9 @@ class SignPartsResponse:
     """
 
     expires_in_seconds: int
-    """ Seconds until the presigned part URLs expire. """
+    """Seconds until the presigned part URLs expire."""
     urls: SignPartsResponseUrls
-    """ Presigned upload URL for each requested multipart part number. """
+    """Presigned upload URL for each requested multipart part number."""
 
     def to_dict(self) -> dict[str, Any]:
         expires_in_seconds = self.expires_in_seconds

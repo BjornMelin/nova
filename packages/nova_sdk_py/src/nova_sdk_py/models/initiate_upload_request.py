@@ -41,19 +41,19 @@ class InitiateUploadRequest:
     """
 
     filename: str
-    """ Client-facing filename for the object being uploaded. """
+    """Client-facing filename for the object being uploaded."""
     size_bytes: int
-    """ Total size of the object being uploaded, in bytes. """
+    """Total size of the object being uploaded, in bytes."""
     checksum_preference: None | str | Unset = UNSET
-    """ Preferred checksum strictness requested by the client. """
+    """Preferred checksum strictness requested by the client."""
     checksum_value: None | str | Unset = UNSET
-    """ Optional checksum value supplied with the initiate request. """
+    """Optional checksum value supplied with the initiate request."""
     content_type: None | str | Unset = UNSET
-    """ Optional MIME type that should be persisted with the object. """
+    """Optional MIME type that should be persisted with the object."""
     policy_hint: None | str | Unset = UNSET
-    """ Optional transfer-policy hint evaluated by the API. """
+    """Optional transfer-policy hint evaluated by the API."""
     workload_class: None | str | Unset = UNSET
-    """ Optional workload-class hint for transfer policy selection. """
+    """Optional workload-class hint for transfer policy selection."""
 
     def to_dict(self) -> dict[str, Any]:
         filename = self.filename

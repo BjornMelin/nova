@@ -273,6 +273,8 @@ export type ExportStatus = 'queued' | 'validating' | 'copying' | 'finalizing' | 
 export type HttpValidationError = {
     /**
      * Detail
+     *
+     * Collection of request-validation issues returned by FastAPI.
      */
     detail?: Array<ValidationError>;
 };
@@ -752,25 +754,25 @@ export type UploadedPart = {
  */
 export type ValidationError = {
     /**
-     * Context
+     * Optional structured context attached to the validation issue.
      */
     ctx?: {
         [key: string]: unknown;
     };
     /**
-     * Input
+     * Original input value that failed validation when FastAPI exposes it.
      */
     input?: unknown;
     /**
-     * Location
+     * Ordered location path that identifies the invalid request field.
      */
     loc: Array<string | number>;
     /**
-     * Message
+     * Human-readable validation message.
      */
     msg: string;
     /**
-     * Error Type
+     * Machine-readable validation error type identifier.
      */
     type: string;
 };

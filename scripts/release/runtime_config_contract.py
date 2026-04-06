@@ -6,7 +6,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, get_args, get_origin
+from typing import Annotated, Any, get_args, get_origin
 
 from pydantic import SecretStr
 from pydantic.fields import FieldInfo
@@ -108,7 +108,7 @@ def _type_label(annotation: Any) -> str:
             return str(annotation.__name__)
         return str(annotation).replace("typing.", "")
 
-    if str(origin) == "typing.Annotated":
+    if origin is Annotated:
         annotated_args = get_args(annotation)
         if annotated_args:
             return _type_label(annotated_args[0])

@@ -31,15 +31,15 @@ class UploadIntrospectionResponse:
     """
 
     bucket: str
-    """ Bucket that owns the multipart upload. """
+    """Bucket that owns the multipart upload."""
     key: str
-    """ Storage key reserved for the multipart upload. """
+    """Storage key reserved for the multipart upload."""
     part_size_bytes: int
-    """ Configured multipart part size in bytes for this session. """
+    """Configured multipart part size in bytes for this session."""
     parts: list[UploadedPart]
-    """ Multipart parts that have already been uploaded. """
+    """Multipart parts that have already been uploaded."""
     upload_id: str
-    """ S3 multipart upload identifier. """
+    """S3 multipart upload identifier."""
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

@@ -26,7 +26,7 @@ class ResourcePlanResponse:
     """
 
     plan: list[ResourcePlanItem]
-    """ Supportability decision for each requested resource key. """
+    """Supportability decision for each requested resource key."""
 
     def to_dict(self) -> dict[str, Any]:
         plan = []

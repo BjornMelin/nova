@@ -79,6 +79,20 @@ def sync_detailed(
 
     Finalize a multipart upload after the caller has uploaded every required
     part.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CompleteUploadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        Response[CompleteUploadResponse | ErrorEnvelope]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -102,6 +116,21 @@ def sync(
 
     Finalize a multipart upload after the caller has uploaded every required
     part.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CompleteUploadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        CompleteUploadResponse | ErrorEnvelope | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -120,6 +149,20 @@ async def asyncio_detailed(
 
     Finalize a multipart upload after the caller has uploaded every required
     part.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CompleteUploadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        Response[CompleteUploadResponse | ErrorEnvelope]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -141,6 +184,21 @@ async def asyncio(
 
     Finalize a multipart upload after the caller has uploaded every required
     part.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CompleteUploadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        CompleteUploadResponse | ErrorEnvelope | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

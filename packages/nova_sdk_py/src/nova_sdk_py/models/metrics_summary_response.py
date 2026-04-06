@@ -36,11 +36,11 @@ class MetricsSummaryResponse:
     """
 
     activity: MetricsSummaryResponseActivity
-    """ Activity rollups derived from the activity store. """
+    """Activity rollups derived from the activity store."""
     counters: MetricsSummaryResponseCounters
-    """ Low-cardinality request and workflow counters. """
+    """Low-cardinality request and workflow counters."""
     latencies_ms: MetricsSummaryResponseLatenciesMs
-    """ Aggregated request-latency summaries in milliseconds. """
+    """Aggregated request-latency summaries in milliseconds."""
 
     def to_dict(self) -> dict[str, Any]:
         activity = self.activity.to_dict()

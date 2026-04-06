@@ -51,6 +51,18 @@ def sync_detailed(
     Check liveness
 
     Return a shallow liveness signal for the API runtime process.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        Response[HealthResponse]: Detailed HTTP response wrapper containing
+            the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -70,6 +82,18 @@ def sync(
     Check liveness
 
     Return a shallow liveness signal for the API runtime process.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        HealthResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -85,6 +109,18 @@ async def asyncio_detailed(
     Check liveness
 
     Return a shallow liveness signal for the API runtime process.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        Response[HealthResponse]: Detailed HTTP response wrapper containing
+            the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -102,6 +138,18 @@ async def asyncio(
     Check liveness
 
     Return a shallow liveness signal for the API runtime process.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+
+    Returns:
+        HealthResponse | None: Parsed response payload, or ``None`` when
+            unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

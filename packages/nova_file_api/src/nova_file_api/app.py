@@ -94,6 +94,18 @@ _HTTP_VALIDATION_ERROR_DESCRIPTION = (
 _VALIDATION_ERROR_DESCRIPTION = (
     "One request-validation issue with location, message, and error type."
 )
+_HTTP_VALIDATION_ERROR_DETAIL_DESCRIPTION = (
+    "Collection of request-validation issues returned by FastAPI."
+)
+_VALIDATION_ERROR_PROPERTY_DESCRIPTIONS = {
+    "ctx": "Optional structured context attached to the validation issue.",
+    "input": (
+        "Original input value that failed validation when FastAPI exposes it."
+    ),
+    "loc": "Ordered location path that identifies the invalid request field.",
+    "msg": "Human-readable validation message.",
+    "type": "Machine-readable validation error type identifier.",
+}
 
 
 def _patch_http_validation_error_detail_max_items(
@@ -123,7 +135,27 @@ def _patch_http_validation_error_detail_max_items(
         else None
     )
     if isinstance(detail, dict) and detail.get("type") == "array":
+        detail.setdefault(
+            "description",
+            _HTTP_VALIDATION_ERROR_DETAIL_DESCRIPTION,
+        )
         detail["maxItems"] = _HTTP_VALIDATION_ERROR_DETAIL_MAX_ITEMS
+    validation_error_properties = (
+        validation_error.get("properties", {})
+        if isinstance(validation_error, dict)
+        else None
+    )
+    if isinstance(validation_error_properties, dict):
+        for (
+            property_name,
+            property_description,
+        ) in _VALIDATION_ERROR_PROPERTY_DESCRIPTIONS.items():
+            property_schema = validation_error_properties.get(property_name)
+            if isinstance(property_schema, dict):
+                property_schema.setdefault(
+                    "description",
+                    property_description,
+                )
     loc = (
         validation_error.get("properties", {}).get("loc")
         if isinstance(validation_error, dict)

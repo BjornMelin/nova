@@ -22,7 +22,7 @@ class ResourcePlanRequest:
     """
 
     resources: list[str]
-    """ Resource keys whose supportability should be evaluated. """
+    """Resource keys whose supportability should be evaluated."""
 
     def to_dict(self) -> dict[str, Any]:
         resources = self.resources

@@ -33,7 +33,9 @@ class File:
     mime_type: str | None = None
 
     def to_tuple(self) -> FileTypes:
-        """Return a tuple representation that httpx will accept for multipart/form-data"""
+        """
+        Return a tuple representation that httpx will accept for multipart/form-data
+        """
         return (
             self.file_name,
             self.payload,

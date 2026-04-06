@@ -54,39 +54,39 @@ class TransferCapabilitiesResponse:
     """
 
     accelerate_enabled: bool
-    """ Whether S3 Transfer Acceleration is enabled. """
+    """Whether S3 Transfer Acceleration is enabled."""
     active_multipart_upload_limit: int
-    """ Maximum number of active multipart uploads per scope. """
+    """Maximum number of active multipart uploads per scope."""
     checksum_mode: TransferCapabilitiesResponseChecksumMode
-    """ Server-enforced checksum mode for uploads. """
+    """Server-enforced checksum mode for uploads."""
     daily_ingress_budget_bytes: int
-    """ Per-scope daily ingress budget in bytes. """
+    """Per-scope daily ingress budget in bytes."""
     large_export_worker_threshold_bytes: int
-    """ Export size threshold in bytes for the worker-backed copy lane. """
+    """Export size threshold in bytes for the worker-backed copy lane."""
     max_concurrency_hint: int
-    """ Suggested maximum number of concurrent client uploads. """
+    """Suggested maximum number of concurrent client uploads."""
     max_upload_bytes: int
-    """ Maximum allowed upload size in bytes. """
+    """Maximum allowed upload size in bytes."""
     maximum_part_size_bytes: int
-    """ Maximum multipart part size accepted by the API. """
+    """Maximum multipart part size accepted by the API."""
     minimum_part_size_bytes: int
-    """ Minimum multipart part size accepted by the API. """
+    """Minimum multipart part size accepted by the API."""
     multipart_threshold_bytes: int
-    """ Object size in bytes at which multipart upload becomes required. """
+    """Object size in bytes at which multipart upload becomes required."""
     policy_id: str
-    """ Identifier of the effective transfer policy. """
+    """Identifier of the effective transfer policy."""
     policy_version: str
-    """ Version of the effective transfer policy. """
+    """Version of the effective transfer policy."""
     resumable_ttl_seconds: int
-    """ How long multipart resume state remains valid, in seconds. """
+    """How long multipart resume state remains valid, in seconds."""
     sign_batch_size_hint: int
-    """ Suggested maximum number of parts per sign-parts request. """
+    """Suggested maximum number of parts per sign-parts request."""
     sign_requests_per_upload_limit: int
-    """ Maximum number of sign-parts requests allowed per upload. """
+    """Maximum number of sign-parts requests allowed per upload."""
     target_upload_part_count: int
-    """ Target number of multipart parts for large uploads. """
+    """Target number of multipart parts for large uploads."""
     checksum_algorithm: None | str | Unset = UNSET
-    """ Checksum algorithm callers should use when checksums apply. """
+    """Checksum algorithm callers should use when checksums apply."""
 
     def to_dict(self) -> dict[str, Any]:
         accelerate_enabled = self.accelerate_enabled

@@ -36,15 +36,15 @@ class SignPartsRequest:
     """
 
     key: str
-    """ Storage key reserved for the multipart upload. """
+    """Storage key reserved for the multipart upload."""
     part_numbers: list[int]
-    """ Multipart part numbers to sign in this request. """
+    """Multipart part numbers to sign in this request."""
     upload_id: str
-    """ S3 multipart upload identifier returned by initiate upload. """
+    """S3 multipart upload identifier returned by initiate upload."""
     checksums_sha256: None | SignPartsRequestChecksumsSha256Type0 | Unset = (
         UNSET
     )
-    """ Optional SHA-256 checksum map keyed by multipart part number. """
+    """Optional SHA-256 checksum map keyed by multipart part number."""
 
     def to_dict(self) -> dict[str, Any]:
         from nova_sdk_py.models.sign_parts_request_checksums_sha_256_type_0 import (

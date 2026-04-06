@@ -458,6 +458,7 @@
         "description": "Validation error envelope returned for invalid request payloads.",
         "properties": {
           "detail": {
+            "description": "Collection of request-validation issues returned by FastAPI.",
             "items": {
               "$ref": "#/components/schemas/ValidationError"
             },
@@ -1285,13 +1286,16 @@
         "description": "One request-validation issue with location, message, and error type.",
         "properties": {
           "ctx": {
+            "description": "Optional structured context attached to the validation issue.",
             "title": "Context",
             "type": "object"
           },
           "input": {
+            "description": "Original input value that failed validation when FastAPI exposes it.",
             "title": "Input"
           },
           "loc": {
+            "description": "Ordered location path that identifies the invalid request field.",
             "items": {
               "anyOf": [
                 {
@@ -1307,10 +1311,12 @@
             "type": "array"
           },
           "msg": {
+            "description": "Human-readable validation message.",
             "title": "Message",
             "type": "string"
           },
           "type": {
+            "description": "Machine-readable validation error type identifier.",
             "title": "Error Type",
             "type": "string"
           }

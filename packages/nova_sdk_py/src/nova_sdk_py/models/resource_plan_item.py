@@ -27,11 +27,11 @@ class ResourcePlanItem:
     """
 
     resource: str
-    """ Requested resource key. """
+    """Requested resource key."""
     supported: bool
-    """ Whether the resource is supported in the current deployment. """
+    """Whether the resource is supported in the current deployment."""
     reason: None | str | Unset = UNSET
-    """ Machine-readable reason when the resource is not supported. """
+    """Machine-readable reason when the resource is not supported."""
 
     def to_dict(self) -> dict[str, Any]:
         resource = self.resource

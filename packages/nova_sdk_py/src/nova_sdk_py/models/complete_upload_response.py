@@ -28,13 +28,13 @@ class CompleteUploadResponse:
     """
 
     bucket: str
-    """ Bucket that now contains the completed object. """
+    """Bucket that now contains the completed object."""
     key: str
-    """ Storage key of the completed object. """
+    """Storage key of the completed object."""
     etag: None | str | Unset = UNSET
-    """ Object ETag returned by S3 when available. """
+    """Object ETag returned by S3 when available."""
     version_id: None | str | Unset = UNSET
-    """ S3 object version identifier when bucket versioning is enabled. """
+    """S3 object version identifier when bucket versioning is enabled."""
 
     def to_dict(self) -> dict[str, Any]:
         bucket = self.bucket

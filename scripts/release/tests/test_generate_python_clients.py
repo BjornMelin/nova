@@ -14,6 +14,7 @@ from scripts.release.python_sdk import (
     GENERATOR_TEMPLATE_PATH,
     PYTHON_TARGETS,
     RETAINED_TEMPLATE_FILES,
+    _apply_python_model_reference_docs,
     _apply_python_sdk_repairs,
     _filter_internal_operations_for_public_sdk,
     _generate_target_tree,
@@ -342,3 +343,142 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         ")\n"
     )
     assert first_pass == second_pass
+
+
+def test_apply_python_sdk_repairs_normalizes_single_line_docstrings(
+    tmp_path: Path,
+) -> None:
+    """Generated single-line docstrings should be trimmed and wrapped."""
+    client_path = tmp_path / "client.py"
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    model_path = models_dir / "example.py"
+
+    client_path.write_text(
+        "class Client:\n"
+        "    field: str\n"
+        '    """ This docstring should be trimmed and wrapped because it is '
+        "long enough to exceed the local line length policy for generated "
+        'single-line docstrings. """\n',
+        encoding="utf-8",
+    )
+    model_path.write_text(
+        'class Example:\n    value: str\n    """ Example value. """\n',
+        encoding="utf-8",
+    )
+
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
+
+    client_source = client_path.read_text(encoding="utf-8")
+    model_source = model_path.read_text(encoding="utf-8")
+
+    assert '""" Example value. """' not in model_source
+    assert '"""Example value."""' in model_source
+    assert (
+        '""" This docstring should be trimmed and wrapped because it is long'
+        not in client_source
+    )
+    assert "single-line docstrings." in client_source
+
+
+def test_apply_python_sdk_repairs_injects_structured_operation_docstrings(
+    tmp_path: Path,
+) -> None:
+    """Spec-driven public Python docs should include structured sections."""
+    module_path = tmp_path / "api" / "transfers" / "initiate_upload.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text(
+        "from ...client import AuthenticatedClient\n"
+        "from ...models.error_envelope import ErrorEnvelope\n"
+        "from ...models.initiate_upload_request import InitiateUploadRequest\n"
+        "from ...models.initiate_upload_response import "
+        "InitiateUploadResponse\n"
+        "from ...types import Response, UNSET, Unset\n\n"
+        "def sync_detailed(\n"
+        "    *,\n"
+        "    client: AuthenticatedClient,\n"
+        "    body: InitiateUploadRequest,\n"
+        "    idempotency_key: None | str | Unset = UNSET,\n"
+        ") -> Response[ErrorEnvelope | InitiateUploadResponse]:\n"
+        '    """Old docstring."""\n'
+        "    raise NotImplementedError\n",
+        encoding="utf-8",
+    )
+    spec = {
+        "paths": {
+            "/v1/transfers/uploads/initiate": {
+                "post": {
+                    "operationId": "initiate_upload",
+                    "tags": ["transfers"],
+                    "summary": "Initiate a direct-to-S3 upload session",
+                    "description": (
+                        "Resolve the effective transfer policy for the caller "
+                        "and return the presigned metadata needed to upload "
+                        "directly to S3."
+                    ),
+                    "parameters": [
+                        {
+                            "in": "header",
+                            "name": "Idempotency-Key",
+                            "description": (
+                                "Client-supplied idempotency key used to "
+                                "deduplicate supported mutation requests."
+                            ),
+                        }
+                    ],
+                    "requestBody": {
+                        "description": "Transfer-initiation request payload.",
+                    },
+                }
+            }
+        }
+    }
+
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py", spec=spec)
+
+    source = module_path.read_text(encoding="utf-8")
+
+    assert "Args:" in source
+    assert "client (AuthenticatedClient):" in source
+    assert "body (InitiateUploadRequest): Transfer-initiation request" in source
+    assert "Returns:" in source
+    assert "Response[ErrorEnvelope | InitiateUploadResponse]:" in source
+    assert "response wrapper containing the parsed response payload." in source
+    assert "Raises:" in source
+
+
+def test_apply_python_model_reference_docs_keeps_backslashes_literal(
+    tmp_path: Path,
+) -> None:
+    """Model docstring rewrites should not treat backslashes as escapes."""
+    model_path = tmp_path / "models" / "example.py"
+    model_path.parent.mkdir(parents=True)
+    model_path.write_text(
+        "from attrs import define as _attrs_define\n\n"
+        "@_attrs_define\n"
+        "class Example:\n"
+        "    value: str\n",
+        encoding="utf-8",
+    )
+
+    _apply_python_model_reference_docs(
+        tmp_path,
+        spec={
+            "components": {
+                "schemas": {
+                    "Example": {
+                        "description": r"Matches the literal path C:\\temp.",
+                        "properties": {
+                            "value": {
+                                "description": r"Literal segment C:\\temp."
+                            }
+                        },
+                    }
+                }
+            }
+        },
+    )
+
+    source = model_path.read_text(encoding="utf-8")
+    assert r"Matches the literal path C:\\temp." in source
+    assert r"value: Literal segment C:\\temp." in source

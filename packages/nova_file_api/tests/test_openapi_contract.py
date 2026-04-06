@@ -398,8 +398,10 @@ def test_openapi_parameters_and_schema_fields_expose_reference_docs() -> None:
     create_export_headers = payload["paths"]["/v1/exports"]["post"][
         "parameters"
     ]
-    assert create_export_headers[0]["name"] == "Idempotency-Key"
-    assert create_export_headers[0]["description"] == (
+    create_export_headers_by_name = {
+        parameter["name"]: parameter for parameter in create_export_headers
+    }
+    assert create_export_headers_by_name["Idempotency-Key"]["description"] == (
         "Client-supplied idempotency key used to deduplicate supported "
         "mutation requests."
     )
@@ -407,14 +409,18 @@ def test_openapi_parameters_and_schema_fields_expose_reference_docs() -> None:
     get_export_params = payload["paths"]["/v1/exports/{export_id}"]["get"][
         "parameters"
     ]
-    assert get_export_params[0]["name"] == "export_id"
-    assert get_export_params[0]["description"] == (
+    get_export_params_by_name = {
+        parameter["name"]: parameter for parameter in get_export_params
+    }
+    assert get_export_params_by_name["export_id"]["description"] == (
         "Identifier of the caller-owned export workflow resource."
     )
 
     list_exports_params = payload["paths"]["/v1/exports"]["get"]["parameters"]
-    assert list_exports_params[0]["name"] == "limit"
-    assert list_exports_params[0]["description"] == (
+    list_exports_params_by_name = {
+        parameter["name"]: parameter for parameter in list_exports_params
+    }
+    assert list_exports_params_by_name["limit"]["description"] == (
         "Maximum number of caller-owned export workflow resources to return, "
         "ordered newest first."
     )
@@ -422,8 +428,10 @@ def test_openapi_parameters_and_schema_fields_expose_reference_docs() -> None:
     capability_params = payload["paths"]["/v1/capabilities/transfers"]["get"][
         "parameters"
     ]
-    assert capability_params[0]["name"] == "workload_class"
-    assert capability_params[0]["description"] == (
+    capability_params_by_name = {
+        parameter["name"]: parameter for parameter in capability_params
+    }
+    assert capability_params_by_name["workload_class"]["description"] == (
         "Optional workload-class hint used to resolve a narrower effective "
         "transfer policy."
     )

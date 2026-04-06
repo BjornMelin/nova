@@ -25,13 +25,27 @@ T = TypeVar("T", bound="ValidationError")
 class ValidationError:
     """
     One request-validation issue with location, message, and error type.
+
+    Attributes:
+        ctx: Optional structured context attached to the validation issue.
+        input: Original input value that failed validation when FastAPI
+        exposes it.
+        loc: Ordered location path that identifies the invalid request
+        field.
+        msg: Human-readable validation message.
+        type: Machine-readable validation error type identifier.
     """
 
     loc: list[int | str]
+    """Ordered location path that identifies the invalid request field."""
     msg: str
+    """Human-readable validation message."""
     type_: str
+    """Machine-readable validation error type identifier."""
     ctx: ValidationErrorContext | Unset = UNSET
+    """Optional structured context attached to the validation issue."""
     input_: Any | Unset = UNSET
+    """Original input value that failed validation when FastAPI exposes it."""
     additional_properties: dict[str, Any] = _attrs_field(
         init=False, factory=dict
     )

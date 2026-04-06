@@ -69,6 +69,19 @@ def sync_detailed(
 
     Report whether each requested resource is currently supported in the
     active deployment.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
+
+    Returns:
+        Response[ErrorEnvelope | ResourcePlanResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -92,6 +105,20 @@ def sync(
 
     Report whether each requested resource is currently supported in the
     active deployment.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
+
+    Returns:
+        ErrorEnvelope | ResourcePlanResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -110,6 +137,19 @@ async def asyncio_detailed(
 
     Report whether each requested resource is currently supported in the
     active deployment.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
+
+    Returns:
+        Response[ErrorEnvelope | ResourcePlanResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -131,6 +171,20 @@ async def asyncio(
 
     Report whether each requested resource is currently supported in the
     active deployment.
+
+    Args:
+        client (AuthenticatedClient | Client): SDK client used to send the
+            request and parse the response.
+        body (ResourcePlanRequest): Request body payload for this operation.
+
+    Returns:
+        ErrorEnvelope | ResourcePlanResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

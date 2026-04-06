@@ -18,7 +18,7 @@ class HealthResponse:
     """
 
     ok: bool
-    """ Whether the runtime process is alive. """
+    """Whether the runtime process is alive."""
 
     def to_dict(self) -> dict[str, Any]:
         ok = self.ok

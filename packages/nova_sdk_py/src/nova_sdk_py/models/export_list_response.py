@@ -26,7 +26,7 @@ class ExportListResponse:
     """
 
     exports: list[ExportResource]
-    """ Caller-owned export workflow resources ordered by recency. """
+    """Caller-owned export workflow resources ordered by recency."""
 
     def to_dict(self) -> dict[str, Any]:
         exports = []

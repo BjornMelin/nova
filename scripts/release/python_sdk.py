@@ -155,6 +155,34 @@ def _wrap_doc_line(text: str, *, width: int = 72) -> list[str]:
     )
 
 
+def _wrap_google_doc_entry(
+    *,
+    label: str,
+    description: str,
+    width: int = 72,
+) -> list[str]:
+    wrapper = textwrap.TextWrapper(
+        width=width,
+        initial_indent=f"    {label}: ",
+        subsequent_indent="        ",
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    return wrapper.wrap(" ".join(description.split()))
+
+
+def _python_single_line_docstring(indent: str, text: str) -> str:
+    normalized = " ".join(text.split()).strip()
+    inline = f'{indent}"""{normalized}"""'
+    if len(inline) <= 88:
+        return inline
+    wrapped = _wrap_doc_line(normalized, width=max(24, 84 - len(indent)))
+    lines = [f'{indent}"""']
+    lines.extend(f"{indent}{line}" for line in wrapped)
+    lines.append(f'{indent}"""')
+    return "\n".join(lines)
+
+
 def _build_python_model_docstring(
     *,
     schema_name: str,
@@ -204,6 +232,7 @@ def _apply_python_model_reference_docs(
         )
         if docstring is None:
             continue
+        class_docstring = docstring
         content = model_path.read_text(encoding="utf-8")
         if "@_attrs_define" not in content:
             continue
@@ -212,8 +241,15 @@ def _apply_python_model_reference_docs(
             r"(?:    \"\"\".*?\"\"\"\n)?",
             flags=re.DOTALL,
         )
+
+        def _replace_class_docstring(
+            match: re.Match[str],
+            replacement_docstring: str = class_docstring,
+        ) -> str:
+            return match.group(1) + replacement_docstring
+
         updated, replaced = class_pattern.subn(
-            r"\1" + docstring,
+            _replace_class_docstring,
             content,
             count=1,
         )
@@ -223,7 +259,61 @@ def _apply_python_model_reference_docs(
             model_path.write_text(updated, encoding="utf-8")
 
 
-def _build_python_operation_docstring(operation: dict[str, Any]) -> str | None:
+def _operation_arg_descriptions(
+    operation: dict[str, Any],
+) -> dict[str, str]:
+    arg_descriptions: dict[str, str] = {}
+    for parameter in operation.get("parameters", []):
+        if not isinstance(parameter, dict):
+            continue
+        parameter_name = parameter.get("name")
+        parameter_description = parameter.get("description")
+        if not isinstance(parameter_name, str) or not isinstance(
+            parameter_description, str
+        ):
+            continue
+        arg_descriptions[_snake_case_name(parameter_name)] = (
+            parameter_description.strip()
+        )
+
+    request_body = operation.get("requestBody")
+    if isinstance(request_body, dict):
+        request_body_description = request_body.get("description")
+        if (
+            isinstance(request_body_description, str)
+            and request_body_description.strip()
+        ):
+            arg_descriptions["body"] = request_body_description.strip()
+        else:
+            arg_descriptions["body"] = (
+                "Request body payload for this operation."
+            )
+    return arg_descriptions
+
+
+def _operation_function_parameters(
+    parameter_block: str,
+) -> list[tuple[str, str]]:
+    parameters: list[tuple[str, str]] = []
+    for raw_line in parameter_block.splitlines():
+        line = raw_line.strip().rstrip(",")
+        if not line or line == "*":
+            continue
+        if ":" not in line:
+            continue
+        name, remainder = line.split(":", 1)
+        annotation = remainder.split("=", 1)[0].strip()
+        parameters.append((name.strip(), annotation))
+    return parameters
+
+
+def _build_python_operation_docstring(
+    *,
+    operation: dict[str, Any],
+    function_name: str,
+    parameter_block: str,
+    return_type: str,
+) -> str | None:
     summary = operation.get("summary")
     description = operation.get("description")
     if not isinstance(summary, str) and not isinstance(description, str):
@@ -237,6 +327,56 @@ def _build_python_operation_docstring(operation: dict[str, Any]) -> str | None:
         lines.extend(_wrap_doc_line(description.strip()))
     if not lines:
         return None
+    arg_descriptions = _operation_arg_descriptions(operation)
+    parameters = _operation_function_parameters(parameter_block)
+    if parameters:
+        lines.extend(["", "Args:"])
+        for parameter_name, annotation in parameters:
+            if parameter_name == "client":
+                parameter_description = (
+                    "SDK client used to send the request and parse the "
+                    "response."
+                )
+            else:
+                parameter_description = arg_descriptions.get(
+                    parameter_name,
+                    "Request option passed through to the generated client "
+                    "helper.",
+                )
+            lines.extend(
+                _wrap_google_doc_entry(
+                    label=f"{parameter_name} ({annotation})",
+                    description=parameter_description,
+                )
+            )
+
+    if function_name.endswith("_detailed"):
+        return_description = (
+            "Detailed HTTP response wrapper containing the parsed response "
+            "payload."
+        )
+    else:
+        return_description = (
+            "Parsed response payload, or ``None`` when unexpected statuses "
+            "are ignored by the client."
+        )
+    lines.extend(["", "Returns:"])
+    lines.extend(
+        _wrap_google_doc_entry(
+            label=return_type.strip(),
+            description=return_description,
+        )
+    )
+    lines.extend(["", "Raises:"])
+    lines.extend(
+        _wrap_google_doc_entry(
+            label="errors.UnexpectedStatus",
+            description=(
+                "If ``client.raise_on_unexpected_status`` is enabled and the "
+                "API returns an undocumented status code."
+            ),
+        )
+    )
     return _docstring_block(indent="    ", lines=lines)
 
 
@@ -248,9 +388,9 @@ def _apply_python_operation_reference_docs(
     paths = cast(dict[str, Any], spec.get("paths", {}))
     function_doc_pattern = re.compile(
         r"(?P<prefix>def "
-        r"(?:sync_detailed|sync|asyncio_detailed|asyncio)\("
-        r"[\s\S]*?\)\s*-> [^:]+:\n)"
-        r"(?P<doc>    \"\"\"[\s\S]*?    \"\"\"\n)",
+        r"(?P<name>sync_detailed|sync|asyncio_detailed|asyncio)\(\n"
+        r"(?P<params>[\s\S]*?)\)\s*-> (?P<return_type>[^:]+):\n)"
+        r"(?P<doc>    \"\"\"[\s\S]*?\"\"\"\n)",
         flags=re.DOTALL,
     )
     for path_item in paths.values():
@@ -272,16 +412,20 @@ def _apply_python_operation_reference_docs(
             module_path = root / "api" / tags[0] / f"{operation_id}.py"
             if not module_path.exists():
                 continue
-            docstring = _build_python_operation_docstring(operation)
-            if docstring is None:
-                continue
             content = module_path.read_text(encoding="utf-8")
-            replacement_docstring = docstring
 
             def _replace_docstring(
                 match: re.Match[str],
-                replacement_docstring: str = replacement_docstring,
+                operation_doc: dict[str, Any] = operation,
             ) -> str:
+                replacement_docstring = _build_python_operation_docstring(
+                    operation=operation_doc,
+                    function_name=match.group("name"),
+                    parameter_block=match.group("params"),
+                    return_type=match.group("return_type"),
+                )
+                if replacement_docstring is None:
+                    return match.group(0)
                 return match.group("prefix") + replacement_docstring
 
             updated, replaced = function_doc_pattern.subn(
@@ -292,6 +436,23 @@ def _apply_python_operation_reference_docs(
                 continue
             if updated != content:
                 module_path.write_text(updated, encoding="utf-8")
+
+
+def _normalize_single_line_docstrings(root: Path) -> None:
+    pattern = re.compile(
+        r'(?m)^(?P<indent>\s*)"""\s*(?P<text>[^"\n][^\n]*?)\s*"""$'
+    )
+    for path in sorted(root.rglob("*.py")):
+        content = path.read_text(encoding="utf-8")
+        updated = pattern.sub(
+            lambda match: _python_single_line_docstring(
+                match.group("indent"),
+                match.group("text"),
+            ),
+            content,
+        )
+        if updated != content:
+            path.write_text(updated, encoding="utf-8")
 
 
 def _filter_internal_operations_for_public_sdk(
@@ -810,6 +971,7 @@ def _apply_python_sdk_repairs(
     if spec is not None:
         _apply_python_model_reference_docs(root, spec=spec)
         _apply_python_operation_reference_docs(root, spec=spec)
+    _normalize_single_line_docstrings(root)
     _apply_typed_additional_properties_repairs(root)
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)

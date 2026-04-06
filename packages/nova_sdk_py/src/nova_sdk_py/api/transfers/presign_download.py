@@ -79,6 +79,20 @@ def sync_detailed(
 
     Return a time-limited download URL for an object the caller is
     authorized to access.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        Response[ErrorEnvelope | PresignDownloadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -102,6 +116,21 @@ def sync(
 
     Return a time-limited download URL for an object the caller is
     authorized to access.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        ErrorEnvelope | PresignDownloadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -120,6 +149,20 @@ async def asyncio_detailed(
 
     Return a time-limited download URL for an object the caller is
     authorized to access.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        Response[ErrorEnvelope | PresignDownloadResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -141,6 +184,21 @@ async def asyncio(
 
     Return a time-limited download URL for an object the caller is
     authorized to access.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (PresignDownloadRequest): Request body payload for this
+            operation.
+
+    Returns:
+        ErrorEnvelope | PresignDownloadResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

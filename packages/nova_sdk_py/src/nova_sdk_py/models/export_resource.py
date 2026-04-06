@@ -45,25 +45,25 @@ class ExportResource:
     """
 
     created_at: datetime.datetime
-    """ Timestamp when the export workflow resource was created. """
+    """Timestamp when the export workflow resource was created."""
     export_id: str
-    """ Identifier of the caller-owned export workflow resource. """
+    """Identifier of the caller-owned export workflow resource."""
     filename: str
-    """ Filename presented to callers when downloading the export. """
+    """Filename presented to callers when downloading the export."""
     source_key: str
-    """ Storage key of the object managed by the export workflow. """
+    """Storage key of the object managed by the export workflow."""
     status: ExportStatus
-    """ Lifecycle status of an export workflow. """
+    """Lifecycle status of an export workflow."""
     updated_at: datetime.datetime
-    """ Timestamp when the export workflow resource last changed. """
+    """Timestamp when the export workflow resource last changed."""
     cancel_requested_at: datetime.datetime | None | Unset = UNSET
-    """ Timestamp when cancel intent was persisted for the export. """
+    """Timestamp when cancel intent was persisted for the export."""
     error: None | str | Unset = UNSET
-    """ Terminal error message when the export fails. """
+    """Terminal error message when the export fails."""
     execution_arn: None | str | Unset = UNSET
-    """ Step Functions execution ARN for the active export workflow. """
+    """Step Functions execution ARN for the active export workflow."""
     output: ExportOutput | None | Unset = UNSET
-    """ Completed output metadata when the export succeeds. """
+    """Completed output metadata when the export succeeds."""
 
     def to_dict(self) -> dict[str, Any]:
         from nova_sdk_py.models.export_output import ExportOutput

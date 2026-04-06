@@ -63,6 +63,10 @@ _SDK_SERVER_DOC_SECTION_HEADER = re.compile(
     r"^(Args|Returns|Raises|Yields):\s*",
 )
 _SDK_FORBIDDEN_DOCBLOCK_TOKENS = ("Args:", "Returns:", "Raises:", "Yields:")
+_SDK_OPTIONS_PARAM_DOC = (
+    "@param options - request options including client, security, and request "
+    "overrides."
+)
 
 
 def _strip_ts_docblock_line(line: str) -> str:
@@ -411,7 +415,12 @@ def _apply_typescript_reference_doc_repairs(
             if details["description"]:
                 lines.extend([" *", f" * {_sentence(details['description'])}"])
             lines.extend(
-                [" *", f" * @returns {_sentence(details['returns'])}", " */"]
+                [
+                    " *",
+                    f" * {_SDK_OPTIONS_PARAM_DOC}",
+                    f" * @returns {_sentence(details['returns'])}",
+                    " */",
+                ]
             )
             return "\n".join(lines) + "\n" + f"export const {export_name} ="
 
@@ -583,6 +592,10 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
             if stripped and stripped != "*" and not stripped.endswith("."):
                 normalized_lines[index] = f" * {stripped}."
                 break
+        if not any("@param options" in line for line in normalized_lines):
+            if normalized_lines and normalized_lines[-1] != " *":
+                normalized_lines.append(" *")
+            normalized_lines.append(f" * {_SDK_OPTIONS_PARAM_DOC}")
         if "@returns" not in body:
             if normalized_lines and normalized_lines[-1] != " *":
                 normalized_lines.append(" *")

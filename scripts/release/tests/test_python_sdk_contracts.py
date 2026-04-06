@@ -22,6 +22,10 @@ def test_python_sdk_operation_docstrings_follow_openapi_summary() -> None:
         "Resolve the effective transfer policy for the caller and return the"
         in source
     )
+    assert "Args:" in source
+    assert "client (AuthenticatedClient):" in source
+    assert "Returns:" in source
+    assert "Raises:" in source
     assert "Choose upload strategy and return presigned metadata." not in source
 
 
@@ -47,14 +51,13 @@ def test_python_sdk_model_attributes_include_property_descriptions() -> None:
     source = _load_python_sdk_text("models/initiate_upload_response.py")
 
     assert (
-        '""" Suggested maximum number of concurrent client uploads. """'
+        '"""Suggested maximum number of concurrent client uploads."""' in source
+    )
+    assert (
+        '"""Durable upload-session identifier used for resume flows."""'
         in source
     )
     assert (
-        '""" Durable upload-session identifier used for resume flows. """'
-        in source
-    )
-    assert (
-        '""" Presigned single-part upload URL when the strategy is direct. """'
+        '"""Presigned single-part upload URL when the strategy is direct."""'
         in source
     )

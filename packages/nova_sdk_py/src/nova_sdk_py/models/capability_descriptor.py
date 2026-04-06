@@ -33,11 +33,11 @@ class CapabilityDescriptor:
     """
 
     enabled: bool
-    """ Whether the capability is enabled in the current deployment. """
+    """Whether the capability is enabled in the current deployment."""
     key: str
-    """ Stable capability identifier. """
+    """Stable capability identifier."""
     details: CapabilityDescriptorDetails | Unset = UNSET
-    """ Additional capability metadata. """
+    """Additional capability metadata."""
 
     def to_dict(self) -> dict[str, Any]:
         enabled = self.enabled

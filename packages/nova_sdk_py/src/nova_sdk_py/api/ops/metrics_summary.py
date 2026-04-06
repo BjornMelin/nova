@@ -63,6 +63,18 @@ def sync_detailed(
 
     Return low-cardinality counters, latency summaries, and activity rollups
     for dashboards.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        Response[ErrorEnvelope | MetricsSummaryResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -83,6 +95,19 @@ def sync(
 
     Return low-cardinality counters, latency summaries, and activity rollups
     for dashboards.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        ErrorEnvelope | MetricsSummaryResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -99,6 +124,18 @@ async def asyncio_detailed(
 
     Return low-cardinality counters, latency summaries, and activity rollups
     for dashboards.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        Response[ErrorEnvelope | MetricsSummaryResponse]: Detailed HTTP
+            response wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs()
@@ -117,6 +154,19 @@ async def asyncio(
 
     Return low-cardinality counters, latency summaries, and activity rollups
     for dashboards.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+
+    Returns:
+        ErrorEnvelope | MetricsSummaryResponse | None: Parsed response
+            payload, or ``None`` when unexpected statuses are ignored by the
+            client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

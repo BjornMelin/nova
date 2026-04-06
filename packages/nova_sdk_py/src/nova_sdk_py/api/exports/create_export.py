@@ -93,6 +93,21 @@ def sync_detailed(
 
     Create a caller-owned export resource that copies a source object into a
     download-oriented export output.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -118,6 +133,21 @@ def sync(
 
     Create a caller-owned export resource that copies a source object into a
     download-oriented export output.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -138,6 +168,21 @@ async def asyncio_detailed(
 
     Create a caller-owned export resource that copies a source object into a
     download-oriented export output.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        Response[ErrorEnvelope | ExportResource]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -161,6 +206,21 @@ async def asyncio(
 
     Create a caller-owned export resource that copies a source object into a
     download-oriented export output.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (CreateExportRequest): Request body payload for this operation.
+        idempotency_key (None | str | Unset): Request option passed through
+            to the generated client helper.
+
+    Returns:
+        ErrorEnvelope | ExportResource | None: Parsed response payload, or
+            ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

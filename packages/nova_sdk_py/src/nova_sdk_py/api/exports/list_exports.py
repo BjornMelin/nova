@@ -81,6 +81,20 @@ def sync_detailed(
 
     List caller-owned export workflow resources with the most recent exports
     first.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
+
+    Returns:
+        Response[ErrorEnvelope | ExportListResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -104,6 +118,20 @@ def sync(
 
     List caller-owned export workflow resources with the most recent exports
     first.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
+
+    Returns:
+        ErrorEnvelope | ExportListResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -122,6 +150,20 @@ async def asyncio_detailed(
 
     List caller-owned export workflow resources with the most recent exports
     first.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
+
+    Returns:
+        Response[ErrorEnvelope | ExportListResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -143,6 +185,20 @@ async def asyncio(
 
     List caller-owned export workflow resources with the most recent exports
     first.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        limit (int | Unset): Maximum number of caller-owned export workflow
+            resources to return, ordered newest first.
+
+    Returns:
+        ErrorEnvelope | ExportListResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (

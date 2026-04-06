@@ -29,13 +29,13 @@ class PresignDownloadRequest:
     """
 
     key: str
-    """ Storage key of the object to download. """
+    """Storage key of the object to download."""
     content_disposition: None | str | Unset = UNSET
-    """ Optional Content-Disposition override for the download response. """
+    """Optional Content-Disposition override for the download response."""
     content_type: None | str | Unset = UNSET
-    """ Optional Content-Type override for the download response. """
+    """Optional Content-Type override for the download response."""
     filename: None | str | Unset = UNSET
-    """ Optional filename hint applied to Content-Disposition. """
+    """Optional filename hint applied to Content-Disposition."""
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

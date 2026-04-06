@@ -28,7 +28,7 @@ Delete repo code whenever an upstream dependency or native platform capability c
 
 ### Security refreshes applied in the current lock
 
-- Refresh vulnerable transitive packages in `uv.lock` with targeted `uv lock --upgrade-package ...` updates instead of a broad resolver sweep.
+- Refresh vulnerable transitive packages in `uv.lock` with targeted `uv lock --upgrade-package …` updates instead of a broad resolver sweep.
 - Current targeted refresh set: `aiohttp`, `cryptography`, `pygments`, `pyjwt`, `requests`.
 - Do not replace this with `uv lock --upgrade` unless the branch explicitly revalidates the broader transitive moves that follow from a full-resolution update.
 
@@ -36,7 +36,7 @@ Delete repo code whenever an upstream dependency or native platform capability c
 
 - Keep `typescript` pinned to `5.9.3`.
 - Keep the async AWS stack pinned as one unit: `aioboto3`, `aiobotocore`, `boto3`, `botocore`, `types-aiobotocore-s3`.
-- Keep the local `@hey-api/openapi-ts` compatibility patch until upstream output no longer emits the `getParseAs` and `RequestOptions<never, ...>` cases Nova currently repairs.
+- Keep the local `@hey-api/openapi-ts` compatibility patch until upstream output no longer emits the `getParseAs` and `RequestOptions<never, …>` cases Nova currently repairs.
 - Keep the retained Python SDK typed `additionalProperties` and parser repairs until stock generator output matches the committed SDK without local correction.
 
 ### Current native-leverage deletions

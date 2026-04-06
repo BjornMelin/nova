@@ -26,7 +26,7 @@ class CapabilitiesResponse:
     """
 
     capabilities: list[CapabilityDescriptor]
-    """ Capability declarations exposed by the running API. """
+    """Capability declarations exposed by the running API."""
 
     def to_dict(self) -> dict[str, Any]:
         capabilities = []

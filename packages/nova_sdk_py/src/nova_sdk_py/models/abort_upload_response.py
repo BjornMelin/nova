@@ -20,7 +20,7 @@ class AbortUploadResponse:
     """
 
     ok: bool | Unset = True
-    """ Whether the multipart abort request was accepted. """
+    """Whether the multipart abort request was accepted."""
 
     def to_dict(self) -> dict[str, Any]:
         ok = self.ok

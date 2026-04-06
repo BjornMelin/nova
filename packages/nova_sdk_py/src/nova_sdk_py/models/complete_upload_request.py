@@ -28,11 +28,11 @@ class CompleteUploadRequest:
     """
 
     key: str
-    """ Storage key reserved for the multipart upload. """
+    """Storage key reserved for the multipart upload."""
     parts: list[CompletedPart]
-    """ Ordered multipart parts to finalize in S3. """
+    """Ordered multipart parts to finalize in S3."""
     upload_id: str
-    """ S3 multipart upload identifier being finalized. """
+    """S3 multipart upload identifier being finalized."""
 
     def to_dict(self) -> dict[str, Any]:
         key = self.key

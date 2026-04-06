@@ -196,6 +196,10 @@ def test_public_sdk_operation_docblocks_include_returns_tags() -> None:
         "Expose the current transfer policy envelope that browser and native "
         "upload clients should honor." in source
     )
+    assert (
+        "@param options - request options including client, security, and "
+        "request overrides." in source
+    )
     assert "@returns Effective transfer policy metadata and limits." in source
     assert "Create an export workflow." in source
     assert "@returns Created export workflow resource." in source

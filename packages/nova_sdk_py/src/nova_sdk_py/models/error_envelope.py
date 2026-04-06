@@ -26,7 +26,7 @@ class ErrorEnvelope:
     """
 
     error: ErrorBody
-    """ Standard API error body. """
+    """Standard API error body."""
 
     def to_dict(self) -> dict[str, Any]:
         error = self.error.to_dict()

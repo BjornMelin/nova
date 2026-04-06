@@ -31,13 +31,13 @@ class ErrorBody:
     """
 
     code: str
-    """ Stable machine-readable error code. """
+    """Stable machine-readable error code."""
     details: ErrorBodyDetails
-    """ Additional structured details for the error. """
+    """Additional structured details for the error."""
     message: str
-    """ Human-readable error summary. """
+    """Human-readable error summary."""
     request_id: None | str
-    """ Request identifier associated with the failure when available. """
+    """Request identifier associated with the failure when available."""
 
     def to_dict(self) -> dict[str, Any]:
         code = self.code

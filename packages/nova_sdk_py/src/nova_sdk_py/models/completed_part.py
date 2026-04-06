@@ -28,11 +28,11 @@ class CompletedPart:
     """
 
     etag: str
-    """ ETag returned by S3 for the completed multipart part. """
+    """ETag returned by S3 for the completed multipart part."""
     part_number: int
-    """ Multipart part number included in the completion request. """
+    """Multipart part number included in the completion request."""
     checksum_sha256: None | str | Unset = UNSET
-    """ Optional SHA-256 checksum for the completed multipart part. """
+    """Optional SHA-256 checksum for the completed multipart part."""
 
     def to_dict(self) -> dict[str, Any]:
         etag = self.etag

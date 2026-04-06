@@ -431,6 +431,10 @@ def test_apply_typescript_compatibility_fix_rewrites_sdk_docblocks(
     assert "Args:" not in source
     assert "Returns:" not in source
     assert "Return uploaded multipart part state for resume flows." in source
+    assert (
+        "@param options - request options including client, security, and "
+        "request overrides." in source
+    )
 
 
 def test_typescript_compatibility_fix_allows_undefined_parse_as(

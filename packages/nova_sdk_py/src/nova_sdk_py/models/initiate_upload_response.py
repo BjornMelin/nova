@@ -54,37 +54,37 @@ class InitiateUploadResponse:
     """
 
     accelerate_enabled: bool
-    """ Whether S3 Transfer Acceleration is enabled for the session. """
+    """Whether S3 Transfer Acceleration is enabled for the session."""
     bucket: str
-    """ Bucket that will receive the uploaded object. """
+    """Bucket that will receive the uploaded object."""
     checksum_mode: InitiateUploadResponseChecksumMode
-    """ Server-resolved checksum enforcement mode for the upload. """
+    """Server-resolved checksum enforcement mode for the upload."""
     expires_in_seconds: int
-    """ Seconds until the returned presigned inputs expire. """
+    """Seconds until the returned presigned inputs expire."""
     key: str
-    """ Storage key reserved for the uploaded object. """
+    """Storage key reserved for the uploaded object."""
     max_concurrency_hint: int
-    """ Suggested maximum number of concurrent client uploads. """
+    """Suggested maximum number of concurrent client uploads."""
     policy_id: str
-    """ Identifier of the effective transfer policy. """
+    """Identifier of the effective transfer policy."""
     policy_version: str
-    """ Version of the effective transfer policy. """
+    """Version of the effective transfer policy."""
     resumable_until: datetime.datetime
-    """ Timestamp until which multipart resume operations are valid. """
+    """Timestamp until which multipart resume operations are valid."""
     session_id: str
-    """ Durable upload-session identifier used for resume flows. """
+    """Durable upload-session identifier used for resume flows."""
     sign_batch_size_hint: int
-    """ Suggested maximum number of parts per sign-parts request. """
+    """Suggested maximum number of parts per sign-parts request."""
     strategy: UploadStrategy
-    """ Upload strategy options returned by initiate endpoint. """
+    """Upload strategy options returned by initiate endpoint."""
     checksum_algorithm: None | str | Unset = UNSET
-    """ Checksum algorithm callers should use when checksums apply. """
+    """Checksum algorithm callers should use when checksums apply."""
     part_size_bytes: int | None | Unset = UNSET
-    """ Target multipart part size in bytes when multipart is required. """
+    """Target multipart part size in bytes when multipart is required."""
     upload_id: None | str | Unset = UNSET
-    """ S3 multipart upload identifier when multipart is required. """
+    """S3 multipart upload identifier when multipart is required."""
     url: None | str | Unset = _attrs_field(default=UNSET, repr=False)
-    """ Presigned single-part upload URL when the strategy is direct. """
+    """Presigned single-part upload URL when the strategy is direct."""
 
     def to_dict(self) -> dict[str, Any]:
         accelerate_enabled = self.accelerate_enabled

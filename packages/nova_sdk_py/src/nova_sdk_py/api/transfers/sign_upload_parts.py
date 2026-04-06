@@ -78,6 +78,19 @@ def sync_detailed(
     Sign multipart upload parts
 
     Return presigned URLs for the requested multipart upload part numbers.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (SignPartsRequest): Request body payload for this operation.
+
+    Returns:
+        Response[ErrorEnvelope | SignPartsResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -100,6 +113,19 @@ def sync(
     Sign multipart upload parts
 
     Return presigned URLs for the requested multipart upload part numbers.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (SignPartsRequest): Request body payload for this operation.
+
+    Returns:
+        ErrorEnvelope | SignPartsResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return sync_detailed(
@@ -117,6 +143,19 @@ async def asyncio_detailed(
     Sign multipart upload parts
 
     Return presigned URLs for the requested multipart upload part numbers.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (SignPartsRequest): Request body payload for this operation.
+
+    Returns:
+        Response[ErrorEnvelope | SignPartsResponse]: Detailed HTTP response
+            wrapper containing the parsed response payload.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     kwargs = _get_kwargs(
@@ -137,6 +176,19 @@ async def asyncio(
     Sign multipart upload parts
 
     Return presigned URLs for the requested multipart upload part numbers.
+
+    Args:
+        client (AuthenticatedClient): SDK client used to send the request
+            and parse the response.
+        body (SignPartsRequest): Request body payload for this operation.
+
+    Returns:
+        ErrorEnvelope | SignPartsResponse | None: Parsed response payload,
+            or ``None`` when unexpected statuses are ignored by the client.
+
+    Raises:
+        errors.UnexpectedStatus: If ``client.raise_on_unexpected_status`` is
+            enabled and the API returns an undocumented status code.
     """
 
     return (
