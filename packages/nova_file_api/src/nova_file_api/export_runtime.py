@@ -117,6 +117,7 @@ class ExportRepository(Protocol):
         expected_status: ExportStatus,
     ) -> bool:
         """Replace record only when current status matches expected value."""
+        ...
 
     async def list_for_scope(
         self, *, scope_id: str, limit: int
@@ -125,9 +126,11 @@ class ExportRepository(Protocol):
 
         This path is GSI-backed and therefore eventually consistent.
         """
+        ...
 
     async def healthcheck(self) -> bool:
         """Return readiness of the backing storage dependency."""
+        ...
 
 
 class ExportPublisher(Protocol):
@@ -147,6 +150,7 @@ class ExportPublisher(Protocol):
             ExportPublishError: Raised when the backend rejects the publish
                 request or returns an invalid response.
         """
+        ...
 
     async def stop_execution(self, *, execution_arn: str, cause: str) -> None:
         """Stop a running workflow execution when canceling.
@@ -163,6 +167,7 @@ class ExportPublisher(Protocol):
                 request.
             BotoCoreError: Raised when the AWS client transport fails.
         """
+        ...
 
     async def post_publish(
         self,
@@ -172,9 +177,11 @@ class ExportPublisher(Protocol):
         metrics: ExportMetrics,
     ) -> None:
         """Run optional post-publish handling."""
+        ...
 
     async def healthcheck(self) -> bool:
         """Return readiness of the backing queue dependency."""
+        ...
 
 
 class DynamoTable(Protocol):
@@ -182,12 +189,15 @@ class DynamoTable(Protocol):
 
     async def put_item(self, **kwargs: object) -> Mapping[str, object]:
         """Create or replace an item."""
+        ...
 
     async def get_item(self, **kwargs: object) -> Mapping[str, object]:
         """Read a single item by key."""
+        ...
 
     async def query(self, **kwargs: object) -> Mapping[str, object]:
         """Query items using a secondary index."""
+        ...
 
 
 class DynamoResource(Protocol):
@@ -195,6 +205,7 @@ class DynamoResource(Protocol):
 
     def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
         """Return table object or awaitable table object."""
+        ...
 
 
 class StepFunctionsClient(Protocol):
@@ -202,6 +213,7 @@ class StepFunctionsClient(Protocol):
 
     async def start_execution(self, **kwargs: object) -> Mapping[str, object]:
         """Start a workflow execution."""
+        ...
 
     async def stop_execution(self, **kwargs: object) -> Mapping[str, object]:
         """Stop a workflow execution.
@@ -216,11 +228,13 @@ class StepFunctionsClient(Protocol):
             ClientError: Raised when the AWS service rejects the request.
             BotoCoreError: Raised when the AWS client transport fails.
         """
+        ...
 
     async def describe_state_machine(
         self, **kwargs: object
     ) -> Mapping[str, object]:
         """Read state machine metadata for health checks."""
+        ...
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:
