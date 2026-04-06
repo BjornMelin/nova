@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from typing import Annotated
+
+from pydantic import BaseModel, BeforeValidator, Field, StringConstraints
 
 from nova_runtime_support.transfer_limits import (
     ENV_EXPORT_COPY_PART_SIZE_BYTES_MAX,
@@ -14,6 +16,20 @@ from nova_runtime_support.transfer_limits import (
 )
 
 
+def _none_if_blank(value: object) -> object:
+    """Treat blank strings as unset for optional env-backed string fields."""
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+ConfiguredOptionalEnvString = Annotated[
+    Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    | None,
+    BeforeValidator(_none_if_blank),
+]
+
+
 class FileTransferSharedEnvFields(BaseModel):
     """Shared transfer env fields for API and workflow Lambdas.
 
@@ -21,21 +37,10 @@ class FileTransferSharedEnvFields(BaseModel):
     validation — single definition to avoid drift.
     """
 
-    file_transfer_bucket: str | None = Field(
+    file_transfer_bucket: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_BUCKET",
     )
-
-    @field_validator("file_transfer_bucket", mode="before")
-    @classmethod
-    def _normalize_file_transfer_bucket(cls, value: object) -> object:
-        """Treat unset, empty, or whitespace-only values as unconfigured."""
-        if value is None:
-            return None
-        if isinstance(value, str):
-            stripped = value.strip()
-            return stripped if stripped else None
-        return value
 
     file_transfer_upload_prefix: str = Field(
         default="uploads/",
@@ -82,14 +87,17 @@ class FileTransferSharedEnvFields(BaseModel):
         default=False,
         validation_alias="FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
     )
-    file_transfer_upload_sessions_table: str | None = Field(
+    file_transfer_upload_sessions_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
     )
-    file_transfer_usage_table: str | None = Field(
+    file_transfer_usage_table: ConfiguredOptionalEnvString = Field(
         default=None,
         validation_alias="FILE_TRANSFER_USAGE_TABLE",
     )
 
 
-__all__ = ["FileTransferSharedEnvFields"]
+__all__ = [
+    "ConfiguredOptionalEnvString",
+    "FileTransferSharedEnvFields",
+]

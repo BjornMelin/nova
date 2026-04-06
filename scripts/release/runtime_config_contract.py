@@ -108,6 +108,12 @@ def _type_label(annotation: Any) -> str:
             return str(annotation.__name__)
         return str(annotation).replace("typing.", "")
 
+    if str(origin) == "typing.Annotated":
+        annotated_args = get_args(annotation)
+        if annotated_args:
+            return _type_label(annotated_args[0])
+        return "Annotated"
+
     if origin in {list, tuple, set, frozenset}:
         inner = ", ".join(_type_label(arg) for arg in get_args(annotation))
         return f"{origin.__name__}[{inner}]"
