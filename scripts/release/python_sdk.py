@@ -276,10 +276,11 @@ def _apply_python_operation_reference_docs(
             if docstring is None:
                 continue
             content = module_path.read_text(encoding="utf-8")
+            replacement_docstring = docstring
 
             def _replace_docstring(
                 match: re.Match[str],
-                replacement_docstring: str = docstring,
+                replacement_docstring: str = replacement_docstring,
             ) -> str:
                 return match.group("prefix") + replacement_docstring
 
