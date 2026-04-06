@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Any, Protocol, cast
 from uuid import uuid4
 
+from boto3.dynamodb.types import TypeSerializer  # type: ignore[import-untyped]
 from botocore.exceptions import BotoCoreError, ClientError
 
 _ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES = frozenset(
@@ -20,6 +21,7 @@ _ALLOWED_UPLOAD_SESSION_CHECKSUM_MODES = frozenset(
 )
 _UPLOAD_SESSION_RECORD_TYPE = "upload_session"
 _UPLOAD_SESSION_UPLOAD_LOOKUP_RECORD_TYPE = "upload_session_upload_lookup"
+_TYPE_SERIALIZER = TypeSerializer()
 
 
 class UploadStrategy(StrEnum):
@@ -225,8 +227,11 @@ class DynamoUploadSessionRepository:
     async def create(self, record: UploadSessionRecord) -> None:
         """Persist one upload session record to DynamoDB."""
         table = await self._resolve_table()
-        for item in _record_to_items(record):
-            await table.put_item(Item=item)
+        await _transact_write_put_items(
+            table_name=self.table_name,
+            table=table,
+            items=_record_to_items(record),
+        )
 
     async def get_for_upload_id(
         self,
@@ -253,8 +258,11 @@ class DynamoUploadSessionRepository:
     async def update(self, record: UploadSessionRecord) -> None:
         """Replace one upload session record in DynamoDB."""
         table = await self._resolve_table()
-        for item in _record_to_items(record):
-            await table.put_item(Item=item)
+        await _transact_write_put_items(
+            table_name=self.table_name,
+            table=table,
+            items=_record_to_items(record),
+        )
 
     async def list_expired_multipart(
         self,
@@ -384,6 +392,53 @@ def _record_to_items(record: UploadSessionRecord) -> list[dict[str, object]]:
             )
         )
     return items
+
+
+def _dynamo_transact_write_client(table: object) -> object | None:
+    """Return the DynamoDB client exposing ``transact_write_items``."""
+    meta = getattr(table, "meta", None)
+    client = getattr(meta, "client", None) if meta is not None else None
+    if client is None:
+        return None
+    if not callable(getattr(client, "transact_write_items", None)):
+        return None
+    return cast(object, client)
+
+
+async def _transact_write_put_items(
+    *,
+    table_name: str,
+    table: DynamoTable,
+    items: list[dict[str, object]],
+) -> None:
+    """Write all rows for one upload session as a single transaction."""
+    client = _dynamo_transact_write_client(table)
+    if client is None:
+        for item in items:
+            await table.put_item(Item=item)
+        return
+    transact_write_items = cast(
+        Any,
+        client,
+    ).transact_write_items
+    await transact_write_items(
+        TransactItems=[
+            {
+                "Put": {
+                    "TableName": table_name,
+                    "Item": _serialize_item(item),
+                }
+            }
+            for item in items
+        ]
+    )
+
+
+def _serialize_item(item: dict[str, object]) -> dict[str, object]:
+    return {
+        key: cast(object, _TYPE_SERIALIZER.serialize(value))
+        for key, value in item.items()
+    }
 
 
 def _parse_checksum_mode(item: dict[str, Any]) -> str:

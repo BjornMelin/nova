@@ -44,9 +44,12 @@ export const getCapabilities = <ThrowOnError extends boolean = false>(options?: 
 export const getTransferCapabilities = <ThrowOnError extends boolean = false>(options?: Options<GetTransferCapabilitiesData, ThrowOnError>) => (options?.client ?? client).get<GetTransferCapabilitiesResponses, GetTransferCapabilitiesErrors, ThrowOnError>({ url: '/v1/capabilities/transfers', ...options });
 
 /**
+ * List Exports
+ *
  * List caller-owned exports with most recent first.
  *
- * @returns The response from the `listExports` operation.
+ * This endpoint is intentionally eventual because it is backed by a scoped
+ * DynamoDB global secondary index.
  */
 export const listExports = <ThrowOnError extends boolean = false>(options?: Options<ListExportsData, ThrowOnError>) => (options?.client ?? client).get<ListExportsResponses, ListExportsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

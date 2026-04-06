@@ -1368,7 +1368,7 @@
     },
     "/v1/exports": {
       "get": {
-        "description": "List caller-owned exports with most recent first.",
+        "description": "List caller-owned exports with most recent first.\n\nThis endpoint is intentionally eventual because it is backed by a scoped\nDynamoDB global secondary index.",
         "operationId": "list_exports",
         "parameters": [
           {

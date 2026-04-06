@@ -3,11 +3,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+from boto3.dynamodb.types import (
+    TypeDeserializer,  # type: ignore[import-untyped]
+)
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import ValidationError
 
@@ -203,6 +207,13 @@ class _LaggingUploadSessionTable:
         self.get_item_calls: list[dict[str, Any]] = []
         self.put_item_calls: list[dict[str, Any]] = []
         self.scan_calls: list[dict[str, Any]] = []
+        self.transact_write_calls: list[dict[str, Any]] = []
+        self.fail_transact_write = False
+        self.meta = type(
+            "_Meta",
+            (),
+            {"client": _LaggingUploadSessionClient(self)},
+        )()
 
     async def put_item(self, **kwargs: object) -> dict[str, object]:
         item = deepcopy(cast(dict[str, Any], kwargs["Item"]))
@@ -241,6 +252,33 @@ class _LaggingUploadSessionTable:
         if isinstance(limit, int):
             items = items[:limit]
         return {"Items": items}
+
+
+_TYPE_DESERIALIZER = TypeDeserializer()
+
+
+class _LaggingUploadSessionClient:
+    def __init__(self, table: _LaggingUploadSessionTable) -> None:
+        self._table = table
+
+    async def transact_write_items(self, **kwargs: object) -> dict[str, object]:
+        self._table.transact_write_calls.append(deepcopy(dict(kwargs)))
+        if self._table.fail_transact_write:
+            raise RuntimeError("transaction write failed")
+        for request in cast(list[dict[str, Any]], kwargs["TransactItems"]):
+            put = cast(dict[str, Any], request["Put"])
+            item = _deserialize_item(cast(dict[str, Any], put["Item"]))
+            session_id = item["session_id"]
+            assert isinstance(session_id, str)
+            self._table._items[session_id] = item
+        return {}
+
+
+def _deserialize_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: _TYPE_DESERIALIZER.deserialize(value)
+        for key, value in item.items()
+    }
 
 
 class _LaggingUploadSessionResource:
@@ -1134,6 +1172,37 @@ async def test_dynamo_upload_repository_uses_strong_upload_alias_lookup() -> (
 
     assert loaded == record
     assert table.get_item_calls[-1]["ConsistentRead"] is True
+    assert len(table.transact_write_calls) == 1
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_create_is_atomic() -> None:
+    repository, table = _lagging_upload_session_repository()
+    table.fail_transact_write = True
+
+    with pytest.raises(RuntimeError, match="transaction write failed"):
+        await repository.create(_upload_session_record())
+
+    assert table._items == {}
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_update_is_atomic() -> None:
+    repository, table = _lagging_upload_session_repository()
+    original = _upload_session_record()
+    await repository.create(original)
+    table.fail_transact_write = True
+    updated = replace(
+        original,
+        status=UploadSessionStatus.ACTIVE,
+        sign_requests_count=2,
+        last_activity_at=original.last_activity_at + timedelta(minutes=5),
+    )
+
+    with pytest.raises(RuntimeError, match="transaction write failed"):
+        await repository.update(updated)
+
+    assert await repository.get_for_upload_id(upload_id="upload-1") == original
 
 
 @pytest.mark.anyio
