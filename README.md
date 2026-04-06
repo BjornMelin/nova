@@ -115,8 +115,8 @@ Nova is not responsible for:
 ### Exports
 
 - `POST /v1/exports`
-- `GET /v1/exports`
-- `GET /v1/exports/{export_id}`
+- `GET /v1/exports` (scope index, intentionally eventual)
+- `GET /v1/exports/{export_id}` (primary-key read, strongly consistent)
 - `POST /v1/exports/{export_id}/cancel`
 
 ### Platform and ops
