@@ -290,6 +290,26 @@ class _LaggingUploadSessionResource:
         return self.table
 
 
+class _TableWithoutTransactionClient:
+    async def put_item(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+    async def get_item(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+    async def scan(self, **kwargs: object) -> dict[str, object]:
+        del kwargs
+        return {}
+
+
+class _ResourceWithoutTransactionClient:
+    def Table(self, table_name: str) -> _TableWithoutTransactionClient:
+        assert table_name == "upload-sessions"
+        return _TableWithoutTransactionClient()
+
+
 def _upload_session_record(
     *,
     key: str = "uploads/scope-1/report.csv",
@@ -1203,6 +1223,20 @@ async def test_dynamo_upload_repository_update_is_atomic() -> None:
         await repository.update(updated)
 
     assert await repository.get_for_upload_id(upload_id="upload-1") == original
+
+
+@pytest.mark.anyio
+async def test_dynamo_upload_repository_requires_transaction_client() -> None:
+    repository = DynamoUploadSessionRepository(
+        table_name="upload-sessions",
+        dynamodb_resource=_ResourceWithoutTransactionClient(),
+    )
+
+    with pytest.raises(
+        TypeError,
+        match=r"transact_write_items",
+    ):
+        await repository.create(_upload_session_record())
 
 
 @pytest.mark.anyio

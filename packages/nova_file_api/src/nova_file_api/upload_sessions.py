@@ -414,9 +414,10 @@ async def _transact_write_put_items(
     """Write all rows for one upload session as a single transaction."""
     client = _dynamo_transact_write_client(table)
     if client is None:
-        for item in items:
-            await table.put_item(Item=item)
-        return
+        raise TypeError(
+            "dynamodb table object does not expose meta.client."
+            "transact_write_items"
+        )
     transact_write_items = cast(
         Any,
         client,
