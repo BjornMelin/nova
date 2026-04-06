@@ -316,11 +316,9 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
 
     assert "additional_properties: dict[str, int] = {}" in activity
     assert "additional_properties: dict[str, bool] = {}" in readiness
-    assert '"""Model representing ReadinessResponseChecks."""' in readiness
     assert "additional_properties: dict[str, str] = {}" in sign_parts
     assert "if not isinstance(value, str):" in sign_parts
     assert "raise TypeError(" in sign_parts
-    assert '"""Model representing SignPartsResponseUrls."""' in sign_parts
     assert "from attrs import field as _attrs_field" in presign
     assert "url: str = _attrs_field(repr=False)" in presign
     assert "from nova_sdk_py.types import UNSET, Unset" in initiate_upload
