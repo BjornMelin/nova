@@ -11,7 +11,16 @@ def emit_request_metric(
     route: str,
     status: str,
 ) -> None:
-    """Emit a low-cardinality request counter."""
+    """Emit a low-cardinality request counter.
+
+    Args:
+        metrics: Metrics collector that receives the EMF payload.
+        route: Route name recorded on the request metric dimensions.
+        status: Request outcome recorded on the request metric dimensions.
+
+    Returns:
+        None: This helper returns no value.
+    """
     metrics.emit_emf(
         metric_name="requests_total",
         value=1,

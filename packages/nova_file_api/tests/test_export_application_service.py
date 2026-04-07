@@ -108,6 +108,18 @@ class _RecordingActivityStore:
         return True
 
 
+class _FailingActivityStore(_RecordingActivityStore):
+    async def record(
+        self,
+        *,
+        principal: Principal,
+        event_type: str,
+        details: str | None = None,
+    ) -> None:
+        del principal, event_type, details
+        raise RuntimeError("activity store unavailable")
+
+
 class _RecordingExportService:
     def __init__(self) -> None:
         self.get_calls: list[tuple[str, str]] = []
@@ -154,14 +166,18 @@ class _RecordingExportService:
         )
 
 
+class _FailingExportService(_RecordingExportService):
+    async def get(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        del export_id, scope_id
+        raise RuntimeError("export lookup failed")
+
+
 def _principal() -> Principal:
     return Principal(subject="user-1", scope_id="scope-1")
 
 
 @pytest.mark.anyio
-async def test_create_export_moves_mutation_orchestration_below_routes() -> (
-    None
-):
+async def test_create_export_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = MemoryActivityStore()
     idempotency_store = _FakeIdempotencyStore()
@@ -201,7 +217,43 @@ async def test_create_export_moves_mutation_orchestration_below_routes() -> (
 
 
 @pytest.mark.anyio
-async def test_get_export_moves_read_orchestration_below_routes() -> None:
+async def test_create_export_activity_failure() -> None:
+    metrics = MetricsCollector(namespace="Tests")
+    activity_store = _FailingActivityStore()
+    idempotency_store = _FakeIdempotencyStore()
+    export_service = ExportService(
+        repository=MemoryExportRepository(),
+        publisher=MemoryExportPublisher(),
+        metrics=metrics,
+    )
+    service = ExportApplicationService(
+        metrics=metrics,
+        export_service=export_service,
+        activity_store=activity_store,
+        idempotency_store=idempotency_store,
+    )
+
+    response = await service.create_export(
+        payload=CreateExportRequest(
+            source_key="uploads/scope-1/source.csv",
+            filename="source.csv",
+        ),
+        principal=_principal(),
+        request_id="req-1",
+        idempotency_key="idempotency-1",
+    )
+
+    assert response.export_id
+    assert idempotency_store.stored_payload is not None
+    counters = metrics.counters_snapshot()
+    assert counters["exports_create_total"] == 1
+    assert counters["exports_created"] == 1
+    assert "exports_create_ms" in metrics.latency_snapshot()
+    assert activity_store.records == []
+
+
+@pytest.mark.anyio
+async def test_get_export_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
     export_service = _RecordingExportService()
@@ -230,7 +282,35 @@ async def test_get_export_moves_read_orchestration_below_routes() -> None:
 
 
 @pytest.mark.anyio
-async def test_list_exports_moves_query_orchestration_below_routes() -> None:
+async def test_get_export_failure() -> None:
+    metrics = MetricsCollector(namespace="Tests")
+    activity_store = _RecordingActivityStore()
+    export_service = _FailingExportService()
+    service = ExportApplicationService(
+        metrics=metrics,
+        export_service=cast(ExportService, export_service),
+        activity_store=cast(ActivityStore, activity_store),
+        idempotency_store=_FakeIdempotencyStore(),
+    )
+
+    with pytest.raises(RuntimeError, match="export lookup failed"):
+        await service.get_export(
+            export_id="export-1",
+            principal=_principal(),
+        )
+
+    assert export_service.get_calls == []
+    assert metrics.counters_snapshot()["exports_get_failure_total"] == 1
+    assert activity_store.records == [("exports_get_failure", "RuntimeError")]
+    assert await activity_store.summary() == {
+        "events_total": 1,
+        "active_users_today": 1,
+        "distinct_event_types": 1,
+    }
+
+
+@pytest.mark.anyio
+async def test_list_exports_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
     export_service = _RecordingExportService()
@@ -258,9 +338,7 @@ async def test_list_exports_moves_query_orchestration_below_routes() -> None:
 
 
 @pytest.mark.anyio
-async def test_cancel_export_moves_mutation_orchestration_below_routes() -> (
-    None
-):
+async def test_cancel_export_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
     export_service = _RecordingExportService()

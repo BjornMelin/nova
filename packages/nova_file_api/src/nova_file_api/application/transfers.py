@@ -131,7 +131,20 @@ _PRESIGN_DOWNLOAD = _TransferRouteSpec(
 
 @dataclass(slots=True)
 class TransferApplicationService:
-    """Own request orchestration for transfer routes."""
+    """Own request orchestration for transfer routes.
+
+    Args:
+        metrics: Metrics collector used for timers and request counters.
+        transfer_service: Domain service that owns transfer lifecycle behavior.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate initiate-upload requests.
+
+    Returns:
+        TransferApplicationService: Configured application service instance.
+
+    Raises:
+        None: Construction does not raise directly.
+    """
 
     metrics: MetricsCollector
     transfer_service: TransferService
@@ -145,7 +158,24 @@ class TransferApplicationService:
         principal: Principal,
         idempotency_key: str | None,
     ) -> InitiateUploadResponse:
-        """Run the initiate-upload request flow below the route boundary."""
+        """Run the initiate-upload request flow below the route boundary.
+
+        Args:
+            payload: Request body for creating an upload session and policy
+                hints.
+            principal: Authorized caller whose scope owns the upload.
+            idempotency_key: Optional idempotency key for request replay.
+
+        Returns:
+            InitiateUploadResponse: Session identifiers and upload policy hints.
+
+        Raises:
+            FileTransferError: Idempotency conflicts and domain errors from
+                ``self.transfer_service.initiate_upload``.
+            Exception: Errors from ``run_guarded_mutation``, including response
+                persistence failures when the idempotency store is configured to
+                re-raise.
+        """
         request_payload = payload.model_dump(mode="json")
 
         async def _execute() -> InitiateUploadResponse:
@@ -203,7 +233,21 @@ class TransferApplicationService:
         payload: SignPartsRequest,
         principal: Principal,
     ) -> SignPartsResponse:
-        """Run the sign-parts request flow below the route boundary."""
+        """Run the sign-parts request flow below the route boundary.
+
+        Args:
+            payload: Request containing the upload session and part numbers to
+                sign.
+            principal: Authorized caller whose scope owns the upload session.
+
+        Returns:
+            SignPartsResponse: Presigned URLs and metadata for upload parts.
+
+        Raises:
+            FileTransferError: Domain errors from
+                ``self.transfer_service.sign_parts``.
+            Exception: Propagates unexpected errors from the transfer service.
+        """
         return await self._run_observed_operation(
             spec=_SIGN_PARTS,
             principal=principal,
@@ -219,7 +263,20 @@ class TransferApplicationService:
         payload: UploadIntrospectionRequest,
         principal: Principal,
     ) -> UploadIntrospectionResponse:
-        """Run upload introspection below the route boundary."""
+        """Run upload introspection below the route boundary.
+
+        Args:
+            payload: Request identifying the upload session to introspect.
+            principal: Authorized caller whose scope owns the upload session.
+
+        Returns:
+            UploadIntrospectionResponse: Session state and multipart progress.
+
+        Raises:
+            FileTransferError: Domain errors from
+                ``self.transfer_service.introspect_upload``.
+            Exception: Propagates unexpected errors from the transfer service.
+        """
         return await self._run_observed_operation(
             spec=_INTROSPECT_UPLOAD,
             principal=principal,
@@ -235,7 +292,21 @@ class TransferApplicationService:
         payload: CompleteUploadRequest,
         principal: Principal,
     ) -> CompleteUploadResponse:
-        """Run the complete-upload request flow below the route boundary."""
+        """Run the complete-upload request flow below the route boundary.
+
+        Args:
+            payload: Request containing completion parameters for the multipart
+                upload.
+            principal: Authorized caller whose scope owns the upload session.
+
+        Returns:
+            CompleteUploadResponse: Final object metadata after completion.
+
+        Raises:
+            FileTransferError: Domain errors from
+                ``self.transfer_service.complete_upload``.
+            Exception: Propagates unexpected errors from the transfer service.
+        """
         return await self._run_observed_operation(
             spec=_COMPLETE_UPLOAD,
             principal=principal,
@@ -251,7 +322,21 @@ class TransferApplicationService:
         payload: AbortUploadRequest,
         principal: Principal,
     ) -> AbortUploadResponse:
-        """Run the abort-upload request flow below the route boundary."""
+        """Run the abort-upload request flow below the route boundary.
+
+        Args:
+            payload: Request identifying the upload session to abort.
+            principal: Authorized caller whose scope owns the upload session.
+
+        Returns:
+            AbortUploadResponse: Acknowledgement of the aborted multipart
+                upload.
+
+        Raises:
+            FileTransferError: Domain errors from
+                ``self.transfer_service.abort_upload``.
+            Exception: Propagates unexpected errors from the transfer service.
+        """
         return await self._run_observed_operation(
             spec=_ABORT_UPLOAD,
             principal=principal,
@@ -267,7 +352,21 @@ class TransferApplicationService:
         payload: PresignDownloadRequest,
         principal: Principal,
     ) -> PresignDownloadResponse:
-        """Run the download-presign request flow below the route boundary."""
+        """Run the download-presign request flow below the route boundary.
+
+        Args:
+            payload: Request describing the object to download and optional
+                parameters for the presigned URL.
+            principal: Authorized caller whose scope is used for authorization.
+
+        Returns:
+            PresignDownloadResponse: Presigned download URL and headers.
+
+        Raises:
+            FileTransferError: Domain errors from
+                ``self.transfer_service.presign_download``.
+            Exception: Propagates unexpected errors from the transfer service.
+        """
         return await self._run_observed_operation(
             spec=_PRESIGN_DOWNLOAD,
             principal=principal,

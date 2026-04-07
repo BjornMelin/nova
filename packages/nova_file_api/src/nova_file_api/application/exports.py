@@ -22,7 +22,20 @@ from nova_runtime_support.metrics import MetricsCollector
 
 @dataclass(slots=True)
 class ExportApplicationService:
-    """Own request orchestration for export routes."""
+    """Own request orchestration for export routes.
+
+    Args:
+        metrics: Metrics collector used for timers and request counters.
+        export_service: Domain service that owns export lifecycle behavior.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate create-export requests.
+
+    Returns:
+        ExportApplicationService: Configured application service instance.
+
+    Raises:
+        None: Construction does not raise directly.
+    """
 
     metrics: MetricsCollector
     export_service: ExportService
@@ -37,7 +50,22 @@ class ExportApplicationService:
         request_id: str | None,
         idempotency_key: str | None,
     ) -> ExportResource:
-        """Create an export below the route boundary."""
+        """Create an export below the route boundary.
+
+        Args:
+            payload: Request body containing the source key and filename.
+            principal: Authorized caller whose scope owns the export.
+            request_id: Optional request identifier used for correlation.
+            idempotency_key: Optional idempotency key for request replay.
+
+        Returns:
+            ExportResource: Public export resource created for the caller.
+
+        Raises:
+            Exception: Propagates errors from `run_guarded_mutation`, including
+                idempotency-store failures, response persistence failures, and
+                errors from `self.export_service.create`.
+        """
         request_payload = payload.model_dump(mode="json")
 
         async def _execute() -> ExportResource:
@@ -69,12 +97,6 @@ class ExportApplicationService:
                     event_type="exports_create",
                     details=f"request_id={request_id or 'unknown'}",
                 )
-                self.metrics.incr("exports_create_total")
-                emit_request_metric(
-                    metrics=self.metrics,
-                    route="exports_create",
-                    status="ok",
-                )
             except Exception:
                 structlog.get_logger("api").exception(
                     "exports_create_response_finalize_failed",
@@ -82,6 +104,12 @@ class ExportApplicationService:
                     scope_id=principal.scope_id,
                     idempotency_key=idempotency_key,
                 )
+            self.metrics.incr("exports_create_total")
+            emit_request_metric(
+                metrics=self.metrics,
+                route="exports_create",
+                status="ok",
+            )
 
         def _replay_metric() -> None:
             self.metrics.incr("idempotency_replays_total")
@@ -114,7 +142,18 @@ class ExportApplicationService:
         export_id: str,
         principal: Principal,
     ) -> ExportResource:
-        """Get an export below the route boundary."""
+        """Get an export below the route boundary.
+
+        Args:
+            export_id: Identifier of the caller-owned export resource.
+            principal: Authorized caller whose scope owns the export.
+
+        Returns:
+            ExportResource: Public export resource matched by export ID.
+
+        Raises:
+            Exception: Propagates errors from `self.export_service.get`.
+        """
         try:
             export = await self.export_service.get(
                 export_id=export_id,
@@ -155,7 +194,19 @@ class ExportApplicationService:
         scope_id: str,
         limit: int,
     ) -> ExportListResponse:
-        """List caller-owned exports below the route boundary."""
+        """List caller-owned exports below the route boundary.
+
+        Args:
+            scope_id: Scope identifier whose exports should be listed.
+            limit: Maximum number of export records to return.
+
+        Returns:
+            ExportListResponse: Caller-owned exports ordered by recency.
+
+        Raises:
+            Exception: Propagates errors from
+                `self.export_service.list_for_scope`.
+        """
         exports = await self.export_service.list_for_scope(
             scope_id=scope_id,
             limit=limit,
@@ -170,7 +221,18 @@ class ExportApplicationService:
         export_id: str,
         principal: Principal,
     ) -> ExportResource:
-        """Cancel an export below the route boundary."""
+        """Cancel an export below the route boundary.
+
+        Args:
+            export_id: Identifier of the caller-owned export resource.
+            principal: Authorized caller whose scope owns the export.
+
+        Returns:
+            ExportResource: Public export resource after cancellation.
+
+        Raises:
+            Exception: Propagates errors from `self.export_service.cancel`.
+        """
         try:
             export = await self.export_service.cancel(
                 export_id=export_id,
@@ -230,23 +292,34 @@ class ExportApplicationService:
         extra: dict[str, object] | None = None,
         activity_details: str | None = None,
     ) -> None:
+        error_name = type(exc).__name__
         try:
-            error_name = type(exc).__name__
             self.metrics.incr(metric_name)
             emit_request_metric(
                 metrics=self.metrics,
                 route=route_metric,
                 status="error",
             )
-            log_fields: dict[str, object] = {
-                "route": route_path,
-                "scope_id": principal.scope_id,
-                "error": error_name,
-                "error_detail": error_name,
-            }
-            if extra:
-                log_fields.update(extra)
-            structlog.get_logger("api").exception(log_event, **log_fields)
+        except Exception:
+            structlog.get_logger("api").exception(
+                "exports_failure_metric_emit_failed",
+                route=route_path,
+                scope_id=principal.scope_id,
+                metric_name=metric_name,
+                route_metric=route_metric,
+            )
+
+        log_fields: dict[str, object] = {
+            "route": route_path,
+            "scope_id": principal.scope_id,
+            "error": error_name,
+            "error_detail": error_name,
+        }
+        if extra:
+            log_fields.update(extra)
+        structlog.get_logger("api").exception(log_event, **log_fields)
+
+        try:
             await self.activity_store.record(
                 principal=principal,
                 event_type=activity_event_type,

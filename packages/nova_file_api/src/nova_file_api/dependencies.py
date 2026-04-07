@@ -142,7 +142,20 @@ def get_transfer_application_service(
         IdempotencyStore, Depends(get_idempotency_store)
     ],
 ) -> TransferApplicationService:
-    """Build the per-request transfer application coordinator."""
+    """Build the per-request transfer application coordinator.
+
+    Args:
+        metrics: Metrics collector used for request timers and counters.
+        transfer_service: Domain transfer service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate create-upload requests.
+
+    Returns:
+        TransferApplicationService: Per-request transfer application service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
     return TransferApplicationService(
         metrics=metrics,
         transfer_service=transfer_service,
@@ -159,7 +172,20 @@ def get_export_application_service(
         IdempotencyStore, Depends(get_idempotency_store)
     ],
 ) -> ExportApplicationService:
-    """Build the per-request export application coordinator."""
+    """Build the per-request export application coordinator.
+
+    Args:
+        metrics: Metrics collector used for request timers and counters.
+        export_service: Domain export service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate create-export requests.
+
+    Returns:
+        ExportApplicationService: Per-request export application service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
     return ExportApplicationService(
         metrics=metrics,
         export_service=export_service,

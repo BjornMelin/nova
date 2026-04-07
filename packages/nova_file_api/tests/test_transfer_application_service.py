@@ -162,6 +162,17 @@ class _RecordingTransferService(StubTransferService):
         )
 
 
+class _FailingTransferService(_RecordingTransferService):
+    async def introspect_upload(
+        self,
+        request: UploadIntrospectionRequest,
+        principal: Principal,
+    ) -> UploadIntrospectionResponse:
+        del request, principal
+        self.introspect_calls += 1
+        raise RuntimeError("introspection failed")
+
+
 class _RecordingActivityStore:
     def __init__(self) -> None:
         self.records: list[tuple[str, str | None]] = []
@@ -194,7 +205,7 @@ def _principal() -> Principal:
 
 
 @pytest.mark.anyio
-async def test_initiate_upload_moves_orchestration_below_routes() -> None:
+async def test_initiate_upload_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = MemoryActivityStore()
     idempotency_store = _FakeIdempotencyStore()
@@ -228,7 +239,7 @@ async def test_initiate_upload_moves_orchestration_below_routes() -> None:
 
 
 @pytest.mark.anyio
-async def test_sign_parts_records_success_outside_route_layer() -> None:
+async def test_sign_parts_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
     service = TransferApplicationService(
@@ -331,7 +342,7 @@ async def test_sign_parts_records_success_outside_route_layer() -> None:
         ),
     ],
 )
-async def test_remaining_transfer_methods_record_success_metrics_and_activity(
+async def test_transfer_methods_success(
     method_name: str,
     payload: Any,
     call_attr: str,
@@ -361,3 +372,32 @@ async def test_remaining_transfer_methods_record_success_metrics_and_activity(
     assert metrics.counters_snapshot()[expected_counter] == 1
     assert expected_metric in metrics.latency_snapshot()
     assert activity_store.records == [(expected_event_type, None)]
+
+
+@pytest.mark.anyio
+async def test_introspect_upload_failure() -> None:
+    metrics = MetricsCollector(namespace="Tests")
+    activity_store = _RecordingActivityStore()
+    transfer_service = _FailingTransferService()
+    service = TransferApplicationService(
+        metrics=metrics,
+        transfer_service=cast(TransferService, transfer_service),
+        activity_store=activity_store,
+        idempotency_store=_FakeIdempotencyStore(),
+    )
+
+    with pytest.raises(RuntimeError, match="introspection failed"):
+        await service.introspect_upload(
+            payload=UploadIntrospectionRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+            ),
+            principal=_principal(),
+        )
+
+    assert transfer_service.introspect_calls == 1
+    assert metrics.counters_snapshot()["uploads_introspect_failure_total"] == 1
+    assert "uploads_introspect_ms" in metrics.latency_snapshot()
+    assert activity_store.records == [
+        ("uploads_introspect_failure", "RuntimeError")
+    ]
