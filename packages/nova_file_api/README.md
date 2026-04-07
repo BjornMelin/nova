@@ -6,13 +6,13 @@ FastAPI control-plane package for file transfers and export workflows in the Nov
 
 The package exposes two public app/runtime assembly seams:
 
-- `create_app(runtime=...)` builds the FastAPI surface around one prebuilt
+- `create_app(runtime=…)` builds the FastAPI surface around one prebuilt
   `ApiRuntime` container.
 - `create_managed_app()` builds the same FastAPI surface but lets app lifespan
   own runtime bootstrap and shutdown for local development and tooling.
 
 At the package root, `nova_file_api` re-exports both builders. There is no
-settings-driven `create_app(...)` path.
+settings-driven `create_app(…)` path.
 
 The module-level ASGI app at `nova_file_api.main:app` uses
 `create_managed_app()` for local development and tooling. The production Lambda

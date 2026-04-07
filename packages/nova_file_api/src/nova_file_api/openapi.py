@@ -30,7 +30,14 @@ _VALIDATION_ERROR_PROPERTY_DESCRIPTIONS = {
 
 
 def patch_http_validation_error_schema(schema: dict[str, Any]) -> None:
-    """Bound and document FastAPI validation error payloads."""
+    """Bound and document FastAPI validation error payloads.
+
+    Args:
+        schema: OpenAPI schema dictionary to update in place.
+
+    Returns:
+        None.
+    """
     schemas = schema.get("components", {}).get("schemas", {})
     if not isinstance(schemas, dict):
         return
@@ -89,12 +96,27 @@ def assign_openapi_override(
     app: Any,
     custom_openapi: Callable[[], dict[str, Any]],
 ) -> None:
-    """Assign FastAPI's documented OpenAPI override hook."""
+    """Assign FastAPI's documented OpenAPI override hook.
+
+    Args:
+        app: Application-like object that exposes the ``openapi`` attribute.
+        custom_openapi: Callable that returns the customized OpenAPI schema.
+
+    Returns:
+        None.
+    """
     app.openapi = custom_openapi
 
 
 def install_openapi_override(*, app: FastAPI) -> None:
-    """Install the documented OpenAPI override on one app instance."""
+    """Install the documented OpenAPI override on one app instance.
+
+    Args:
+        app: FastAPI application that should use the Nova OpenAPI override.
+
+    Returns:
+        None.
+    """
     original_openapi = app.openapi
 
     def custom_openapi() -> dict[str, Any]:

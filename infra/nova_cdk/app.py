@@ -25,46 +25,15 @@ def _load_cli_context_from_env() -> dict[str, object]:
     raw_context = os.environ.get("CDK_CONTEXT_JSON")
     if raw_context is None:
         return {}
-    parsed_context = json.loads(raw_context)
+    try:
+        parsed_context = json.loads(raw_context)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "CDK_CONTEXT_JSON must contain a valid JSON object."
+        ) from exc
     if not isinstance(parsed_context, dict):
         raise TypeError("CDK_CONTEXT_JSON must decode to a JSON object.")
     return parsed_context
-
-
-CLI_CONTEXT = _load_cli_context_from_env()
-
-
-def _preflight_context_or_env_value(key: str, env_var: str) -> str | None:
-    context_value = _normalized_optional(CLI_CONTEXT.get(key))
-    if context_value is not None:
-        return context_value
-    return _normalized_optional(os.environ.get(env_var))
-
-
-def _runtime_inputs_requested_preflight() -> bool:
-    return any(
-        _preflight_context_or_env_value(key, env_var) is not None
-        for key, env_var in _RUNTIME_INPUT_HINTS
-    )
-
-
-release_control_requested_preflight = all(
-    _preflight_context_or_env_value(key, env_var) is not None
-    for key, env_var in (
-        ("release_github_owner", "RELEASE_GITHUB_OWNER"),
-        ("release_github_repo", "RELEASE_GITHUB_REPO"),
-        ("release_connection_arn", "RELEASE_CONNECTION_ARN"),
-    )
-)
-
-if (
-    not _runtime_inputs_requested_preflight()
-    and not release_control_requested_preflight
-):
-    raise ValueError(
-        "Provide runtime stack inputs or release-control inputs before "
-        "synthesizing the Nova CDK app."
-    )
 
 
 def main() -> None:
@@ -79,10 +48,40 @@ def main() -> None:
     from nova_cdk.runtime_stack import NovaRuntimeStack
 
     app = App()
+    cli_context = _load_cli_context_from_env()
 
     def context_or_env_value(key: str, env_var: str) -> str | None:
-        raw_value = app.node.try_get_context(key) or os.environ.get(env_var)
+        raw_value = app.node.try_get_context(key)
+        if raw_value is None:
+            raw_value = cli_context.get(key)
+        if raw_value is None:
+            raw_value = os.environ.get(env_var)
         return _normalized_optional(raw_value)
+
+    runtime_inputs_requested = any(
+        context_or_env_value(key, env_var) is not None
+        for key, env_var in _RUNTIME_INPUT_HINTS
+    )
+    release_github_owner = context_or_env_value(
+        "release_github_owner",
+        "RELEASE_GITHUB_OWNER",
+    )
+    release_github_repo = context_or_env_value(
+        "release_github_repo",
+        "RELEASE_GITHUB_REPO",
+    )
+    release_connection_arn = context_or_env_value(
+        "release_connection_arn",
+        "RELEASE_CONNECTION_ARN",
+    )
+    release_control_requested = bool(
+        release_github_owner and release_github_repo and release_connection_arn
+    )
+    if not runtime_inputs_requested and not release_control_requested:
+        raise ValueError(
+            "Provide runtime stack inputs or release-control inputs before "
+            "synthesizing the Nova CDK app."
+        )
 
     account = context_or_env_value("account", "CDK_DEFAULT_ACCOUNT")
     region = context_or_env_value("region", "CDK_DEFAULT_REGION")
@@ -92,27 +91,9 @@ def main() -> None:
             "-c region=... or CDK_DEFAULT_ACCOUNT/CDK_DEFAULT_REGION."
         )
 
-    runtime_inputs_requested = any(
-        context_or_env_value(key, env_var) is not None
-        for key, env_var in _RUNTIME_INPUT_HINTS
-    )
     runtime_stack_id = (
-        app.node.try_get_context("runtime_stack_id")
-        or os.environ.get("RUNTIME_STACK_ID")
+        context_or_env_value("runtime_stack_id", "RUNTIME_STACK_ID")
         or "NovaRuntimeStack"
-    )
-    release_github_owner = app.node.try_get_context(
-        "release_github_owner"
-    ) or os.environ.get("RELEASE_GITHUB_OWNER")
-    release_github_repo = app.node.try_get_context(
-        "release_github_repo"
-    ) or os.environ.get("RELEASE_GITHUB_REPO")
-    release_connection_arn = context_or_env_value(
-        "release_connection_arn",
-        "RELEASE_CONNECTION_ARN",
-    )
-    release_control_requested = bool(
-        release_github_owner and release_github_repo and release_connection_arn
     )
 
     if runtime_inputs_requested:
@@ -176,4 +157,5 @@ def main() -> None:
     app.synth()
 
 
-main()
+if __name__ == "__main__":
+    main()

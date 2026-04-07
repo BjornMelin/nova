@@ -265,7 +265,14 @@ def _parse_args() -> argparse.Namespace:
         default=128 * 1024 * 1024,
     )
     parser.add_argument("--sign-part-count", type=int, default=16)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.iterations <= 0:
+        parser.error("--iterations must be positive.")
+    if args.warmup < 0:
+        parser.error("--warmup must be non-negative.")
+    if args.warmup >= args.iterations:
+        parser.error("--warmup must be smaller than --iterations.")
+    return args
 
 
 def main() -> None:

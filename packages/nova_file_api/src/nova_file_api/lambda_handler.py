@@ -22,7 +22,7 @@ def _get_bootstrap_loop() -> asyncio.AbstractEventLoop:
     global _DEFAULT_BOOTSTRAP_LOOP
     if _DEFAULT_BOOTSTRAP_LOOP is None or _DEFAULT_BOOTSTRAP_LOOP.is_closed():
         _DEFAULT_BOOTSTRAP_LOOP = asyncio.new_event_loop()
-    asyncio.set_event_loop(_DEFAULT_BOOTSTRAP_LOOP)
+        asyncio.set_event_loop(_DEFAULT_BOOTSTRAP_LOOP)
     return _DEFAULT_BOOTSTRAP_LOOP
 
 
@@ -37,14 +37,33 @@ def _get_default_runtime_bootstrap() -> RuntimeBootstrap:
     return _DEFAULT_RUNTIME_BOOTSTRAP
 
 
-def _build_default_app() -> FastAPI:
+def _close_runtime_bootstrap_on_error(bootstrap: RuntimeBootstrap) -> None:
+    """Release the cached bootstrap when handler construction fails."""
+    global _DEFAULT_RUNTIME_BOOTSTRAP
+    if _DEFAULT_RUNTIME_BOOTSTRAP is bootstrap:
+        _DEFAULT_RUNTIME_BOOTSTRAP = None
+    _get_bootstrap_loop().run_until_complete(bootstrap.aclose())
+
+
+def _build_default_app(*, bootstrap: RuntimeBootstrap | None = None) -> FastAPI:
     """Build the canonical FastAPI app bound to the cached Lambda runtime."""
-    return create_app(runtime=_get_default_runtime_bootstrap().runtime)
+    runtime_bootstrap = bootstrap or _get_default_runtime_bootstrap()
+    try:
+        return create_app(runtime=runtime_bootstrap.runtime)
+    except Exception:
+        _close_runtime_bootstrap_on_error(runtime_bootstrap)
+        raise
 
 
 def create_lambda_handler() -> Mangum:
     """Build the canonical native Lambda adapter for the FastAPI runtime."""
-    return Mangum(_build_default_app(), lifespan="off")
+    bootstrap = _get_default_runtime_bootstrap()
+    app = _build_default_app(bootstrap=bootstrap)
+    try:
+        return Mangum(app, lifespan="off")
+    except Exception:
+        _close_runtime_bootstrap_on_error(bootstrap)
+        raise
 
 
 def _get_default_handler() -> Mangum:
