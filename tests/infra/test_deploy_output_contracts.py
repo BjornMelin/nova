@@ -14,7 +14,11 @@ from typing import Any
 import pytest
 from pytest import MonkeyPatch
 
-from .helpers import load_repo_module, read_repo_file as _read
+from .helpers import (
+    load_repo_module,
+    load_repo_package_module,
+    read_repo_file as _read,
+)
 
 _GENERATOR = load_repo_module(
     "runtime_deploy_contract_generator",
@@ -1385,14 +1389,10 @@ def test_validate_transfer_budget_checks_alarm_topic_subscriber(
 
 def test_validator_workflow_prefixes_cover_runtime_stack_functions() -> None:
     """Reserved concurrency checks should cover every workflow Lambda prefix."""
-    assert _VALIDATOR._FUNCTION_LOGICAL_ID_PREFIXES["workflow"] == (
-        "ValidateExportFunction",
-        "PrepareExportCopyFunction",
-        "CopyExportFunction",
-        "StartQueuedExportCopyFunction",
-        "PollQueuedExportCopyFunction",
-        "FinalizeExportFunction",
-        "ExportCopyWorkerFunction",
-        "FailExportFunction",
-        "ReconcileTransferStateFunction",
+    runtime_manifest = load_repo_package_module(
+        "nova_cdk.runtime_release_manifest",
+        "infra/nova_cdk/src",
     )
+    assert (
+        runtime_manifest.function_logical_id_prefixes()
+    ) == _VALIDATOR._FUNCTION_LOGICAL_ID_PREFIXES
