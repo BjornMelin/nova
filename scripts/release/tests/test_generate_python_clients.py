@@ -333,10 +333,10 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     assert first_pass == second_pass
 
 
-def test_apply_python_sdk_repairs_keeps_readiness_alias_export(
+def test_apply_python_sdk_repairs_preserves_canonical_readiness_exports(
     tmp_path: Path,
 ) -> None:
-    """The generated package should keep the public readiness alias export."""
+    """The generated package should keep only canonical readiness exports."""
     models_dir = tmp_path / "models"
     models_dir.mkdir()
     package_init = models_dir / "__init__.py"
@@ -358,8 +358,7 @@ def test_apply_python_sdk_repairs_keeps_readiness_alias_export(
     _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
     second_pass = package_init.read_text(encoding="utf-8")
 
-    assert "ReadinessResponseChecks = ReadinessChecks" in first_pass
-    assert '"ReadinessResponseChecks",' in first_pass
+    assert "ReadinessResponseChecks" not in first_pass
     assert first_pass == second_pass
 
 
