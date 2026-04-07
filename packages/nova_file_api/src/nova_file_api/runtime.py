@@ -314,7 +314,7 @@ def build_activity_store(
 def build_api_runtime(
     *,
     settings: Settings,
-    s3_client: object | None,
+    s3_client: object,
     accelerate_s3_client: object | None = None,
     dynamodb_resource: object | None = None,
     stepfunctions_client: object | None = None,
