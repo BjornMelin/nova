@@ -37,18 +37,58 @@ from .support.doubles import StubTransferService
 class _FakeIdempotencyStore(IdempotencyStore):
     def __init__(self) -> None:
         self.enabled = True
+        self.expected_route = "/v1/transfers/uploads/initiate"
+        self.expected_scope_id = "scope-1"
+        self.expected_idempotency_key = "idempotency-1"
+        self.expected_request_payload = {
+            "filename": "file.csv",
+            "content_type": None,
+            "size_bytes": 1024,
+            "workload_class": None,
+            "policy_hint": None,
+            "checksum_preference": None,
+            "checksum_value": None,
+        }
         self.replay: dict[str, Any] | None = None
         self.claim_result: IdempotencyClaim | None = IdempotencyClaim(
             cache_key="cache-key",
             owner_token="claim-owner",  # noqa: S106 - test token only
             request_hash="request-hash",
         )
+        self.load_calls = 0
+        self.claim_calls = 0
+        self.discard_calls = 0
         self.stored_payload: dict[str, Any] | None = None
+        self.discarded_claim: IdempotencyClaim | None = None
 
-    async def load_response(self, **_: Any) -> dict[str, Any] | None:
+    async def load_response(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        assert route == self.expected_route
+        assert scope_id == self.expected_scope_id
+        assert idempotency_key == self.expected_idempotency_key
+        assert request_payload == self.expected_request_payload
+        self.load_calls += 1
         return self.replay
 
-    async def claim_request(self, **_: Any) -> IdempotencyClaim | None:
+    async def claim_request(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> IdempotencyClaim | None:
+        assert route == self.expected_route
+        assert scope_id == self.expected_scope_id
+        assert idempotency_key == self.expected_idempotency_key
+        assert request_payload == self.expected_request_payload
+        self.claim_calls += 1
         return self.claim_result
 
     async def store_response(
@@ -58,10 +98,18 @@ class _FakeIdempotencyStore(IdempotencyStore):
         response_payload: dict[str, Any],
     ) -> None:
         assert claim == self.claim_result
+        assert response_payload["session_id"] == "session-1"
+        assert response_payload["bucket"] == "bucket"
+        assert response_payload["key"] == "uploads/scope-1/file.csv"
+        assert response_payload["url"] == "https://example.com/upload"
+        assert response_payload["strategy"] == UploadStrategy.SINGLE.value
+        assert response_payload["checksum_mode"] == "none"
         self.stored_payload = response_payload
 
-    async def discard_claim(self, **_: Any) -> None:
-        return None
+    async def discard_claim(self, *, claim: IdempotencyClaim) -> None:
+        assert claim == self.claim_result
+        self.discard_calls += 1
+        self.discarded_claim = claim
 
 
 class _RecordingTransferService(StubTransferService):
@@ -163,14 +211,59 @@ class _RecordingTransferService(StubTransferService):
 
 
 class _FailingTransferService(_RecordingTransferService):
+    async def initiate_upload(
+        self,
+        request: InitiateUploadRequest,
+        principal: Principal,
+    ) -> InitiateUploadResponse:
+        self.initiate_calls += 1
+        del request, principal
+        raise RuntimeError("initiate upload failed")
+
+    async def sign_parts(
+        self,
+        request: SignPartsRequest,
+        principal: Principal,
+    ) -> SignPartsResponse:
+        self.sign_parts_calls += 1
+        del request, principal
+        raise RuntimeError("sign parts failed")
+
     async def introspect_upload(
         self,
         request: UploadIntrospectionRequest,
         principal: Principal,
     ) -> UploadIntrospectionResponse:
-        del request, principal
         self.introspect_calls += 1
+        del request, principal
         raise RuntimeError("introspection failed")
+
+    async def complete_upload(
+        self,
+        request: CompleteUploadRequest,
+        principal: Principal,
+    ) -> CompleteUploadResponse:
+        self.complete_calls += 1
+        del request, principal
+        raise RuntimeError("complete upload failed")
+
+    async def abort_upload(
+        self,
+        request: AbortUploadRequest,
+        principal: Principal,
+    ) -> AbortUploadResponse:
+        self.abort_calls += 1
+        del request, principal
+        raise RuntimeError("abort upload failed")
+
+    async def presign_download(
+        self,
+        request: PresignDownloadRequest,
+        principal: Principal,
+    ) -> PresignDownloadResponse:
+        self.presign_download_calls += 1
+        del request, principal
+        raise RuntimeError("presign download failed")
 
 
 class _RecordingActivityStore:
@@ -375,29 +468,157 @@ async def test_transfer_methods_success(
 
 
 @pytest.mark.anyio
-async def test_introspect_upload_failure() -> None:
+@pytest.mark.parametrize(
+    (
+        "method_name",
+        "payload",
+        "call_attr",
+        "call_kwargs",
+        "expected_counter",
+        "expected_metric",
+        "expected_event_type",
+        "failure_message",
+        "expects_idempotency",
+    ),
+    [
+        (
+            "initiate_upload",
+            InitiateUploadRequest(
+                filename="file.csv",
+                size_bytes=1024,
+            ),
+            "initiate_calls",
+            {"idempotency_key": "idempotency-1"},
+            "uploads_initiate_failure_total",
+            "uploads_initiate_ms",
+            "uploads_initiate_failure",
+            "initiate upload failed",
+            True,
+        ),
+        (
+            "sign_parts",
+            SignPartsRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+                part_numbers=[1],
+            ),
+            "sign_parts_calls",
+            {},
+            "uploads_sign_parts_failure_total",
+            "uploads_sign_parts_ms",
+            "uploads_sign_parts_failure",
+            "sign parts failed",
+            False,
+        ),
+        (
+            "introspect_upload",
+            UploadIntrospectionRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+            ),
+            "introspect_calls",
+            {},
+            "uploads_introspect_failure_total",
+            "uploads_introspect_ms",
+            "uploads_introspect_failure",
+            "introspection failed",
+            False,
+        ),
+        (
+            "complete_upload",
+            CompleteUploadRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+                parts=[
+                    CompletedPart(
+                        part_number=1,
+                        etag="etag-1",
+                    )
+                ],
+            ),
+            "complete_calls",
+            {},
+            "uploads_complete_failure_total",
+            "uploads_complete_ms",
+            "uploads_complete_failure",
+            "complete upload failed",
+            False,
+        ),
+        (
+            "abort_upload",
+            AbortUploadRequest(
+                key="uploads/scope-1/file.csv",
+                upload_id="upload-1",
+            ),
+            "abort_calls",
+            {},
+            "uploads_abort_failure_total",
+            "uploads_abort_ms",
+            "uploads_abort_failure",
+            "abort upload failed",
+            False,
+        ),
+        (
+            "presign_download",
+            PresignDownloadRequest(
+                key="uploads/scope-1/file.csv",
+                filename="file.csv",
+            ),
+            "presign_download_calls",
+            {},
+            "downloads_presign_failure_total",
+            "downloads_presign_ms",
+            "downloads_presign_failure",
+            "presign download failed",
+            False,
+        ),
+    ],
+)
+async def test_transfer_methods_failure(
+    method_name: str,
+    payload: Any,
+    call_attr: str,
+    call_kwargs: dict[str, Any],
+    expected_counter: str,
+    expected_metric: str,
+    expected_event_type: str,
+    failure_message: str,
+    expects_idempotency: bool,
+) -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
+    idempotency_store = _FakeIdempotencyStore()
     transfer_service = _FailingTransferService()
     service = TransferApplicationService(
         metrics=metrics,
         transfer_service=cast(TransferService, transfer_service),
         activity_store=activity_store,
-        idempotency_store=_FakeIdempotencyStore(),
+        idempotency_store=idempotency_store,
     )
 
-    with pytest.raises(RuntimeError, match="introspection failed"):
-        await service.introspect_upload(
-            payload=UploadIntrospectionRequest(
-                key="uploads/scope-1/file.csv",
-                upload_id="upload-1",
-            ),
+    with pytest.raises(RuntimeError, match=failure_message):
+        await getattr(service, method_name)(
+            payload=payload,
             principal=_principal(),
+            **call_kwargs,
         )
 
-    assert transfer_service.introspect_calls == 1
-    assert metrics.counters_snapshot()["uploads_introspect_failure_total"] == 1
-    assert "uploads_introspect_ms" in metrics.latency_snapshot()
-    assert activity_store.records == [
-        ("uploads_introspect_failure", "RuntimeError")
-    ]
+    assert getattr(transfer_service, call_attr) == 1
+    assert metrics.counters_snapshot()[expected_counter] == 1
+    assert expected_metric in metrics.latency_snapshot()
+    assert activity_store.records == [(expected_event_type, "RuntimeError")]
+
+    if expects_idempotency:
+        assert idempotency_store.load_calls == 1
+        assert idempotency_store.claim_calls == 1
+        assert idempotency_store.discard_calls == 1
+        assert idempotency_store.stored_payload is None
+        assert (
+            idempotency_store.discarded_claim == idempotency_store.claim_result
+        )
+    else:
+        assert idempotency_store.load_calls == 0
+        assert idempotency_store.claim_calls == 0
+        assert idempotency_store.discard_calls == 0
+        assert idempotency_store.stored_payload is None
+        assert idempotency_store.discarded_claim is None

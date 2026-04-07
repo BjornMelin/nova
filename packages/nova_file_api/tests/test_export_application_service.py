@@ -23,17 +23,53 @@ from nova_runtime_support.metrics import MetricsCollector
 class _FakeIdempotencyStore(IdempotencyStore):
     def __init__(self) -> None:
         self.enabled = True
+        self.expected_route = "/v1/exports"
+        self.expected_scope_id = "scope-1"
+        self.expected_idempotency_key = "idempotency-1"
+        self.expected_request_payload = {
+            "filename": "source.csv",
+            "source_key": "uploads/scope-1/source.csv",
+        }
         self.claim_result = IdempotencyClaim(
             cache_key="cache-key",
             owner_token="claim-owner",  # noqa: S106 - test token only
             request_hash="request-hash",
         )
+        self.replay: dict[str, Any] | None = None
+        self.load_calls = 0
+        self.claim_calls = 0
+        self.discard_calls = 0
         self.stored_payload: dict[str, Any] | None = None
+        self.discarded_claim: IdempotencyClaim | None = None
 
-    async def load_response(self, **_: Any) -> dict[str, Any] | None:
-        return None
+    async def load_response(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        assert route == self.expected_route
+        assert scope_id == self.expected_scope_id
+        assert idempotency_key == self.expected_idempotency_key
+        assert request_payload == self.expected_request_payload
+        self.load_calls += 1
+        return self.replay
 
-    async def claim_request(self, **_: Any) -> IdempotencyClaim | None:
+    async def claim_request(
+        self,
+        *,
+        route: str,
+        scope_id: str,
+        idempotency_key: str,
+        request_payload: dict[str, Any],
+    ) -> IdempotencyClaim | None:
+        assert route == self.expected_route
+        assert scope_id == self.expected_scope_id
+        assert idempotency_key == self.expected_idempotency_key
+        assert request_payload == self.expected_request_payload
+        self.claim_calls += 1
         return self.claim_result
 
     async def store_response(
@@ -43,10 +79,29 @@ class _FakeIdempotencyStore(IdempotencyStore):
         response_payload: dict[str, Any],
     ) -> None:
         assert claim == self.claim_result
+        assert (
+            response_payload["source_key"]
+            == self.expected_request_payload["source_key"]
+        )
+        assert (
+            response_payload["filename"]
+            == self.expected_request_payload["filename"]
+        )
+        assert response_payload["status"] == ExportStatus.SUCCEEDED.value
+        assert (
+            response_payload["output"]["download_filename"]
+            == self.expected_request_payload["filename"]
+        )
+        assert response_payload["output"]["key"].startswith("exports/scope-1/")
+        assert response_payload["error"] is None
+        assert response_payload["execution_arn"] is None
+        assert response_payload["cancel_requested_at"] is None
         self.stored_payload = response_payload
 
-    async def discard_claim(self, **_: Any) -> None:
-        return None
+    async def discard_claim(self, *, claim: IdempotencyClaim) -> None:
+        assert claim == self.claim_result
+        self.discard_calls += 1
+        self.discarded_claim = claim
 
 
 def _export_record(
@@ -122,6 +177,7 @@ class _FailingActivityStore(_RecordingActivityStore):
 
 class _RecordingExportService:
     def __init__(self) -> None:
+        self.create_calls: list[tuple[str, str, str, str | None]] = []
         self.get_calls: list[tuple[str, str]] = []
         self.list_calls: list[tuple[str, int]] = []
         self.cancel_calls: list[tuple[str, str]] = []
@@ -130,6 +186,27 @@ class _RecordingExportService:
             _export_record(),
             _export_record(export_id="export-2", status=ExportStatus.SUCCEEDED),
         ]
+
+    async def create(
+        self,
+        *,
+        source_key: str,
+        filename: str,
+        scope_id: str,
+        request_id: str | None,
+    ) -> ExportRecord:
+        self.create_calls.append((source_key, filename, scope_id, request_id))
+        return _export_record(
+            export_id="export-1",
+            scope_id=scope_id,
+            status=ExportStatus.QUEUED,
+        ).model_copy(
+            update={
+                "request_id": request_id,
+                "source_key": source_key,
+                "filename": filename,
+            }
+        )
 
     async def get(self, *, export_id: str, scope_id: str) -> ExportRecord:
         self.get_calls.append((export_id, scope_id))
@@ -167,9 +244,52 @@ class _RecordingExportService:
 
 
 class _FailingExportService(_RecordingExportService):
+    def __init__(
+        self,
+        *,
+        fail_create: bool = False,
+        fail_get: bool = False,
+        fail_cancel: bool = False,
+    ) -> None:
+        super().__init__()
+        self.fail_create = fail_create
+        self.fail_get = fail_get
+        self.fail_cancel = fail_cancel
+
+    async def create(
+        self,
+        *,
+        source_key: str,
+        filename: str,
+        scope_id: str,
+        request_id: str | None,
+    ) -> ExportRecord:
+        self.create_calls.append((source_key, filename, scope_id, request_id))
+        if self.fail_create:
+            raise RuntimeError("export create failed")
+        return _export_record(
+            export_id="export-1",
+            scope_id=scope_id,
+            status=ExportStatus.QUEUED,
+        ).model_copy(
+            update={
+                "request_id": request_id,
+                "source_key": source_key,
+                "filename": filename,
+            }
+        )
+
     async def get(self, *, export_id: str, scope_id: str) -> ExportRecord:
-        del export_id, scope_id
-        raise RuntimeError("export lookup failed")
+        self.get_calls.append((export_id, scope_id))
+        if self.fail_get:
+            raise RuntimeError("export lookup failed")
+        return await super().get(export_id=export_id, scope_id=scope_id)
+
+    async def cancel(self, *, export_id: str, scope_id: str) -> ExportRecord:
+        self.cancel_calls.append((export_id, scope_id))
+        if self.fail_cancel:
+            raise RuntimeError("export cancel failed")
+        return await super().cancel(export_id=export_id, scope_id=scope_id)
 
 
 def _principal() -> Principal:
@@ -253,6 +373,48 @@ async def test_create_export_activity_failure() -> None:
 
 
 @pytest.mark.anyio
+async def test_create_export_failure() -> None:
+    metrics = MetricsCollector(namespace="Tests")
+    activity_store = _RecordingActivityStore()
+    idempotency_store = _FakeIdempotencyStore()
+    export_service = _FailingExportService(fail_create=True)
+    service = ExportApplicationService(
+        metrics=metrics,
+        export_service=cast(ExportService, export_service),
+        activity_store=activity_store,
+        idempotency_store=idempotency_store,
+    )
+
+    with pytest.raises(RuntimeError, match="export create failed"):
+        await service.create_export(
+            payload=CreateExportRequest(
+                source_key="uploads/scope-1/source.csv",
+                filename="source.csv",
+            ),
+            principal=_principal(),
+            request_id="req-1",
+            idempotency_key="idempotency-1",
+        )
+
+    assert export_service.create_calls == [
+        (
+            "uploads/scope-1/source.csv",
+            "source.csv",
+            "scope-1",
+            "req-1",
+        )
+    ]
+    counters = metrics.counters_snapshot()
+    assert counters["exports_create_failure_total"] == 1
+    assert "exports_create_ms" in metrics.latency_snapshot()
+    assert activity_store.records == [
+        ("exports_create_failure", "RuntimeError")
+    ]
+    assert idempotency_store.stored_payload is None
+    assert idempotency_store.discarded_claim == idempotency_store.claim_result
+
+
+@pytest.mark.anyio
 async def test_get_export_success() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
@@ -285,7 +447,7 @@ async def test_get_export_success() -> None:
 async def test_get_export_failure() -> None:
     metrics = MetricsCollector(namespace="Tests")
     activity_store = _RecordingActivityStore()
-    export_service = _FailingExportService()
+    export_service = _FailingExportService(fail_get=True)
     service = ExportApplicationService(
         metrics=metrics,
         export_service=cast(ExportService, export_service),
@@ -299,7 +461,7 @@ async def test_get_export_failure() -> None:
             principal=_principal(),
         )
 
-    assert export_service.get_calls == []
+    assert export_service.get_calls == [("export-1", "scope-1")]
     assert metrics.counters_snapshot()["exports_get_failure_total"] == 1
     assert activity_store.records == [("exports_get_failure", "RuntimeError")]
     assert await activity_store.summary() == {
@@ -364,6 +526,36 @@ async def test_cancel_export_success() -> None:
             "exports_cancel_success",
             "export_id=export-1 status=cancelled",
         )
+    ]
+    assert await activity_store.summary() == {
+        "events_total": 1,
+        "active_users_today": 1,
+        "distinct_event_types": 1,
+    }
+
+
+@pytest.mark.anyio
+async def test_cancel_export_failure() -> None:
+    metrics = MetricsCollector(namespace="Tests")
+    activity_store = _RecordingActivityStore()
+    export_service = _FailingExportService(fail_cancel=True)
+    service = ExportApplicationService(
+        metrics=metrics,
+        export_service=cast(ExportService, export_service),
+        activity_store=cast(ActivityStore, activity_store),
+        idempotency_store=_FakeIdempotencyStore(),
+    )
+
+    with pytest.raises(RuntimeError, match="export cancel failed"):
+        await service.cancel_export(
+            export_id="export-1",
+            principal=_principal(),
+        )
+
+    assert export_service.cancel_calls == [("export-1", "scope-1")]
+    assert metrics.counters_snapshot()["exports_cancel_failure_total"] == 1
+    assert activity_store.records == [
+        ("exports_cancel_failure", "RuntimeError")
     ]
     assert await activity_store.summary() == {
         "events_total": 1,
