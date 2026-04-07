@@ -6,13 +6,16 @@ import pytest
 from botocore.config import Config
 from fastapi import FastAPI
 
-from nova_file_api.app import create_app
+from nova_file_api.app import create_managed_app
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import (
-    build_idempotency_store,
-    initialize_runtime_state,
-)
 from nova_file_api.models import ActivityStoreBackend
+from nova_file_api.runtime import (
+    ApiRuntime,
+    build_api_runtime,
+    build_idempotency_store,
+    install_runtime,
+)
+from nova_runtime_support.metrics import MetricsCollector
 
 from .support.dynamodb import MemoryDynamoResource
 
@@ -229,21 +232,19 @@ def test_runtime_state_validates_required_dependencies(
         setattr(settings, field_name, value)
 
     with pytest.raises(ValueError, match=expected_match):
-        initialize_runtime_state(
-            FastAPI(),
+        build_api_runtime(
             settings=settings,
             s3_client=object(),
             **runtime_kwargs,
         )
 
 
-def test_initialize_runtime_state_requires_s3_client() -> None:
+def test_build_api_runtime_requires_s3_client() -> None:
     """Runtime-state initialization should require an injected S3 client."""
     settings = _settings()
     settings.idempotency_enabled = False
     with pytest.raises(TypeError):
-        cast(Any, initialize_runtime_state)(
-            FastAPI(),
+        cast(Any, build_api_runtime)(
             settings=settings,
         )
 
@@ -255,13 +256,16 @@ def test_exports_disabled_allow_missing_workflow_runtime() -> None:
     settings.exports_enabled = False
 
     app = FastAPI()
-    initialize_runtime_state(app, settings=settings, s3_client=object())
-    assert app.state.settings.exports_enabled is False
+    install_runtime(
+        app=app,
+        runtime=build_api_runtime(settings=settings, s3_client=object()),
+    )
+    assert app.state.runtime.settings.exports_enabled is False
 
 
 def test_create_app_enables_strict_content_type() -> None:
     """The public API should keep strict JSON content-type enforcement on."""
-    app = create_app(settings=_settings())
+    app = create_managed_app(settings=_settings())
 
     assert app.router.strict_content_type is True
 
@@ -270,12 +274,11 @@ def test_create_app_enables_strict_content_type() -> None:
 async def test_runtime_app_lifespan_uses_shared_aws_client_configs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import nova_file_api.app as app_module
+    import nova_file_api.runtime as runtime_module
 
     session = _RecordingSession()
 
-    def _fake_initialize_runtime_state(
-        app: FastAPI,
+    def _fake_build_api_runtime(
         *,
         settings: Settings,
         s3_client: object,
@@ -283,29 +286,38 @@ async def test_runtime_app_lifespan_uses_shared_aws_client_configs(
         dynamodb_resource: object | None = None,
         stepfunctions_client: object | None = None,
         appconfig_client: object | None = None,
-    ) -> None:
+    ) -> ApiRuntime:
         del (
-            app,
-            settings,
             s3_client,
             accelerate_s3_client,
             dynamodb_resource,
             stepfunctions_client,
             appconfig_client,
         )
+        return ApiRuntime(
+            settings=settings,
+            metrics=MetricsCollector(namespace="Tests"),
+            cache=cast(Any, object()),
+            authenticator=cast(Any, object()),
+            transfer_service=cast(Any, object()),
+            export_repository=cast(Any, object()),
+            export_service=cast(Any, object()),
+            activity_store=cast(Any, object()),
+            idempotency_store=cast(Any, object()),
+        )
 
     monkeypatch.setattr(
-        app_module.aioboto3,
+        cast(Any, runtime_module).aioboto3,
         "Session",
         lambda: session,
     )
     monkeypatch.setattr(
-        app_module,
-        "initialize_runtime_state",
-        _fake_initialize_runtime_state,
+        runtime_module,
+        "build_api_runtime",
+        _fake_build_api_runtime,
     )
 
-    app = create_app(
+    app = create_managed_app(
         settings=Settings.model_validate(
             {
                 "EXPORTS_ENABLED": True,
@@ -323,7 +335,7 @@ async def test_runtime_app_lifespan_uses_shared_aws_client_configs(
     )
 
     async with app.router.lifespan_context(app):
-        pass
+        assert app.state.runtime.settings.exports_enabled is True
 
     assert [name for name, _ in session.client_calls] == [
         "s3",

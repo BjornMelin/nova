@@ -1,42 +1,33 @@
-"""Shared test utilities for building FastAPI apps with dependency overrides."""
+"""Shared test utilities for building FastAPI apps with public runtime seams."""
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI
 
 from nova_file_api.activity import ActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import (
-    build_idempotency_store,
-    get_activity_store,
-    get_authenticator,
-    get_export_repository,
-    get_export_service,
-    get_idempotency_store,
-    get_metrics,
-    get_transfer_service,
-    get_two_tier_cache,
-)
-from nova_file_api.exports import ExportRepository
+from nova_file_api.export_runtime import ExportRepository
+from nova_file_api.exports import ExportService, MemoryExportRepository
 from nova_file_api.idempotency import IdempotencyStore
+from nova_file_api.runtime import ApiRuntime, build_idempotency_store
+from nova_file_api.transfer import TransferService
 from nova_runtime_support.metrics import MetricsCollector
 
 from .dynamodb import MemoryDynamoResource
 
-_T = TypeVar("_T")
 _TEST_IDEMPOTENCY_TABLE = "test-idempotency"
 
 
 @dataclass(slots=True)
 class RuntimeDeps:
-    """Container for test doubles installed via FastAPI dependency overrides."""
+    """Container for test doubles installed via the public runtime builder."""
 
     settings: Settings
     metrics: MetricsCollector
@@ -46,7 +37,7 @@ class RuntimeDeps:
     export_service: object
     activity_store: ActivityStore
     idempotency_store: IdempotencyStore
-    export_repository: ExportRepository | None = None
+    export_repository: ExportRepository
     dynamodb_resource: MemoryDynamoResource | None = None
 
 
@@ -106,6 +97,12 @@ def build_runtime_deps(
         settings=resolved_settings,
         dynamodb_resource=resolved_dynamodb,
     )
+    resolved_export_repository = export_repository or cast(
+        ExportRepository | None,
+        getattr(export_service, "repository", None),
+    )
+    if resolved_export_repository is None:
+        resolved_export_repository = MemoryExportRepository()
 
     return RuntimeDeps(
         settings=resolved_settings,
@@ -116,49 +113,35 @@ def build_runtime_deps(
         export_service=export_service,
         activity_store=activity_store,
         idempotency_store=resolved_idempotency_store,
-        export_repository=export_repository,
+        export_repository=resolved_export_repository,
         dynamodb_resource=resolved_dynamodb,
     )
 
 
+def build_test_runtime(deps: RuntimeDeps) -> ApiRuntime:
+    """Create a typed runtime container from resolved test doubles."""
+    return ApiRuntime(
+        settings=deps.settings,
+        metrics=deps.metrics,
+        cache=deps.cache,
+        authenticator=cast(Authenticator, cast(Any, deps.authenticator)),
+        transfer_service=cast(
+            TransferService,
+            cast(Any, deps.transfer_service),
+        ),
+        export_repository=deps.export_repository,
+        export_service=cast(
+            ExportService,
+            cast(Any, deps.export_service),
+        ),
+        activity_store=deps.activity_store,
+        idempotency_store=deps.idempotency_store,
+    )
+
+
 def build_test_app(deps: RuntimeDeps) -> FastAPI:
-    """Create a FastAPI app with dependency overrides from the given deps."""
-    from nova_file_api.dependencies import get_settings
-
-    def _override(value: _T) -> Callable[[], Awaitable[_T]]:
-        async def _provider() -> _T:
-            return value
-
-        return _provider
-
-    app = create_app(settings=deps.settings)
-    app.state._skip_runtime_state_initialization = True
-    app.state._two_tier_cache_provider = lambda: deps.cache
-    app.state._idempotency_store_provider = lambda: deps.idempotency_store
-    app.state.cache = deps.cache
-    app.state.authenticator = deps.authenticator
-    app.state.settings = deps.settings
-    app.dependency_overrides[get_settings] = _override(deps.settings)
-    app.dependency_overrides[get_metrics] = _override(deps.metrics)
-    app.dependency_overrides[get_two_tier_cache] = _override(deps.cache)
-    app.dependency_overrides[get_authenticator] = _override(deps.authenticator)
-    app.dependency_overrides[get_transfer_service] = _override(
-        deps.transfer_service
-    )
-    if deps.export_repository is not None:
-        app.dependency_overrides[get_export_repository] = _override(
-            deps.export_repository
-        )
-    app.dependency_overrides[get_export_service] = _override(
-        deps.export_service
-    )
-    app.dependency_overrides[get_activity_store] = _override(
-        deps.activity_store
-    )
-    app.dependency_overrides[get_idempotency_store] = _override(
-        deps.idempotency_store
-    )
-    return app
+    """Create a FastAPI app from the given runtime doubles."""
+    return create_app(runtime=build_test_runtime(deps))
 
 
 async def request_app(
