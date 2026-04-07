@@ -50,6 +50,11 @@ the bulk data plane. Product and API detail: `README.md`.
 - Runtime assembly: the Lambda path bootstraps one process-reused
   `ApiRuntime` container outside Mangum lifespan and stores it only at
   `app.state.runtime`; local development uses the public managed-app builder.
+- Router layering: FastAPI route handlers stay thin and do only
+  parse/validate/auth/delegate/return work; request-owned metrics/activity/
+  idempotency coordination lives in explicit application-layer services below
+  the route boundary, while `TransferService`/`ExportService` remain the
+  domain/runtime services.
 - Workflows: Step Functions + `packages/nova_workflows` task handlers.
 - Multipart cleanup: `packages/nova_workflows` also owns the scheduled
   reconciliation handler for expired sessions and orphaned multipart uploads.

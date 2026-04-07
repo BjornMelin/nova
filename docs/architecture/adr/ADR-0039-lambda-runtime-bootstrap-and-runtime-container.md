@@ -59,6 +59,9 @@ for selective bootstrap bypass.
 - `app.state.runtime` is the only runtime entrypoint for request dependencies
 - request dependencies resolve from the typed runtime container, with thin
   accessors kept only for readability and dependency signatures
+- route handlers remain boundary-only adapters; request-owned orchestration
+  such as idempotency, activity logging, and request metrics lives in
+  application-layer services below the FastAPI router layer
 - Lambda bootstrap and local lifespan ownership are both public, explicit
   assembly seams with separate responsibilities
 - the canonical Lambda helper owns only the cached-runtime Lambda path; it is
