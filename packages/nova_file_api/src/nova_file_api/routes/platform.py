@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import Annotated, cast
+from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Query, Response
 
-from nova_file_api.config import Settings
 from nova_file_api.dependencies import (
     ActivityStoreDep,
     AuthenticatorDep,
@@ -42,16 +40,11 @@ from nova_file_api.operation_ids import (
     METRICS_SUMMARY_OPERATION_ID,
     PLAN_RESOURCES_OPERATION_ID,
 )
+from nova_file_api.request_metrics import emit_request_metric
 from nova_file_api.routes.common import (
     READINESS_UNAVAILABLE_RESPONSE,
     UNAUTHORIZED_AND_FORBIDDEN_RESPONSES,
     VALIDATION_ERROR_RESPONSE,
-    emit_request_metric,
-)
-from nova_file_api.transfer_config import transfer_config_from_settings
-from nova_file_api.transfer_policy import (
-    TransferPolicy,
-    resolve_transfer_policy,
 )
 
 ops_router = APIRouter(tags=["ops"])
@@ -74,9 +67,8 @@ async def get_capabilities(
     transfer_service: TransferServiceDep,
 ) -> CapabilitiesResponse:
     """Expose runtime capability declarations."""
-    policy = await _resolve_capabilities_policy(
-        settings=settings,
-        transfer_service=transfer_service,
+    policy = await transfer_service.resolve_policy(
+        scope_id=None,
     )
     capabilities = [
         CapabilityDescriptor(key="exports", enabled=settings.exports_enabled),
@@ -133,7 +125,6 @@ async def get_capabilities(
     response_description="Effective transfer policy metadata and limits.",
 )
 async def get_transfer_capabilities(
-    settings: SettingsDep,
     transfer_service: TransferServiceDep,
     workload_class: Annotated[
         str | None,
@@ -157,9 +148,8 @@ async def get_transfer_capabilities(
     ] = None,
 ) -> TransferCapabilitiesResponse:
     """Expose the current transfer policy envelope."""
-    policy = await _resolve_capabilities_policy(
-        settings=settings,
-        transfer_service=transfer_service,
+    policy = await transfer_service.resolve_policy(
+        scope_id=None,
         workload_class=workload_class,
         policy_hint=policy_hint,
     )
@@ -183,40 +173,6 @@ async def get_transfer_capabilities(
         large_export_worker_threshold_bytes=(
             policy.large_export_worker_threshold_bytes
         ),
-    )
-
-
-async def _resolve_capabilities_policy(
-    *,
-    settings: Settings,
-    transfer_service: object,
-    workload_class: str | None = None,
-    policy_hint: str | None = None,
-) -> TransferPolicy:
-    """Resolve the effective transfer policy for the capabilities endpoint."""
-    resolver = getattr(transfer_service, "resolve_policy", None)
-    if callable(resolver):
-        resolve_fn = cast(
-            Callable[..., Awaitable[TransferPolicy]],
-            resolver,
-        )
-        try:
-            result = await resolve_fn(
-                scope_id=None,
-                workload_class=workload_class,
-                policy_hint=policy_hint,
-            )
-        except TypeError:
-            try:
-                result = await resolve_fn(
-                    scope_id=None,
-                    policy_hint=policy_hint,
-                )
-            except TypeError:
-                result = await resolve_fn(scope_id=None)
-        return result
-    return resolve_transfer_policy(
-        config=transfer_config_from_settings(settings)
     )
 
 

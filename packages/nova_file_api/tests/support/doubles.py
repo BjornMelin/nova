@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from nova_file_api.errors import unauthorized
+from nova_file_api.export_transfer import ExportCopyResult
 from nova_file_api.models import (
     AbortUploadRequest,
     AbortUploadResponse,
@@ -18,7 +19,6 @@ from nova_file_api.models import (
     UploadIntrospectionRequest,
     UploadIntrospectionResponse,
 )
-from nova_file_api.transfer import ExportCopyResult
 from nova_file_api.transfer_policy import TransferPolicy
 
 
@@ -43,37 +43,6 @@ class StubAuthenticator:
     async def healthcheck(self) -> bool:
         """Return True to indicate the stub is always healthy."""
         return True
-
-    async def resolve_policy(
-        self,
-        *,
-        scope_id: str | None,
-        workload_class: str | None = None,
-        policy_hint: str | None = None,
-        checksum_preference: str | None = None,
-    ) -> TransferPolicy:
-        """Return a stable default policy for capability route tests."""
-        del scope_id, workload_class, policy_hint, checksum_preference
-        return TransferPolicy(
-            policy_id="default",
-            policy_version="2026-04-03",
-            max_upload_bytes=500 * 1024 * 1024 * 1024,
-            multipart_threshold_bytes=100 * 1024 * 1024,
-            target_upload_part_count=2000,
-            minimum_part_size_bytes=64 * 1024 * 1024,
-            maximum_part_size_bytes=512 * 1024 * 1024,
-            upload_part_size_bytes=128 * 1024 * 1024,
-            max_concurrency_hint=4,
-            sign_batch_size_hint=64,
-            accelerate_enabled=False,
-            checksum_algorithm=None,
-            checksum_mode="none",
-            resumable_ttl_seconds=7 * 24 * 60 * 60,
-            active_multipart_upload_limit=200,
-            daily_ingress_budget_bytes=1024 * 1024 * 1024 * 1024,
-            sign_requests_per_upload_limit=512,
-            large_export_worker_threshold_bytes=50 * 1024 * 1024 * 1024,
-        )
 
 
 class StubTransferService:
@@ -142,6 +111,37 @@ class StubTransferService:
     ) -> ExportCopyResult:
         del source_bucket, source_key, scope_id, export_id, filename
         raise AssertionError("copy_upload_to_export should be stubbed per test")
+
+    async def resolve_policy(
+        self,
+        *,
+        scope_id: str | None,
+        workload_class: str | None = None,
+        policy_hint: str | None = None,
+        checksum_preference: str | None = None,
+    ) -> TransferPolicy:
+        """Return a stable default policy for capability route tests."""
+        del scope_id, workload_class, policy_hint, checksum_preference
+        return TransferPolicy(
+            policy_id="default",
+            policy_version="2026-04-03",
+            max_upload_bytes=500 * 1024 * 1024 * 1024,
+            multipart_threshold_bytes=100 * 1024 * 1024,
+            target_upload_part_count=2000,
+            minimum_part_size_bytes=64 * 1024 * 1024,
+            maximum_part_size_bytes=512 * 1024 * 1024,
+            upload_part_size_bytes=128 * 1024 * 1024,
+            max_concurrency_hint=4,
+            sign_batch_size_hint=64,
+            accelerate_enabled=False,
+            checksum_algorithm=None,
+            checksum_mode="none",
+            resumable_ttl_seconds=7 * 24 * 60 * 60,
+            active_multipart_upload_limit=200,
+            daily_ingress_budget_bytes=1024 * 1024 * 1024 * 1024,
+            sign_requests_per_upload_limit=512,
+            large_export_worker_threshold_bytes=50 * 1024 * 1024 * 1024,
+        )
 
     async def healthcheck(self) -> bool:
         """Return True to indicate the stub is always healthy."""

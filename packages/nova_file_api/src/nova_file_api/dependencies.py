@@ -9,6 +9,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from nova_file_api import runtime as runtime_module
 from nova_file_api.activity import ActivityStore
+from nova_file_api.application import (
+    ExportApplicationService,
+    TransferApplicationService,
+)
 from nova_file_api.auth import Authenticator
 from nova_file_api.cache import TwoTierCache
 from nova_file_api.config import Settings
@@ -130,15 +134,83 @@ async def get_principal(
     )
 
 
+def get_transfer_application_service(
+    metrics: Annotated[MetricsCollector, Depends(get_metrics)],
+    transfer_service: Annotated[TransferService, Depends(get_transfer_service)],
+    activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
+    idempotency_store: Annotated[
+        IdempotencyStore, Depends(get_idempotency_store)
+    ],
+) -> TransferApplicationService:
+    """Build the per-request transfer application coordinator.
+
+    Args:
+        metrics: Metrics collector used for request timers and counters.
+        transfer_service: Domain transfer service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate create-upload requests.
+
+    Returns:
+        TransferApplicationService: Per-request transfer application service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
+    return TransferApplicationService(
+        metrics=metrics,
+        transfer_service=transfer_service,
+        activity_store=activity_store,
+        idempotency_store=idempotency_store,
+    )
+
+
+def get_export_application_service(
+    metrics: Annotated[MetricsCollector, Depends(get_metrics)],
+    export_service: Annotated[ExportService, Depends(get_export_service)],
+    activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
+    idempotency_store: Annotated[
+        IdempotencyStore, Depends(get_idempotency_store)
+    ],
+) -> ExportApplicationService:
+    """Build the per-request export application coordinator.
+
+    Args:
+        metrics: Metrics collector used for request timers and counters.
+        export_service: Domain export service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+        idempotency_store: Store used to deduplicate create-export requests.
+
+    Returns:
+        ExportApplicationService: Per-request export application service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
+    return ExportApplicationService(
+        metrics=metrics,
+        export_service=export_service,
+        activity_store=activity_store,
+        idempotency_store=idempotency_store,
+    )
+
+
 RuntimeDep = Annotated[ApiRuntime, Depends(get_runtime)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 MetricsDep = Annotated[MetricsCollector, Depends(get_metrics)]
 TwoTierCacheDep = Annotated[TwoTierCache, Depends(get_two_tier_cache)]
 TransferServiceDep = Annotated[TransferService, Depends(get_transfer_service)]
+TransferApplicationServiceDep = Annotated[
+    TransferApplicationService,
+    Depends(get_transfer_application_service),
+]
 ExportRepositoryDep = Annotated[
     ExportRepository, Depends(get_export_repository)
 ]
 ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]
+ExportApplicationServiceDep = Annotated[
+    ExportApplicationService,
+    Depends(get_export_application_service),
+]
 ActivityStoreDep = Annotated[ActivityStore, Depends(get_activity_store)]
 IdempotencyStoreDep = Annotated[
     IdempotencyStore,

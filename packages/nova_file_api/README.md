@@ -11,6 +11,11 @@ The package exposes two public app/runtime assembly seams:
 - `create_managed_app()` builds the same FastAPI surface but lets app lifespan
   own runtime bootstrap and shutdown for local development and tooling.
 
+Within that runtime, FastAPI routes stay boundary-only. Request-owned
+idempotency, metrics, and activity orchestration lives in explicit
+application-layer coordinators below the route layer, and those coordinators
+delegate transfer/export domain work to `TransferService` and `ExportService`.
+
 At the package root, `nova_file_api` re-exports both builders. There is no
 settings-driven `create_app(…)` path.
 
