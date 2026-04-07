@@ -10,6 +10,8 @@ from botocore.config import Config
 from nova_file_api.workflow_facade import ExportCopyTaskMessage
 from nova_workflows import handlers
 
+from .conftest import RecordingSession
+
 
 class _FakeLargeCopyService:
     def __init__(self) -> None:
@@ -84,7 +86,7 @@ async def test_export_copy_worker_marks_invalid_messages_as_failures(
 @pytest.mark.anyio
 async def test_reconcile_transfer_state_uses_shared_aws_client_configs(
     monkeypatch: pytest.MonkeyPatch,
-    recording_session,
+    recording_session: RecordingSession,
 ) -> None:
     captured: dict[str, object] = {}
     settings = handlers.WorkflowSettings.model_validate(

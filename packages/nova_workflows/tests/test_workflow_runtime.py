@@ -26,6 +26,8 @@ from nova_workflows.workflow_runtime import (
     workflow_services,
 )
 
+from .conftest import RecordingSession
+
 
 def test_workflow_settings_require_exports_table_when_exports_enabled() -> None:
     """Exports-enabled workflow settings must require a DynamoDB table."""
@@ -156,7 +158,7 @@ async def test_workflow_services_reject_blank_copy_worker_settings() -> None:
 @pytest.mark.anyio
 async def test_workflow_services_use_shared_aws_client_configs(
     monkeypatch: pytest.MonkeyPatch,
-    recording_session,
+    recording_session: RecordingSession,
 ) -> None:
     import nova_workflows.workflow_runtime as workflow_runtime_module
 
