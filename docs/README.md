@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical serverless baseline with AWS-native release control plane**
-Last reviewed: 2026-03-29
+Last reviewed: 2026-04-07
 
 ## Purpose
 
@@ -40,6 +40,7 @@ path.
 - `./architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `./architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `./architecture/adr/ADR-0038-docs-authority-reset.md`
+- `./architecture/adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
 - `./architecture/spec/SPEC-0027-public-api-v2.md`
 - `./architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `./architecture/spec/SPEC-0029-platform-serverless.md`

@@ -189,7 +189,6 @@ Read in this order if you are new to the repo:
 
 ```bash
 uv sync --locked --all-packages --all-extras --dev
-npm ci
 uv run pre-commit install --install-hooks --hook-type pre-commit --hook-type pre-push
 ```
 

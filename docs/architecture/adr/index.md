@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 Status: Active index
-Last reviewed: 2026-04-03
+Last reviewed: 2026-04-07
 
 ## Active canonical ADRs
 
@@ -13,6 +13,7 @@ Last reviewed: 2026-04-03
 | [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Active baseline | 2026-03-25 |
 | [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Active baseline | 2026-03-25 |
 | [ADR-0038](./ADR-0038-docs-authority-reset.md) | Reset docs authority | Accepted | Active baseline | 2026-03-25 |
+| [ADR-0039](./ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md) | Explicit Lambda runtime bootstrap and typed runtime container | Accepted | Active baseline | 2026-04-06 |
 
 ## Active supporting ADRs
 
@@ -22,7 +23,6 @@ Last reviewed: 2026-04-03
 | [ADR-0002](./ADR-0002-openapi-as-contract-and-sdk-generation.md) | Treat OpenAPI as the contract and generate client SDKs from it | Accepted | Active supporting current-state doc | 2026-02-11 |
 | [ADR-0003](./ADR-0003-api-docs-site-mkdocs-material-plus-scalar.md) | API documentation site uses MkDocs Material and Scalar API Reference | Accepted | Active supporting current-state doc | 2026-02-11 |
 | [ADR-0004](./ADR-0004-canonical-oidc-jwt-verifier-adoption.md) | Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine | Accepted | Active supporting current-state doc | 2026-02-12 |
-| [ADR-0007](./ADR-0007-two-tier-cache-and-idempotency-store.md) | Adopt two-tier cache with idempotency replay storage | Accepted | Active supporting current-state doc | 2026-02-13 |
 | [ADR-0008](./ADR-0008-runtime-support-levels-sidecar-embedded-standalone.md) | Runtime support levels: sidecar GA, embedded bridge, standalone beta | Accepted | Active supporting current-state doc | 2026-02-12 |
 | [ADR-0009](./ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md) | Observability stack: EMF metrics, DynamoDB rollups, CloudWatch dashboards | Accepted | Active supporting current-state doc | 2026-02-12 |
 | [ADR-0010](./ADR-0010-enqueue-failure-and-readiness-semantics.md) | Fail enqueue on queue publish errors and scope readiness to critical dependencies | Accepted | Active supporting current-state doc | 2026-03-09 |
@@ -44,6 +44,7 @@ Last reviewed: 2026-04-03
 | [ADR-0001](./superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md) | Deploy on ECS Fargate behind ALB | Superseded | Historical traceability only | 2026-03-05 |
 | [ADR-0022](./ADR-0022-release-validation-read-access-iam-iac.md) | Codify release validation read access in Nova IaC | Historical | Historical traceability only | 2026-03-02 |
 | [ADR-0029](./ADR-0029-ssm-runtime-base-url-authority-for-deploy-validation.md) | SSM runtime base URL authority for deploy validation | Historical | Historical traceability only | 2026-03-05 |
+| [ADR-0007](./superseded/ADR-0007-two-tier-cache-and-idempotency-store.md) | Adopt two-tier cache with idempotency replay storage | Superseded | Historical traceability only | 2026-02-13 |
 | [ADR-0006](./superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md) | Use SQS + ECS worker for initial async orchestration | Superseded | Historical traceability only | 2026-02-12 |
 | [ADR-0012](./superseded/ADR-0012-no-lambda-runtime-scope.md) | Preserve ECS and SQS runtime scope and exclude Lambda orchestration | Superseded | Historical traceability only | 2026-02-24 |
 | [ADR-0015](./superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md) | Nova API platform final hosting and deployment architecture (2026) | Superseded | Historical traceability only | 2026-03-03 |

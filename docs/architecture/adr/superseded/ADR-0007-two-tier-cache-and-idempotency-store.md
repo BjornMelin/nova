@@ -1,17 +1,22 @@
 ---
 ADR: 0007
 Title: Adopt two-tier cache with idempotency replay storage
-Status: Accepted
-Version: 1.2
-Date: 2026-02-13
+Status: Superseded
+Version: 1.3
+Date: 2026-04-07
 Related:
-  - "[SPEC-0009: Caching and idempotency](../spec/SPEC-0009-caching-and-idempotency.md)"
-  - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
+  - "[ADR-0036: DynamoDB idempotency and transient state, no Redis](../ADR-0036-dynamodb-idempotency-no-redis.md)"
+  - "[SPEC-0009: Caching and idempotency](../../spec/SPEC-0009-caching-and-idempotency.md)"
+  - "[SPEC-0006: JWT/OIDC verification and principal mapping](../../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
 References:
   - "[ElastiCache best practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/BestPractices.html)"
   - "[redis-py asyncio examples](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html)"
   - "[RFC 7231](https://datatracker.ietf.org/doc/html/rfc7231)"
 ---
+
+> Historical decision only. Superseded by
+> [ADR-0036](../ADR-0036-dynamodb-idempotency-no-redis.md), which defines the
+> active DynamoDB-backed idempotency and no-Redis runtime baseline.
 
 ## Summary
 
@@ -70,3 +75,4 @@ Implementation commitments:
   lifecycle, and JWT `exp`-bounded cache TTL commitments.
 - 2026-03-16 (v1.2): Distinguished best-effort general caching from strict
   shared idempotency semantics.
+- 2026-04-07 (v1.3): Superseded by ADR-0036 and removed from the active ADR set.

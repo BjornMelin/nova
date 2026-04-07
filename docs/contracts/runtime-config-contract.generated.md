@@ -21,7 +21,6 @@ Canonical sources:
 | APP_NAME | app_name | str | no | - | no | `'nova-file-api'` |
 | APP_VERSION | app_version | str | no | - | no | `<factory>` |
 | AUTH_JWT_CACHE_MAX_TTL_SECONDS | auth_jwt_cache_max_ttl_seconds | int | no | - | no | `120` |
-| BLOCKING_IO_THREAD_TOKENS | blocking_io_thread_tokens | int | no | - | no | `80` |
 | CACHE_KEY_PREFIX | cache_key_prefix | str | no | - | no | `'nova'` |
 | CACHE_KEY_SCHEMA_VERSION | cache_key_schema_version | int | no | - | no | `1` |
 | CACHE_LOCAL_MAX_ENTRIES | cache_local_max_entries | int | no | - | no | `2000` |
@@ -81,7 +80,6 @@ Canonical sources:
 | OIDC_REQUIRED_SCOPES | OidcRequiredScopes |
 | OIDC_REQUIRED_PERMISSIONS | OidcRequiredPermissions |
 | OIDC_CLOCK_SKEW_SECONDS | OidcClockSkewSeconds |
-| BLOCKING_IO_THREAD_TOKENS | BlockingIoThreadTokens |
 | CACHE_LOCAL_TTL_SECONDS | CacheLocalTtlSeconds |
 | CACHE_LOCAL_MAX_ENTRIES | CacheLocalMaxEntries |
 | CACHE_KEY_PREFIX | CacheKeyPrefix |

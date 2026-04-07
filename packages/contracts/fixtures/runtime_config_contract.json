@@ -408,10 +408,6 @@
         "env_var": "OIDC_CLOCK_SKEW_SECONDS"
       },
       {
-        "cloudformation_parameter": "BlockingIoThreadTokens",
-        "env_var": "BLOCKING_IO_THREAD_TOKENS"
-      },
-      {
         "cloudformation_parameter": "CacheLocalTtlSeconds",
         "env_var": "CACHE_LOCAL_TTL_SECONDS"
       },
@@ -576,15 +572,6 @@
       "default_repr": "120",
       "env_var": "AUTH_JWT_CACHE_MAX_TTL_SECONDS",
       "field_name": "auth_jwt_cache_max_ttl_seconds",
-      "required": false,
-      "required_when": null,
-      "secret": false,
-      "type_label": "int"
-    },
-    {
-      "default_repr": "80",
-      "env_var": "BLOCKING_IO_THREAD_TOKENS",
-      "field_name": "blocking_io_thread_tokens",
       "required": false,
       "required_when": null,
       "secret": false,

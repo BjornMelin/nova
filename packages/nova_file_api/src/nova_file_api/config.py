@@ -230,13 +230,6 @@ class Settings(FileTransferSharedEnvFields, BaseSettings):
         ge=0,
         le=120,
     )
-    blocking_io_thread_tokens: int = Field(
-        default=80,
-        validation_alias="BLOCKING_IO_THREAD_TOKENS",
-        ge=1,
-        le=1000,
-    )
-
     cache_local_ttl_seconds: int = Field(
         default=120,
         validation_alias="CACHE_LOCAL_TTL_SECONDS",
