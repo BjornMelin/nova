@@ -842,17 +842,53 @@
         "title": "PresignDownloadResponse",
         "type": "object"
       },
+      "ReadinessChecks": {
+        "additionalProperties": false,
+        "description": "Canonical live traffic gates reported by readiness.",
+        "properties": {
+          "activity_store": {
+            "description": "Whether the activity store is reachable for diagnostic rollups.",
+            "title": "Activity Store",
+            "type": "boolean"
+          },
+          "auth_dependency": {
+            "description": "Whether the configured bearer-token verifier can currently resolve signing keys.",
+            "title": "Auth Dependency",
+            "type": "boolean"
+          },
+          "export_runtime": {
+            "description": "Whether the export publisher and export repository are ready.",
+            "title": "Export Runtime",
+            "type": "boolean"
+          },
+          "idempotency_store": {
+            "description": "Whether the idempotency store is reachable when idempotency is enabled.",
+            "title": "Idempotency Store",
+            "type": "boolean"
+          },
+          "transfer_runtime": {
+            "description": "Whether transfer persistence and the configured S3 bucket are ready.",
+            "title": "Transfer Runtime",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "idempotency_store",
+          "export_runtime",
+          "activity_store",
+          "transfer_runtime",
+          "auth_dependency"
+        ],
+        "title": "ReadinessChecks",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "additionalProperties": false,
         "description": "Readiness endpoint response body.",
         "properties": {
           "checks": {
-            "additionalProperties": {
-              "type": "boolean"
-            },
-            "description": "Per-dependency readiness results keyed by check name.",
-            "title": "Checks",
-            "type": "object"
+            "$ref": "#/components/schemas/ReadinessChecks",
+            "description": "Canonical live traffic-gate results."
           },
           "ok": {
             "description": "Whether every required traffic dependency is ready.",
@@ -1864,7 +1900,7 @@
                 }
               }
             },
-            "description": "Readiness status plus per-dependency readiness checks."
+            "description": "Readiness status plus per-dependency results for the live traffic gates only."
           },
           "503": {
             "content": {

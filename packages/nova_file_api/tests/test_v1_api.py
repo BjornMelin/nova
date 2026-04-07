@@ -91,16 +91,18 @@ class _FailingListExportRepository:
 
 def _build_v1_deps(
     *,
-    file_transfer_bucket: str | None = "test-transfer-bucket",
     process_immediately: bool = True,
 ) -> RuntimeDeps:
     """Build an in-memory dependency set for v1 route tests."""
     settings = Settings.model_validate(
         {
             "exports_enabled": True,
-            "file_transfer_bucket": file_transfer_bucket,
+            "file_transfer_bucket": "test-transfer-bucket",
             "idempotency_dynamodb_table": "test-idempotency",
             "cors_allowed_origins": ["https://app.example.com"],
+            "oidc_issuer": "https://issuer.example.com/",
+            "oidc_audience": "api://nova",
+            "oidc_jwks_url": "https://issuer.example.com/.well-known/jwks.json",
         }
     )
 
@@ -129,7 +131,7 @@ def _build_v1_deps(
 @pytest.mark.anyio
 async def test_v1_health_and_capabilities() -> None:
     """Verifies v1 live/ready health and capability keys are exposed."""
-    app = build_test_app(_build_v1_deps(file_transfer_bucket=None))
+    app = build_test_app(_build_v1_deps())
     live = await request_app(app, "GET", "/v1/health/live")
     ready = await request_app(app, "GET", "/v1/health/ready")
     caps = await request_app(app, "GET", "/v1/capabilities")
@@ -137,10 +139,12 @@ async def test_v1_health_and_capabilities() -> None:
 
     assert live.status_code == 200
     assert live.json() == {"ok": True}
-    assert ready.status_code == 503
+    assert ready.status_code == 200
     ready_payload = ready.json()
-    assert ready_payload["ok"] is False
-    assert ready_payload["checks"]["bucket_configured"] is False
+    assert ready_payload["ok"] is True
+    assert "bucket_configured" not in ready_payload["checks"]
+    assert "auth_verifier_configured" not in ready_payload["checks"]
+    assert ready_payload["checks"]["auth_dependency"] is True
     assert ready_payload["checks"]["export_runtime"] is True
     assert ready_payload["checks"]["transfer_runtime"] is True
     assert caps.status_code == 200

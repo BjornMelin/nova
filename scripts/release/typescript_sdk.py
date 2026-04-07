@@ -124,6 +124,7 @@ _TYPE_ALIAS_SUMMARY_OVERRIDES = {
     "HttpValidationError": (
         "Validation error envelope returned for invalid request payloads."
     ),
+    "ReadinessChecks": "Canonical live traffic gates reported by readiness.",
     "ValidationError": (
         "One request-validation issue with location, message, and error type."
     ),
@@ -522,6 +523,118 @@ def _ensure_typescript_type_docblocks(source: str) -> str:
     return "\n".join(result) + "\n"
 
 
+_READINESS_CHECKS_TYPE_LINES = [
+    "/**",
+    " * Canonical live traffic gates reported by readiness.",
+    " */",
+    "export type ReadinessChecks = {",
+    "    /**",
+    "     * Whether the activity store is reachable for diagnostic rollups.",
+    "     */",
+    "    activity_store: boolean;",
+    "    /**",
+    "     * Whether the configured bearer-token verifier can currently",
+    "     * resolve signing keys.",
+    "     */",
+    "    auth_dependency: boolean;",
+    "    /**",
+    "     * Whether the export publisher and export repository are ready.",
+    "     */",
+    "    export_runtime: boolean;",
+    "    /**",
+    "     * Whether the idempotency store is reachable when idempotency",
+    "     * is enabled.",
+    "     */",
+    "    idempotency_store: boolean;",
+    "    /**",
+    "     * Whether transfer persistence and the configured S3 bucket",
+    "     * are ready.",
+    "     */",
+    "    transfer_runtime: boolean;",
+    "};",
+]
+
+_READINESS_RESPONSE_TYPE_LINES = [
+    "/**",
+    " * ReadinessResponse",
+    " *",
+    " * Readiness endpoint response body.",
+    " */",
+    "export type ReadinessResponse = {",
+    "    /**",
+    "     * Canonical live traffic-gate results.",
+    "     */",
+    "    checks: ReadinessChecks;",
+    "    /**",
+    "     * Whether every required traffic dependency is ready.",
+    "     */",
+    "    ok: boolean;",
+    "};",
+]
+
+
+def _drop_trailing_docblock(lines: list[str]) -> None:
+    """Remove the docblock immediately preceding a rewritten export."""
+    index = len(lines) - 1
+    while index >= 0 and lines[index] == "":
+        index -= 1
+    if index < 0 or lines[index].strip() != "*/":
+        return
+    start = index
+    while start >= 0 and lines[start].strip() != "/**":
+        start -= 1
+    if start < 0:
+        return
+    del lines[start : index + 1]
+    while lines and lines[-1] == "":
+        lines.pop()
+
+
+def _rewrite_explicit_readiness_types(source: str) -> str:
+    """Normalize generated readiness types to the canonical fixed schema."""
+    if "export type ReadinessChecks = {" in source and (
+        "checks: ReadinessChecks;" in source
+    ):
+        return source
+
+    lines = source.splitlines()
+    result: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line != "export type ReadinessResponse = {":
+            result.append(line)
+            index += 1
+            continue
+
+        block_lines = [line]
+        index += 1
+        depth = 1
+        while index < len(lines):
+            block_line = lines[index]
+            block_lines.append(block_line)
+            depth += block_line.count("{")
+            depth -= block_line.count("}")
+            index += 1
+            if depth == 0:
+                break
+
+        block_text = "\n".join(block_lines)
+        if "[key: string]: boolean;" not in block_text:
+            result.extend(block_lines)
+            continue
+
+        _drop_trailing_docblock(result)
+        if result and result[-1] != "":
+            result.append("")
+        result.extend(_READINESS_CHECKS_TYPE_LINES)
+        result.append("")
+        result.extend(_READINESS_RESPONSE_TYPE_LINES)
+
+    updated = "\n".join(result)
+    return updated + ("\n" if source.endswith("\n") else "")
+
+
 def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
     """Apply narrow compatibility fixes for current upstream TS output.
 
@@ -576,50 +689,51 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
                 utils_path.write_text(updated, encoding="utf-8")
 
     sdk_path = root / "sdk.gen.ts"
-    if not sdk_path.exists():
-        return
+    if sdk_path.exists():
+        sdk_text = sdk_path.read_text(encoding="utf-8")
 
-    sdk_text = sdk_path.read_text(encoding="utf-8")
-
-    def _normalize_docblock(match: re.Match[str]) -> str:
-        operation_name = match.group("name")
-        body = match.group("body")
-        body = _sanitize_sdk_operation_docblock_body(body)
-        _assert_sdk_docblock_body_sanitized(body)
-        normalized_lines = body.splitlines()
-        for index, line in enumerate(normalized_lines):
-            stripped = line.removeprefix(" * ").strip()
-            if stripped and stripped != "*" and not stripped.endswith("."):
-                normalized_lines[index] = f" * {stripped}."
-                break
-        if not any("@param options" in line for line in normalized_lines):
-            if normalized_lines and normalized_lines[-1] != " *":
-                normalized_lines.append(" *")
-            normalized_lines.append(f" * {_SDK_OPTIONS_PARAM_DOC}")
-        if "@returns" not in body:
-            if normalized_lines and normalized_lines[-1] != " *":
-                normalized_lines.append(" *")
-            normalized_lines.append(
-                " * @returns The response from the "
-                f"`{operation_name}` operation."
+        def _normalize_docblock(match: re.Match[str]) -> str:
+            operation_name = match.group("name")
+            body = match.group("body")
+            body = _sanitize_sdk_operation_docblock_body(body)
+            _assert_sdk_docblock_body_sanitized(body)
+            normalized_lines = body.splitlines()
+            for index, line in enumerate(normalized_lines):
+                stripped = line.removeprefix(" * ").strip()
+                if stripped and stripped != "*" and not stripped.endswith("."):
+                    normalized_lines[index] = f" * {stripped}."
+                    break
+            if not any("@param options" in line for line in normalized_lines):
+                if normalized_lines and normalized_lines[-1] != " *":
+                    normalized_lines.append(" *")
+                normalized_lines.append(f" * {_SDK_OPTIONS_PARAM_DOC}")
+            if "@returns" not in body:
+                if normalized_lines and normalized_lines[-1] != " *":
+                    normalized_lines.append(" *")
+                normalized_lines.append(
+                    " * @returns The response from the "
+                    f"`{operation_name}` operation."
+                )
+            return (
+                "/**\n" + "\n".join(normalized_lines) + "\n"
+                " */\n"
+                f"export const {operation_name} ="
             )
-        return (
-            "/**\n" + "\n".join(normalized_lines) + "\n"
-            " */\n"
-            f"export const {operation_name} ="
-        )
 
-    normalized_sdk_text = _SDK_OPERATION_DOCBLOCK_PATTERN.sub(
-        _normalize_docblock,
-        sdk_text,
-    )
-    if normalized_sdk_text != sdk_text:
-        sdk_path.write_text(normalized_sdk_text, encoding="utf-8")
+        normalized_sdk_text = _SDK_OPERATION_DOCBLOCK_PATTERN.sub(
+            _normalize_docblock,
+            sdk_text,
+        )
+        if normalized_sdk_text != sdk_text:
+            sdk_path.write_text(normalized_sdk_text, encoding="utf-8")
 
     types_path = root / "types.gen.ts"
     if types_path.exists():
         types_text = types_path.read_text(encoding="utf-8")
-        normalized_types_text = _ensure_typescript_type_docblocks(types_text)
+        normalized_types_text = _rewrite_explicit_readiness_types(types_text)
+        normalized_types_text = _ensure_typescript_type_docblocks(
+            normalized_types_text
+        )
         if normalized_types_text != types_text:
             types_path.write_text(normalized_types_text, encoding="utf-8")
 

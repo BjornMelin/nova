@@ -2,8 +2,8 @@
 Spec: 0006
 Title: JWT/OIDC Verification and Principal Mapping
 Status: Active
-Version: 1.0
-Date: 2026-02-12
+Version: 1.1
+Date: 2026-04-06
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -36,9 +36,15 @@ Optional provider presets MAY map provider-specific env vars (for example Auth0 
 
 ## 3. Async integration rule
 
-`oidc-jwt-verifier` verification is synchronous.
+Nova's canonical request path uses `oidc-jwt-verifier`'s async-native verifier.
 
-In FastAPI async dependencies, verification MUST run through a threadpool boundary (`anyio.to_thread.run_sync` or equivalent) to prevent event-loop blocking.
+In FastAPI async dependencies, JWT verification MUST run through the
+process-scoped `AsyncJWTVerifier` and MUST NOT introduce a threadpool boundary
+for the canonical async path.
+
+If a future sync-only verifier path is introduced on an async request surface,
+that explicit exception MUST run through a threadpool boundary
+(`anyio.to_thread.run_sync` or equivalent) and be justified by a future ADR.
 
 ## 4. Principal mapping contract
 
@@ -96,7 +102,8 @@ Minimum tests MUST include:
 - signature/issuer/audience/expiry failures
 - missing/invalid kid and JWKS key miss behavior
 - scope and permission authorization failures
-- async dependency threadpool boundary behavior
+- async-native verifier behavior on the canonical request path
+- startup/readiness delegation through the verifier-owned JWKS lifecycle APIs
 
 ## 9. Traceability
 
@@ -104,3 +111,9 @@ Minimum tests MUST include:
 - [FR-0003](../requirements.md#fr-0003-key-generation-and-scope-enforcement)
 - [NFR-0000](../requirements.md#nfr-0000-security-baseline)
 - [NFR-0001](../requirements.md#nfr-0001-performance-and-event-loop-safety)
+
+## 10. Changelog
+
+- 2026-04-06 (v1.1): Updated the async integration rule to match Nova's
+  canonical `AsyncJWTVerifier` path and the upstream verifier-owned JWKS
+  lifecycle/readiness APIs released in `oidc-jwt-verifier` 0.1.6.

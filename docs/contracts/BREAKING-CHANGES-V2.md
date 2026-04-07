@@ -37,6 +37,10 @@ This file records the intentional hard cuts in the second green-field program.
 - Delete auth SDK packages.
 - Rename file-only SDK packages to unified Nova SDK package names.
 - Delete `@nova/sdk-fetch`.
+- Python SDK readiness model hard-cut: rename `ReadinessResponseChecks` to
+  `ReadinessChecks` and delete the legacy import/export path
+  `nova_sdk_py.models.readiness_response_checks`; treat the next released
+  `nova-sdk-py` cut carrying this change as MAJOR-only.
 
 ## Docs/governance
 

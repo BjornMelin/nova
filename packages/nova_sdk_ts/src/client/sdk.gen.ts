@@ -128,7 +128,7 @@ export const healthLive = <ThrowOnError extends boolean = false>(options?: Optio
  * Return readiness checks for traffic-critical dependencies such as auth, transfers, exports, and idempotency.
  *
  * @param options - request options including client, security, and request overrides.
- * @returns Readiness status plus per-dependency readiness checks.
+ * @returns Readiness status plus per-dependency results for the live traffic gates only.
  */
 export const healthReady = <ThrowOnError extends boolean = false>(options?: Options<HealthReadyData, ThrowOnError>) => (options?.client ?? client).get<HealthReadyResponses, HealthReadyErrors, ThrowOnError>({ url: '/v1/health/ready', ...options });
 

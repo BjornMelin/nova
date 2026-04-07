@@ -2,8 +2,8 @@
 Spec: 0019
 Title: Auth execution and threadpool safety contract
 Status: Active
-Version: 2.3
-Date: 2026-03-22
+Version: 2.4
+Date: 2026-04-06
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[ADR-0004: Adopt oidc-jwt-verifier as the canonical JWT/OIDC verification engine](../adr/ADR-0004-canonical-oidc-jwt-verifier-adoption.md)"
@@ -25,11 +25,15 @@ Defines how Nova executes in-process auth safely in async runtime code.
    lifespan context manager at runtime startup and explicitly closed with an
    awaited `aclose()` during shutdown; do not rely on background tasks,
    implicit destructors, or ad-hoc per-request creation.
-2. Dedicated auth microservice HTTP calls are not part of the target
+2. The canonical readiness probe for bearer-token auth delegates to the same
+   process-scoped async verifier through its public verifier-owned JWKS
+   lifecycle/readiness APIs; Nova must not maintain a second private JWKS
+   readiness path.
+3. Dedicated auth microservice HTTP calls are not part of the target
    architecture (superseded `ADR-0005` / `SPEC-0007`).
-3. Auth failure responses preserve the canonical Nova bearer-auth contract,
+4. Auth failure responses preserve the canonical Nova bearer-auth contract,
    including RFC 6750 challenge behavior on `401` responses.
-4. Presigned URLs, bearer tokens, and signed query values must never be logged.
+5. Presigned URLs, bearer tokens, and signed query values must never be logged.
    When auth verification is async-native, the verifier lifecycle requirement
    above applies to the same process-scoped verifier that handles those
    values, so the verifier must still be created in FastAPI lifespan and

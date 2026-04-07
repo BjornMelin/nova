@@ -134,6 +134,8 @@ def test_public_sdk_types_include_exports_first_shapes() -> None:
     assert "export type CreateExportRequest =" in source
     assert "export type ExportListResponse =" in source
     assert "export type ExportResource =" in source
+    assert "export type ReadinessChecks =" in source
+    assert "checks: ReadinessChecks;" in source
 
 
 def test_public_sdk_types_exclude_wrapper_specific_aliases() -> None:

@@ -74,6 +74,9 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 - The disabled `execute-api` endpoint returns `403`, proving the custom domain
   is the only intended public ingress.
 - `/v1/health/live` and `/v1/health/ready` return `200`.
+- `/v1/health/ready` now reflects live transfer and auth dependency probes
+  (S3 bucket reachability and the configured verifier's public JWKS
+  healthcheck), not configuration presence alone.
 - At least one protected route returns `401` or `403` without a bearer token.
 - `GET /v1/capabilities/transfers` returns the effective transfer envelope and
   the representative upload sizing checks pass in the report.

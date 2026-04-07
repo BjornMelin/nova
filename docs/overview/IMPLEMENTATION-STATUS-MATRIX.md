@@ -7,7 +7,7 @@ Use this file as the active truth model for the canonical Nova baseline.
 
 | Area | Active canonical baseline | Retired / no longer active | Primary docs |
 | --- | --- | --- | --- |
-| Public auth | bearer JWT only, verified in-process | auth service, session/same-origin auth, split auth SDKs | `ADR-0034`, `SPEC-0027` |
+| Public auth | bearer JWT only, verified in-process with the async-native `oidc-jwt-verifier` path and verifier-owned JWKS readiness checks | auth service, session/same-origin auth, split auth SDKs, Nova-owned private JWKS readiness wrappers | `ADR-0034`, `SPEC-0006`, `SPEC-0019`, `SPEC-0027` |
 | Async contract | explicit export workflows under `/v1/exports` | generic jobs, internal callback route | `ADR-0035`, `SPEC-0028` |
 | Idempotency/state | DynamoDB-backed idempotency with explicit expiration filtering | Redis-backed correctness paths | `ADR-0036`, `SPEC-0029` |
 | Transfer control plane | direct-to-S3 uploads with additive initiate hints, DynamoDB-backed upload sessions, AppConfig-backed effective transfer policy resolution with environment fallback, deterministic quota enforcement, policy-scoped transfer acceleration, policy-scoped checksum modes, and dedicated export-copy tuning controls | opaque browser defaults with no durable upload-session state or scoped quota enforcement | `SPEC-0002`, `SPEC-0005`, `SPEC-0027`, `README.md` |

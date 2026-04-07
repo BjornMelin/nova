@@ -59,11 +59,13 @@ class _FakeS3Client:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.copy_calls: list[dict[str, Any]] = []
+        self.head_bucket_calls: list[dict[str, Any]] = []
         self.multipart_upload_calls: list[dict[str, Any]] = []
         self.upload_part_copy_calls: list[dict[str, Any]] = []
         self.complete_calls: list[dict[str, Any]] = []
         self.abort_calls: list[dict[str, Any]] = []
         self.copy_error: Exception | None = None
+        self.head_bucket_error: Exception | None = None
         self.head_responses: list[dict[str, Any] | Exception] = []
         self.list_parts_responses: list[dict[str, Any] | Exception] = []
         self.expected_part_markers: list[int | None] = []
@@ -108,6 +110,12 @@ class _FakeS3Client:
             if isinstance(item, Exception):
                 raise item
             return item
+        return {}
+
+    async def head_bucket(self, **kwargs: Any) -> dict[str, Any]:
+        self.head_bucket_calls.append(kwargs)
+        if self.head_bucket_error is not None:
+            raise self.head_bucket_error
         return {}
 
     async def copy_object(self, **kwargs: Any) -> dict[str, Any]:
@@ -426,6 +434,43 @@ def _copy_upload_error_case(
     ]
     fake_s3.copy_error = error
     return service, settings, fake_s3
+
+
+@pytest.mark.anyio
+async def test_transfer_healthcheck_probes_live_bucket_access() -> None:
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    assert await service.healthcheck() is True
+    assert fake_s3.head_bucket_calls == [
+        {"Bucket": settings.file_transfer_bucket}
+    ]
+
+
+@pytest.mark.anyio
+async def test_transfer_healthcheck_fails_closed_when_bucket_probe_fails() -> (
+    None
+):
+    settings = _settings()
+    fake_s3 = _FakeS3Client()
+    fake_s3.head_bucket_error = ClientError(
+        {"Error": {"Code": "403", "Message": "forbidden"}},
+        "HeadBucket",
+    )
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    assert await service.healthcheck() is False
+
+
+@pytest.mark.anyio
+async def test_transfer_healthcheck_fails_closed_when_bucket_missing() -> None:
+    settings = _settings(FILE_TRANSFER_BUCKET="")
+    fake_s3 = _FakeS3Client()
+    service = _transfer_service(settings=settings, s3_client=fake_s3)
+
+    assert await service.healthcheck() is False
+    assert fake_s3.head_bucket_calls == []
 
 
 @pytest.mark.anyio

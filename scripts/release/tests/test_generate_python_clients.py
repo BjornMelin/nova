@@ -236,14 +236,6 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         "        return metrics_summary_response_activity\n",
         encoding="utf-8",
     )
-    (models_dir / "readiness_response_checks.py").write_text(
-        "class ReadinessResponseChecks:\n"
-        '    """ """\n\n'
-        "        readiness_response_checks = cls()\n"
-        "        readiness_response_checks.additional_properties = d\n"
-        "        return readiness_response_checks\n",
-        encoding="utf-8",
-    )
     (models_dir / "sign_parts_response_urls.py").write_text(
         "class SignPartsResponseUrls:\n"
         '    """ """\n\n'
@@ -289,7 +281,6 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         path.name: path.read_text(encoding="utf-8")
         for path in (
             models_dir / "metrics_summary_response_activity.py",
-            models_dir / "readiness_response_checks.py",
             models_dir / "sign_parts_response_urls.py",
             models_dir / "presign_download_response.py",
             models_dir / "initiate_upload_response.py",
@@ -302,7 +293,6 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         path.name: path.read_text(encoding="utf-8")
         for path in (
             models_dir / "metrics_summary_response_activity.py",
-            models_dir / "readiness_response_checks.py",
             models_dir / "sign_parts_response_urls.py",
             models_dir / "presign_download_response.py",
             models_dir / "initiate_upload_response.py",
@@ -312,7 +302,6 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     }
 
     activity = first_pass["metrics_summary_response_activity.py"]
-    readiness = first_pass["readiness_response_checks.py"]
     sign_parts = first_pass["sign_parts_response_urls.py"]
     presign = first_pass["presign_download_response.py"]
     initiate_upload = first_pass["initiate_upload_response.py"]
@@ -320,7 +309,6 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     package_init = first_pass["__init__.py"]
 
     assert "additional_properties: dict[str, int] = {}" in activity
-    assert "additional_properties: dict[str, bool] = {}" in readiness
     assert "additional_properties: dict[str, str] = {}" in sign_parts
     assert "if not isinstance(value, str):" in sign_parts
     assert "raise TypeError(" in sign_parts
@@ -342,6 +330,35 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         '    "Client",\n'
         ")\n"
     )
+    assert first_pass == second_pass
+
+
+def test_apply_python_sdk_repairs_preserves_canonical_readiness_exports(
+    tmp_path: Path,
+) -> None:
+    """The generated package should keep only canonical readiness exports."""
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    package_init = models_dir / "__init__.py"
+    package_init.write_text(
+        '"""Contains all the data models used in inputs/outputs"""\n\n'
+        "from .readiness_checks import ReadinessChecks\n"
+        "from .readiness_response import ReadinessResponse\n\n"
+        "from .validation_error_context import ValidationErrorContext\n\n"
+        "__all__ = (\n"
+        '    "ReadinessChecks",\n'
+        '    "ReadinessResponse",\n'
+        '    "ValidationErrorContext",\n'
+        ")\n",
+        encoding="utf-8",
+    )
+
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
+    first_pass = package_init.read_text(encoding="utf-8")
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
+    second_pass = package_init.read_text(encoding="utf-8")
+
+    assert "ReadinessResponseChecks" not in first_pass
     assert first_pass == second_pass
 
 

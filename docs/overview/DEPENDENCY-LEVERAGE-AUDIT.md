@@ -49,7 +49,8 @@ Delete repo code whenever an upstream dependency or native platform capability c
 
 ### `oidc-jwt-verifier`
 
-Use the async verifier and FastAPI/Starlette integration helpers instead of a dedicated auth service.
+Use the async verifier plus the verifier-owned JWKS lifecycle/readiness APIs
+instead of a dedicated auth service or Nova-owned readiness wrappers.
 
 ### FastAPI native OpenAPI/security/features
 

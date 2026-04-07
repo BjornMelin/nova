@@ -2,8 +2,8 @@
 Spec: 0018
 Title: Runtime configuration and startup validation contract
 Status: Active
-Version: 2.6
-Date: 2026-03-20
+Version: 2.7
+Date: 2026-04-06
 Related:
   - "[ADR-0026: Fail-fast runtime configuration and safe auth execution](../adr/ADR-0026-fail-fast-runtime-configuration-and-safe-auth-execution.md)"
   - "[SPEC-0017: Runtime component topology and ownership contract](./SPEC-0017-runtime-component-topology-and-ownership-contract.md)"
@@ -74,23 +74,28 @@ Required startup validation:
 ## 4. Readiness contract
 
 1. `/v1/health/live` is process liveness only.
-2. `/v1/health/ready` reports the current runtime dependency checks and
-   returns `503` when any traffic-critical check is false.
-3. Missing or blank `FILE_TRANSFER_BUCKET` fails readiness.
+2. `/v1/health/ready` reports only the current live traffic dependency checks
+   and returns `503` when any traffic-critical check is false.
+3. Missing or blank `FILE_TRANSFER_BUCKET` fails the `transfer_runtime` check;
+   there is no separate configuration-only readiness key for bucket presence.
 4. Incomplete in-process bearer-verifier configuration (`OIDC_ISSUER`,
    `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` missing) fails the `auth_dependency`
-   readiness check.
-5. Runtime ECS/CloudFormation templates keep their default parameter sets
+   check; there is no separate configuration-only readiness key for verifier
+   setup.
+5. When bearer-verifier configuration is complete, `auth_dependency` is driven
+   by the upstream verifier-owned JWKS healthcheck rather than by local Nova
+   JWKS internals or configuration presence alone.
+6. Runtime ECS/CloudFormation templates keep their default parameter sets
    validation-safe; incomplete bearer-verifier OIDC inputs are enforced by
    Nova readiness/startup behavior, not by template-parameter validation
    rules.
-6. When exports are disabled, the reported `export_runtime` check remains ready
+7. When exports are disabled, the reported `export_runtime` check remains ready
    instead of making the service unready by feature disablement alone.
-7. `idempotency_store` health remains visible in diagnostics and gates
+8. `idempotency_store` health remains visible in diagnostics and gates
    readiness only when idempotency is enabled.
-8. Activity-store health remains visible in diagnostics but is not
+9. Activity-store health remains visible in diagnostics but is not
    readiness-fatal in the current contract.
-9. Feature flags do not determine readiness by themselves.
+10. Feature flags do not determine readiness by themselves.
 
 ## 5. Environment and startup ownership
 

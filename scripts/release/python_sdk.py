@@ -80,10 +80,6 @@ _ADDITIONAL_PROPERTIES_REPAIRS = (
         value_kind="float",
     ),
     AdditionalPropertiesRepair(
-        relative_path="models/readiness_response_checks.py",
-        value_kind="bool",
-    ),
-    AdditionalPropertiesRepair(
         relative_path="models/sign_parts_response_urls.py",
         value_kind="str",
     ),

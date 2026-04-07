@@ -2,8 +2,8 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.5
-Date: 2026-03-31
+Version: 1.6
+Date: 2026-04-06
 Related:
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
@@ -62,10 +62,11 @@ Implementation commitments:
 - Export records created before publish are transitioned to `failed` when
   publish fails.
 - `/v1/health/ready` excludes feature flags from pass/fail aggregation.
-- `/v1/health/ready` treats missing/blank `FILE_TRANSFER_BUCKET` as
-  unconfigured.
-- `/v1/health/ready` treats incomplete `OIDC_ISSUER`, `OIDC_AUDIENCE`, or
-  `OIDC_JWKS_URL` bearer-verifier inputs as unready.
+- `/v1/health/ready` fails `transfer_runtime` when `FILE_TRANSFER_BUCKET` is
+  missing/blank or the live S3 bucket probe fails.
+- `/v1/health/ready` fails `auth_dependency` when `OIDC_ISSUER`,
+  `OIDC_AUDIENCE`, or `OIDC_JWKS_URL` are incomplete or the verifier-owned
+  JWKS healthcheck fails.
 - Worker updates with `status = succeeded` always normalize `error` to `null`.
 - DynamoDB rollups increment `distinct_event_types` only when a first-seen
   event-type marker write succeeds.
@@ -77,14 +78,16 @@ Implementation commitments:
 2. Valid deployments with optional features disabled stay ready.
 3. Dashboard rollups become accurate and concurrency-safe.
 4. Startup misconfiguration is detected earlier instead of silently degrading.
-5. The in-process bearer verifier now fails readiness closed when OIDC
-   configuration is incomplete, matching JWT/OIDC verifier authority in
+5. The in-process bearer verifier now fails readiness closed through the
+   canonical `auth_dependency` gate, matching JWT/OIDC verifier authority in
    SPEC-0006.
 
 ## Changelog
 
 - 2026-03-31 (v1.5): Canonicalized export enqueue route and record terminology
   to match the implemented `/v1/exports` baseline.
+- 2026-04-06 (v1.6): Updated readiness wording to match the upstream
+  verifier-owned auth dependency healthcheck.
 - 2026-03-09 (v1.4): Repointed bearer-verifier readiness authority
   references to SPEC-0006.
 - 2026-03-05 (v1.3): Added fail-closed bearer-verifier readiness semantics.
