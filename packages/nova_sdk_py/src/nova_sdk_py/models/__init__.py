@@ -54,6 +54,8 @@ from .uploaded_part import UploadedPart
 from .validation_error import ValidationError
 from .validation_error_context import ValidationErrorContext
 
+ReadinessResponseChecks = ReadinessChecks
+
 __all__ = (
     "AbortUploadRequest",
     "AbortUploadResponse",
@@ -84,6 +86,7 @@ __all__ = (
     "PresignDownloadResponse",
     "ReadinessChecks",
     "ReadinessResponse",
+    "ReadinessResponseChecks",
     "ReleaseInfoResponse",
     "ResourcePlanItem",
     "ResourcePlanRequest",

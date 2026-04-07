@@ -333,6 +333,36 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
     assert first_pass == second_pass
 
 
+def test_apply_python_sdk_repairs_keeps_readiness_alias_export(
+    tmp_path: Path,
+) -> None:
+    """The generated package should keep the public readiness alias export."""
+    models_dir = tmp_path / "models"
+    models_dir.mkdir()
+    package_init = models_dir / "__init__.py"
+    package_init.write_text(
+        '"""Contains all the data models used in inputs/outputs"""\n\n'
+        "from .readiness_checks import ReadinessChecks\n"
+        "from .readiness_response import ReadinessResponse\n\n"
+        "from .validation_error_context import ValidationErrorContext\n\n"
+        "__all__ = (\n"
+        '    "ReadinessChecks",\n'
+        '    "ReadinessResponse",\n'
+        '    "ValidationErrorContext",\n'
+        ")\n",
+        encoding="utf-8",
+    )
+
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
+    first_pass = package_init.read_text(encoding="utf-8")
+    _apply_python_sdk_repairs(tmp_path, "nova_sdk_py")
+    second_pass = package_init.read_text(encoding="utf-8")
+
+    assert "ReadinessResponseChecks = ReadinessChecks" in first_pass
+    assert '"ReadinessResponseChecks",' in first_pass
+    assert first_pass == second_pass
+
+
 def test_apply_python_sdk_repairs_normalizes_single_line_docstrings(
     tmp_path: Path,
 ) -> None:

@@ -481,6 +481,9 @@ def test_typescript_compatibility_fix_rewrites_readiness_to_fixed_type(
     assert "export type ReadinessChecks = {" in source
     assert "checks: ReadinessChecks;" in source
     assert "[key: string]: boolean;" not in source
+    assert "configured bearer-token verifier can currently" in source
+    assert "resolve signing keys." in source
+    assert "Per-dependency readiness results keyed by check name." not in source
 
 
 def test_typescript_compatibility_fix_allows_undefined_parse_as(

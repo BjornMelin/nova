@@ -434,6 +434,40 @@ def _apply_python_operation_reference_docs(
                 module_path.write_text(updated, encoding="utf-8")
 
 
+def _repair_readiness_checks_export_alias(root: Path) -> None:
+    """Keep the public alias for the canonical `ReadinessChecks` model."""
+    path = root / "models" / "__init__.py"
+    if not path.exists():
+        return
+
+    content = path.read_text(encoding="utf-8")
+    if "ReadinessResponseChecks" in content:
+        return
+
+    import_block = (
+        "from .validation_error_context import ValidationErrorContext\n\n"
+        "__all__ = (\n"
+    )
+    if import_block not in content:
+        return
+    updated = content.replace(
+        import_block,
+        (
+            "from .validation_error_context import ValidationErrorContext\n\n"
+            "ReadinessResponseChecks = ReadinessChecks\n\n"
+            "__all__ = (\n"
+        ),
+        1,
+    )
+    updated = updated.replace(
+        '    "ReadinessResponse",\n',
+        '    "ReadinessResponse",\n    "ReadinessResponseChecks",\n',
+        1,
+    )
+    if updated != content:
+        path.write_text(updated, encoding="utf-8")
+
+
 def _normalize_single_line_docstrings(root: Path) -> None:
     pattern = re.compile(
         r'(?m)^(?P<indent>\s*)"""\s*(?P<text>[^"\n][^\n]*?)\s*"""$'
@@ -972,6 +1006,7 @@ def _apply_python_sdk_repairs(
     _redact_presign_download_url_repr(root)
     _repair_export_resource_output_parser(root)
     _repair_sign_parts_request_checksum_parser(root)
+    _repair_readiness_checks_export_alias(root)
     _ensure_validation_error_context_file(root)
     _repair_relative_imports_to_absolute(root, package_name)
 

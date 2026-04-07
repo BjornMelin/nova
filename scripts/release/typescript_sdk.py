@@ -533,7 +533,8 @@ _READINESS_CHECKS_TYPE_LINES = [
     "     */",
     "    activity_store: boolean;",
     "    /**",
-    "     * Whether the bearer-token verification dependency is ready.",
+    "     * Whether the configured bearer-token verifier can currently",
+    "     * resolve signing keys.",
     "     */",
     "    auth_dependency: boolean;",
     "    /**",
@@ -572,6 +573,23 @@ _READINESS_RESPONSE_TYPE_LINES = [
 ]
 
 
+def _drop_trailing_docblock(lines: list[str]) -> None:
+    """Remove the docblock immediately preceding a rewritten export."""
+    index = len(lines) - 1
+    while index >= 0 and lines[index] == "":
+        index -= 1
+    if index < 0 or lines[index].strip() != "*/":
+        return
+    start = index
+    while start >= 0 and lines[start].strip() != "/**":
+        start -= 1
+    if start < 0:
+        return
+    del lines[start : index + 1]
+    while lines and lines[-1] == "":
+        lines.pop()
+
+
 def _rewrite_explicit_readiness_types(source: str) -> str:
     """Normalize generated readiness types to the canonical fixed schema."""
     if "export type ReadinessChecks = {" in source and (
@@ -606,6 +624,7 @@ def _rewrite_explicit_readiness_types(source: str) -> str:
             result.extend(block_lines)
             continue
 
+        _drop_trailing_docblock(result)
         if result and result[-1] != "":
             result.append("")
         result.extend(_READINESS_CHECKS_TYPE_LINES)
