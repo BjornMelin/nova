@@ -5,7 +5,7 @@ OpenAPI artifacts, canonical fixtures, and schema utilities for Nova runtime ser
 ## Canonical contract fixtures
 
 - Path: `packages/contracts/fixtures/v1`
-- Coverage: auth verify, transfer initiate, canonical `/v1/*` jobs/capabilities, canonical error envelope
+- Coverage: auth verify, transfer initiate, canonical `/v1/exports` and `/v1/capabilities` routes, canonical error envelope
 - Consumer guidance: `packages/contracts/fixtures/v1/README.md`
 
 Contract verification includes generated-client smoke coverage:

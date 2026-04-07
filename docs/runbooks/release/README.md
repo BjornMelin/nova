@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-28
+Last reviewed: 2026-04-07
 
 ## Purpose
 
@@ -21,9 +21,9 @@ governance, and auditability.
 
 Committed release artifacts:
 
-- [`../../release/README.md`](../../release/README.md)
-- [`../../release/RELEASE-PREP.json`](../../release/RELEASE-PREP.json)
-- [`../../release/RELEASE-VERSION-MANIFEST.md`](../../release/RELEASE-VERSION-MANIFEST.md)
+- [`../../../release/README.md`](../../../release/README.md)
+- [`../../../release/RELEASE-PREP.json`](../../../release/RELEASE-PREP.json)
+- [`../../../release/RELEASE-VERSION-MANIFEST.md`](../../../release/RELEASE-VERSION-MANIFEST.md)
 - [`../../contracts/runtime-config-contract.generated.md`](../../contracts/runtime-config-contract.generated.md)
 
 The public API Lambda zip is not a committed repo artifact. The AWS-native

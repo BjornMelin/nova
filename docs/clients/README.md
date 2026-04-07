@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-04-02
+Last reviewed: 2026-04-07
 
 ## Start here
 
@@ -22,10 +22,9 @@ Last reviewed: 2026-04-02
   language.
 - `post-deploy-validation-integration-guide.md` -- downstream reusable workflow
   setup for runtime validation.
-- `dash-minimal-workflow.yml`
-- `rshiny-minimal-workflow.yml`
-- `react-next-minimal-workflow.yml`
-- `examples/workflows/*`
+- `examples/workflows/dash-post-deploy-validate.yml`
+- `examples/workflows/rshiny-post-deploy-validate.yml`
+- `examples/workflows/react-next-post-deploy-validate.yml`
 
 ## Authority / references
 
@@ -38,6 +37,7 @@ Last reviewed: 2026-04-02
 - `../architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`
 - `../architecture/adr/ADR-0038-docs-authority-reset.md`
+- `../architecture/adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
