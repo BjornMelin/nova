@@ -2,34 +2,49 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+import asyncio
+from typing import Any
 
 from fastapi import FastAPI
 from mangum import Mangum
 
 from nova_file_api.app import create_app
+from nova_file_api.config import Settings
+from nova_file_api.runtime import RuntimeBootstrap, bootstrap_api_runtime
 
-
-def create_lambda_handler(
-    *,
-    app: FastAPI | None = None,
-    lifespan: Literal["auto", "on", "off"] = "on",
-) -> Mangum:
-    """Build the native Lambda adapter for a FastAPI ASGI application.
-
-    Args:
-        app: Optional FastAPI application instance. When omitted, builds the
-            canonical application with `create_app()`.
-        lifespan: ASGI lifespan mode passed to Mangum.
-
-    Returns:
-        Configured Mangum adapter for the resolved FastAPI application.
-    """
-    resolved_app = create_app() if app is None else app
-    return Mangum(resolved_app, lifespan=lifespan)
-
-
+_DEFAULT_BOOTSTRAP_LOOP: asyncio.AbstractEventLoop | None = None
+_DEFAULT_RUNTIME_BOOTSTRAP: RuntimeBootstrap | None = None
 _DEFAULT_HANDLER: Mangum | None = None
+
+
+def _get_bootstrap_loop() -> asyncio.AbstractEventLoop:
+    """Return the dedicated event loop used for Lambda runtime bootstrap."""
+    global _DEFAULT_BOOTSTRAP_LOOP
+    if _DEFAULT_BOOTSTRAP_LOOP is None or _DEFAULT_BOOTSTRAP_LOOP.is_closed():
+        _DEFAULT_BOOTSTRAP_LOOP = asyncio.new_event_loop()
+    asyncio.set_event_loop(_DEFAULT_BOOTSTRAP_LOOP)
+    return _DEFAULT_BOOTSTRAP_LOOP
+
+
+def _get_default_runtime_bootstrap() -> RuntimeBootstrap:
+    """Return the cached process-wide runtime bootstrap for Lambda."""
+    global _DEFAULT_RUNTIME_BOOTSTRAP
+    if _DEFAULT_RUNTIME_BOOTSTRAP is None:
+        loop = _get_bootstrap_loop()
+        _DEFAULT_RUNTIME_BOOTSTRAP = loop.run_until_complete(
+            bootstrap_api_runtime(settings=Settings())
+        )
+    return _DEFAULT_RUNTIME_BOOTSTRAP
+
+
+def _build_default_app() -> FastAPI:
+    """Build the canonical FastAPI app bound to the cached Lambda runtime."""
+    return create_app(runtime=_get_default_runtime_bootstrap().runtime)
+
+
+def create_lambda_handler() -> Mangum:
+    """Build the canonical native Lambda adapter for the FastAPI runtime."""
+    return Mangum(_build_default_app(), lifespan="off")
 
 
 def _get_default_handler() -> Mangum:
@@ -41,13 +56,5 @@ def _get_default_handler() -> Mangum:
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """Handle one AWS Lambda proxy event with the canonical FastAPI adapter.
-
-    Args:
-        event: Lambda proxy event payload from API Gateway.
-        context: AWS Lambda invocation context object.
-
-    Returns:
-        API Gateway-compatible response payload emitted by Mangum.
-    """
+    """Handle one AWS Lambda proxy event with the canonical FastAPI adapter."""
     return _get_default_handler()(event, context)

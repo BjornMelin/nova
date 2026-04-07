@@ -21,10 +21,13 @@ Defines how Nova executes in-process auth safely in async runtime code.
    **when** verification remains synchronous on async request paths. When JWT
    verification is async-native in the file API ([ADR-0033](../adr/ADR-0033-single-runtime-auth-authority.md),
    [ADR-0037](../adr/ADR-0037-async-first-public-surface.md)), the
-   process-scoped async verifier must be instantiated during the FastAPI
-   lifespan context manager at runtime startup and explicitly closed with an
-   awaited `aclose()` during shutdown; do not rely on background tasks,
-   implicit destructors, or ad-hoc per-request creation.
+   process-scoped async verifier must be instantiated during managed runtime
+   bootstrap for the active app surface: the Lambda path bootstraps one
+   process-reused `ApiRuntime` container before Mangum request handling, and
+   local development uses the managed FastAPI app builder. The verifier must
+   be explicitly closed with an awaited `aclose()` during managed shutdown; do
+   not rely on background tasks, implicit destructors, or ad-hoc per-request
+   creation.
 2. The canonical readiness probe for bearer-token auth delegates to the same
    process-scoped async verifier through its public verifier-owned JWKS
    lifecycle/readiness APIs; Nova must not maintain a second private JWKS
@@ -36,8 +39,8 @@ Defines how Nova executes in-process auth safely in async runtime code.
 5. Presigned URLs, bearer tokens, and signed query values must never be logged.
    When auth verification is async-native, the verifier lifecycle requirement
    above applies to the same process-scoped verifier that handles those
-   values, so the verifier must still be created in FastAPI lifespan and
-   closed with awaited `aclose()` on shutdown.
+   values, so the verifier must still be created during managed runtime
+   bootstrap and closed with awaited `aclose()` on shutdown.
 
 ## 3. Threadpool and limiter contract
 
