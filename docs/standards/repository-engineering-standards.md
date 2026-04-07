@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-31
+Last reviewed: 2026-04-06
 
 ## Purpose
 
@@ -210,9 +210,11 @@ Toolchain baseline notes:
   `packages/nova_sdk_py` tree aligned in the same change.
 - Current runtime dependency floors are manifest-owned authority:
   `anyio>=4.13.0`, `fastapi>=0.135.3`, `pydantic-settings>=2.13.1`, and
-  `mangum>=0.21.0` in `nova-file-api`, `fastapi>=0.135.3` in
-  `nova-runtime-support`, `dash>=3.0.0,<5.0.0` in `nova-dash-bridge`,
-  the `attrs>=25.4.0,<26.0` compatibility window in `nova-sdk-py` while the
+  `mangum>=0.21.0`, `aioboto3>=15.5.0,<16`, and
+  `botocore>=1.40.46,<1.40.62` in `nova-file-api`,
+  `fastapi>=0.135.3` in `nova-runtime-support`,
+  `dash>=3.0.0,<5.0.0` in `nova-dash-bridge`, the
+  `attrs>=25.4.0,<26.0` compatibility window in `nova-sdk-py` while the
   current CDK/jsii toolchain still caps `attrs<26`, and the async AWS
   compatibility hold `aioboto3>=15.5.0,<16` plus
   `botocore>=1.40.46,<1.40.62` in `nova-workflows`. If those floors move,

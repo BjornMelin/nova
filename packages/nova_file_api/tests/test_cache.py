@@ -53,8 +53,10 @@ class _FakeSession:
         del service_name, config
         return _AsyncContextValue(object())
 
-    def resource(self, service_name: str) -> _AsyncContextValue:
-        del service_name
+    def resource(
+        self, service_name: str, *, config: object | None = None
+    ) -> _AsyncContextValue:
+        del service_name, config
         return _AsyncContextValue(object())
 
 

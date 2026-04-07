@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from botocore.config import Config
 from pydantic import ValidationError
 
 from nova_file_api.export_models import ExportRecord, ExportStatus
@@ -24,6 +25,8 @@ from nova_workflows.workflow_runtime import (
     _build_export_service,
     workflow_services,
 )
+
+from .conftest import RecordingSession
 
 
 def test_workflow_settings_require_exports_table_when_exports_enabled() -> None:
@@ -150,6 +153,52 @@ async def test_workflow_services_reject_blank_copy_worker_settings() -> None:
     with pytest.raises(ValueError, match="FILE_TRANSFER_EXPORT_COPY"):
         async with workflow_services(settings=settings):
             pytest.fail("workflow_services should not yield")
+
+
+@pytest.mark.anyio
+async def test_workflow_services_use_shared_aws_client_configs(
+    monkeypatch: pytest.MonkeyPatch,
+    recording_session: RecordingSession,
+) -> None:
+    import nova_workflows.workflow_runtime as workflow_runtime_module
+
+    monkeypatch.setattr(
+        workflow_runtime_module.aioboto3,
+        "Session",
+        lambda: recording_session,
+    )
+
+    async with workflow_services(
+        settings=WorkflowSettings.model_validate(
+            {
+                "EXPORTS_ENABLED": True,
+                "EXPORTS_DYNAMODB_TABLE": "exports-table",
+                "FILE_TRANSFER_BUCKET": "workflow-bucket",
+                "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": True,
+                "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": (
+                    "https://sqs.us-west-2.amazonaws.com/123456789012/q"
+                ),
+                "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": ("export-copy-parts"),
+            }
+        )
+    ) as services:
+        assert services.transfer_service is not None
+
+    assert [name for name, _ in recording_session.client_calls] == [
+        "s3",
+        "sqs",
+    ]
+    assert [name for name, _ in recording_session.resource_calls] == [
+        "dynamodb"
+    ]
+    assert isinstance(recording_session.client_calls[0][1], Config)
+    assert recording_session.client_calls[0][1].s3 == {
+        "use_accelerate_endpoint": True
+    }
+    assert isinstance(recording_session.client_calls[1][1], Config)
+    assert recording_session.client_calls[1][1].s3 is None
+    assert isinstance(recording_session.resource_calls[0][1], Config)
+    assert recording_session.resource_calls[0][1].s3 is None
 
 
 def test_export_transfer_config_strips_bucket() -> None:
