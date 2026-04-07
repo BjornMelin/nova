@@ -173,9 +173,6 @@ ENV_JSON_OVERRIDES: tuple[EnvJsonOverrideContract, ...] = (
         "OIDC_REQUIRED_PERMISSIONS", "OidcRequiredPermissions"
     ),
     EnvJsonOverrideContract("OIDC_CLOCK_SKEW_SECONDS", "OidcClockSkewSeconds"),
-    EnvJsonOverrideContract(
-        "BLOCKING_IO_THREAD_TOKENS", "BlockingIoThreadTokens"
-    ),
     EnvJsonOverrideContract("CACHE_LOCAL_TTL_SECONDS", "CacheLocalTtlSeconds"),
     EnvJsonOverrideContract("CACHE_LOCAL_MAX_ENTRIES", "CacheLocalMaxEntries"),
     EnvJsonOverrideContract("CACHE_KEY_PREFIX", "CacheKeyPrefix"),

@@ -109,3 +109,14 @@ def test_runtime_contract_type_labels_drop_annotated_validation_metadata() -> (
 
     assert contracts_by_field["file_transfer_bucket"].type_label == "str | None"
     assert contracts_by_field["oidc_issuer"].type_label == "str | None"
+
+
+def test_runtime_contract_drops_deleted_blocking_io_setting() -> None:
+    """Dead runtime env vars must disappear from settings and contracts."""
+    contracts_by_field = {
+        contract.field_name: contract
+        for contract in runtime_setting_contracts()
+    }
+
+    assert "blocking_io_thread_tokens" not in Settings.model_fields
+    assert "blocking_io_thread_tokens" not in contracts_by_field

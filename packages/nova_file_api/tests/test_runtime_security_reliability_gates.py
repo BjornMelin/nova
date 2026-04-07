@@ -87,3 +87,15 @@ def test_service_packages_declare_native_runtime_dependencies() -> None:
     assert "fastapi>=0.135.3" in dependencies
     assert "nova-runtime-support>=0.1.0" in dependencies
     assert "mangum>=0.21.0" in dependencies
+    assert "httpx>=0.28.1" not in dependencies
+
+
+def test_workspace_dev_group_keeps_httpx_for_test_and_tooling_surfaces() -> (
+    None
+):
+    """Workspace dev tooling should carry httpx for tests and perf helpers."""
+    payload = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+
+    assert "httpx>=0.28.1" in payload["dependency-groups"]["dev"]
