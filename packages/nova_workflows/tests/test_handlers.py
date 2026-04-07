@@ -10,40 +10,7 @@ from botocore.config import Config
 from nova_file_api.workflow_facade import ExportCopyTaskMessage
 from nova_workflows import handlers
 
-
-class _AsyncContextValue:
-    def __init__(self, value: object) -> None:
-        self._value = value
-
-    async def __aenter__(self) -> object:
-        return self._value
-
-    async def __aexit__(
-        self,
-        exc_type: object,
-        exc: object,
-        tb: object,
-    ) -> bool:
-        del exc_type, exc, tb
-        return False
-
-
-class _RecordingSession:
-    def __init__(self) -> None:
-        self.client_calls: list[tuple[str, Config | None]] = []
-        self.resource_calls: list[tuple[str, Config | None]] = []
-
-    def client(
-        self, service_name: str, *, config: Config | None = None
-    ) -> _AsyncContextValue:
-        self.client_calls.append((service_name, config))
-        return _AsyncContextValue(object())
-
-    def resource(
-        self, service_name: str, *, config: Config | None = None
-    ) -> _AsyncContextValue:
-        self.resource_calls.append((service_name, config))
-        return _AsyncContextValue(object())
+from .support.aioboto3 import _RecordingSession
 
 
 class _FakeLargeCopyService:
@@ -183,3 +150,4 @@ async def test_reconcile_transfer_state_uses_shared_aws_client_configs(
     assert isinstance(session.client_calls[0][1], Config)
     assert session.client_calls[0][1].s3 == {"use_accelerate_endpoint": True}
     assert isinstance(session.resource_calls[0][1], Config)
+    assert session.resource_calls[0][1].s3 is None
