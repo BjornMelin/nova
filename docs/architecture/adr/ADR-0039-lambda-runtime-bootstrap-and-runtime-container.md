@@ -1,7 +1,7 @@
 ---
 ADR: 0039
 Title: Explicit Lambda runtime bootstrap and typed runtime container
-Status: Accepted
+Status: Implemented
 Version: 1.0
 Date: 2026-04-06
 Related:
