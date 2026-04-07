@@ -57,6 +57,18 @@ from .iam import (
 )
 from .ingress import create_regional_rest_ingress
 from .observability import add_alarm_actions, create_alarm_topic
+from .runtime_release_manifest import (
+    API_FUNCTION,
+    FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS,
+    FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS,
+    FILE_TRANSFER_EXPORT_PREFIX,
+    ApiRuntimeBindings,
+    WorkflowRuntimeBindings,
+    build_api_lambda_environment,
+    build_workflow_task_environment,
+    default_export_copy_max_concurrency,
+    workflow_function_authority,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 _APPCONFIG_MANAGED_BY_TAG_KEY = "NovaManagedBy"
@@ -739,14 +751,13 @@ class NovaRuntimeStack(Stack):
             point_in_time_recovery_specification=_point_in_time_recovery(),
             removal_policy=RemovalPolicy.RETAIN,
         )
-        export_copy_worker_attempts = 5
-        export_copy_worker_lease_seconds = 30 * 60
-        export_copy_max_concurrency = 8
-        if inputs.workflow_reserved_concurrency is not None:
-            export_copy_max_concurrency = min(
-                export_copy_max_concurrency,
-                inputs.workflow_reserved_concurrency,
-            )
+        export_copy_worker_attempts = FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS
+        export_copy_worker_lease_seconds = (
+            FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS
+        )
+        export_copy_max_concurrency = default_export_copy_max_concurrency(
+            inputs.workflow_reserved_concurrency
+        )
         export_copy_dlq = sqs.Queue(
             self,
             "ExportCopyWorkerDlq",
@@ -882,87 +893,18 @@ class NovaRuntimeStack(Stack):
             transfer_policy_environment
         )
 
-        workflow_common_env = {
-            "FILE_TRANSFER_BUCKET": file_bucket.bucket_name,
-            "FILE_TRANSFER_UPLOAD_PREFIX": "uploads/",
-            "FILE_TRANSFER_EXPORT_PREFIX": "exports/",
-            "FILE_TRANSFER_TMP_PREFIX": "tmp/",
-            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
-                upload_sessions_table.table_name
-            ),
-            "FILE_TRANSFER_USAGE_TABLE": transfer_usage_table.table_name,
-            "EXPORTS_ENABLED": "true",
-            "EXPORTS_DYNAMODB_TABLE": export_table.table_name,
-            "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES": str(
-                2 * 1024 * 1024 * 1024
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY": str(
-                export_copy_max_concurrency
-            ),
-            "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES": str(
-                50 * 1024 * 1024 * 1024
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS": str(
-                export_copy_worker_attempts
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS": str(
-                export_copy_worker_lease_seconds
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE": (
-                export_copy_parts_table.table_name
-            ),
-            "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL": export_copy_queue.queue_url,
-        }
-        common_env = {
-            **workflow_common_env,
-            "ALLOWED_ORIGINS": json.dumps(inputs.allowed_origins),
-            "ACTIVITY_STORE_BACKEND": "dynamodb",
-            "ACTIVITY_ROLLUPS_TABLE": activity_table.table_name,
-            "OIDC_ISSUER": inputs.oidc_issuer,
-            "OIDC_AUDIENCE": inputs.oidc_audience,
-            "OIDC_JWKS_URL": inputs.oidc_jwks_url,
-            "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS": "1800",
-            "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS": "900",
-            "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES": str(100 * 1024 * 1024),
-            "FILE_TRANSFER_PART_SIZE_BYTES": str(128 * 1024 * 1024),
-            "FILE_TRANSFER_MAX_CONCURRENCY": "4",
-            "FILE_TRANSFER_MAX_UPLOAD_BYTES": str(536_870_912_000),
-            "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT": "2000",
-            "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT": "false",
-            "FILE_TRANSFER_POLICY_ID": "default",
-            "FILE_TRANSFER_POLICY_VERSION": "2026-04-03",
-            "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT": "200",
-            "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES": str(
-                1024 * 1024 * 1024 * 1024
-            ),
-            "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT": "512",
-            "FILE_TRANSFER_CHECKSUM_MODE": "none",
-            "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": (
-                transfer_policy_application.ref
-            ),
-            "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT": (
-                transfer_policy_environment.ref
-            ),
-            "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE": (
-                transfer_policy_profile.ref
-            ),
-            "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS": "60",
-            "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS": str(
-                24 * 60 * 60
-            ),
-            "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT": "200",
-        }
-        task_env = {
-            **workflow_common_env,
-            "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE": (
-                upload_sessions_table.table_name
-            ),
-            "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS": str(
-                24 * 60 * 60
-            ),
-            "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT": "200",
-            "IDEMPOTENCY_ENABLED": "false",
-        }
+        workflow_bindings = WorkflowRuntimeBindings(
+            file_transfer_bucket=file_bucket.bucket_name,
+            upload_sessions_table=upload_sessions_table.table_name,
+            transfer_usage_table=transfer_usage_table.table_name,
+            exports_dynamodb_table=export_table.table_name,
+            export_copy_parts_table=export_copy_parts_table.table_name,
+            export_copy_queue_url=export_copy_queue.queue_url,
+        )
+        task_env = build_workflow_task_environment(
+            bindings=workflow_bindings,
+            export_copy_max_concurrency=export_copy_max_concurrency,
+        )
         workflow_artifact_bucket = s3.Bucket.from_bucket_name(
             self,
             "WorkflowLambdaArtifactBucket",
@@ -984,102 +926,129 @@ class NovaRuntimeStack(Stack):
                 inputs.workflow_reserved_concurrency
             )
 
+        validate_export_authority = workflow_function_authority(
+            "ValidateExportFunction"
+        )
         validate_fn = lambda_.Function(
             self,
-            "ValidateExportFunction",
-            handler="nova_workflows.handlers.validate_export_handler",
+            validate_export_authority.logical_id,
+            handler=validate_export_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="ValidateExportFunction",
+                function_name=validate_export_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        finalize_export_authority = workflow_function_authority(
+            "FinalizeExportFunction"
         )
         finalize_fn = lambda_.Function(
             self,
-            "FinalizeExportFunction",
-            handler="nova_workflows.handlers.finalize_export_handler",
+            finalize_export_authority.logical_id,
+            handler=finalize_export_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="FinalizeExportFunction",
+                function_name=finalize_export_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        fail_export_authority = workflow_function_authority(
+            "FailExportFunction"
         )
         fail_fn = lambda_.Function(
             self,
-            "FailExportFunction",
-            handler="nova_workflows.handlers.fail_export_handler",
+            fail_export_authority.logical_id,
+            handler=fail_export_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="FailExportFunction",
+                function_name=fail_export_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        copy_export_authority = workflow_function_authority(
+            "CopyExportFunction"
         )
         copy_fn = lambda_.Function(
             self,
-            "CopyExportFunction",
-            handler="nova_workflows.handlers.copy_export_handler",
+            copy_export_authority.logical_id,
+            handler=copy_export_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="CopyExportFunction",
+                function_name=copy_export_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        prepare_export_copy_authority = workflow_function_authority(
+            "PrepareExportCopyFunction"
         )
         prepare_copy_fn = lambda_.Function(
             self,
-            "PrepareExportCopyFunction",
-            handler="nova_workflows.handlers.prepare_export_copy_handler",
+            prepare_export_copy_authority.logical_id,
+            handler=prepare_export_copy_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="PrepareExportCopyFunction",
+                function_name=prepare_export_copy_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        start_queued_export_copy_authority = workflow_function_authority(
+            "StartQueuedExportCopyFunction"
         )
         start_queued_copy_fn = lambda_.Function(
             self,
-            "StartQueuedExportCopyFunction",
-            handler="nova_workflows.handlers.start_queued_export_copy_handler",
+            start_queued_export_copy_authority.logical_id,
+            handler=start_queued_export_copy_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="StartQueuedExportCopyFunction",
+                function_name=start_queued_export_copy_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        poll_queued_export_copy_authority = workflow_function_authority(
+            "PollQueuedExportCopyFunction"
         )
         poll_queued_copy_fn = lambda_.Function(
             self,
-            "PollQueuedExportCopyFunction",
-            handler="nova_workflows.handlers.poll_queued_export_copy_handler",
+            poll_queued_export_copy_authority.logical_id,
+            handler=poll_queued_export_copy_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="PollQueuedExportCopyFunction",
+                function_name=poll_queued_export_copy_authority.function_name,
             ),
             **workflow_fn_props,
+        )
+        export_copy_worker_authority = workflow_function_authority(
+            "ExportCopyWorkerFunction"
         )
         export_copy_worker_fn = lambda_.Function(
             self,
-            "ExportCopyWorkerFunction",
-            handler="nova_workflows.handlers.export_copy_worker_handler",
+            export_copy_worker_authority.logical_id,
+            handler=export_copy_worker_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="ExportCopyWorkerFunction",
+                function_name=export_copy_worker_authority.function_name,
             ),
             **workflow_fn_props,
         )
+        reconcile_transfer_state_authority = workflow_function_authority(
+            "ReconcileTransferStateFunction"
+        )
         reconcile_transfer_state_fn = lambda_.Function(
             self,
-            "ReconcileTransferStateFunction",
-            handler="nova_workflows.handlers.reconcile_transfer_state_handler",
+            reconcile_transfer_state_authority.logical_id,
+            handler=reconcile_transfer_state_authority.handler,
             environment=task_env,
             log_group=_runtime_log_group(
                 self,
-                function_name="ReconcileTransferStateFunction",
+                function_name=reconcile_transfer_state_authority.function_name,
             ),
             **workflow_fn_props,
         )
@@ -1112,7 +1081,7 @@ class NovaRuntimeStack(Stack):
             function=copy_fn,
             export_table=export_table,
             file_bucket=file_bucket,
-            export_prefix="exports/",
+            export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
             upload_prefix="uploads/",
         )
         grant_copy_export_permissions(
@@ -1389,10 +1358,40 @@ class NovaRuntimeStack(Stack):
             "ApiLambdaArtifactBucket",
             api_lambda_artifact_bucket_name,
         )
+        common_env = build_api_lambda_environment(
+            bindings=ApiRuntimeBindings(
+                file_transfer_bucket=workflow_bindings.file_transfer_bucket,
+                upload_sessions_table=workflow_bindings.upload_sessions_table,
+                transfer_usage_table=workflow_bindings.transfer_usage_table,
+                exports_dynamodb_table=workflow_bindings.exports_dynamodb_table,
+                export_copy_parts_table=(
+                    workflow_bindings.export_copy_parts_table
+                ),
+                export_copy_queue_url=workflow_bindings.export_copy_queue_url,
+                allowed_origins_json=json.dumps(inputs.allowed_origins),
+                activity_rollups_table=activity_table.table_name,
+                oidc_issuer=inputs.oidc_issuer,
+                oidc_audience=inputs.oidc_audience,
+                oidc_jwks_url=inputs.oidc_jwks_url,
+                transfer_policy_appconfig_application=(
+                    transfer_policy_application.ref
+                ),
+                transfer_policy_appconfig_environment=(
+                    transfer_policy_environment.ref
+                ),
+                transfer_policy_appconfig_profile=transfer_policy_profile.ref,
+                idempotency_dynamodb_table=idempotency_table.table_name,
+                export_workflow_state_machine_arn=(
+                    state_machine.state_machine_arn
+                ),
+                api_release_artifact_sha256=api_lambda_artifact_sha256,
+            ),
+            export_copy_max_concurrency=export_copy_max_concurrency,
+        )
 
         api_function_kwargs: dict[str, Any] = {
             "runtime": lambda_.Runtime.PYTHON_3_13,
-            "handler": "nova_file_api.lambda_handler.handler",
+            "handler": API_FUNCTION.handler,
             "code": lambda_.Code.from_bucket(
                 api_lambda_artifact_bucket,
                 api_lambda_artifact_key,
@@ -1401,18 +1400,10 @@ class NovaRuntimeStack(Stack):
             "memory_size": 2048,
             "timeout": Duration.seconds(29),
             "tracing": lambda_.Tracing.ACTIVE,
-            "environment": {
-                **common_env,
-                "IDEMPOTENCY_ENABLED": "true",
-                "IDEMPOTENCY_DYNAMODB_TABLE": idempotency_table.table_name,
-                "EXPORT_WORKFLOW_STATE_MACHINE_ARN": (
-                    state_machine.state_machine_arn
-                ),
-                "API_RELEASE_ARTIFACT_SHA256": api_lambda_artifact_sha256,
-            },
+            "environment": common_env,
             "log_group": _runtime_log_group(
                 self,
-                function_name="NovaApiFunction",
+                function_name=API_FUNCTION.function_name,
             ),
         }
         if inputs.api_reserved_concurrency is not None:
@@ -1422,7 +1413,7 @@ class NovaRuntimeStack(Stack):
 
         api_function = lambda_.Function(
             self,
-            "NovaApiFunction",
+            API_FUNCTION.logical_id,
             **api_function_kwargs,
         )
         file_bucket.grant_read_write(api_function)

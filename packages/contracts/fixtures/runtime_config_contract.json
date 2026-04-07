@@ -27,6 +27,18 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_USAGE_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
         "name": "EXPORTS_ENABLED",
         "source": "literal",
         "value": "true"
@@ -34,6 +46,48 @@
       {
         "condition": "always",
         "name": "EXPORTS_DYNAMODB_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
+        "source": "literal",
+        "value": "2147483648"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "source": "derived from workflow reserved concurrency",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "source": "literal",
+        "value": "53687091200"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
+        "source": "literal",
+        "value": "5"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+        "source": "literal",
+        "value": "1800"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
         "source": "stack resource",
         "value": null
       },
@@ -87,51 +141,9 @@
       },
       {
         "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
-        "source": "literal",
-        "value": "8"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
-        "source": "literal",
-        "value": "2147483648"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
-        "source": "literal",
-        "value": "5"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
-        "source": "literal",
-        "value": "1800"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
-        "source": "literal",
-        "value": "53687091200"
-      },
-      {
-        "condition": "always",
         "name": "FILE_TRANSFER_MAX_CONCURRENCY",
         "source": "literal",
         "value": "4"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
-        "source": "literal",
-        "value": "200"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
-        "source": "literal",
-        "value": "1099511627776"
       },
       {
         "condition": "always",
@@ -189,27 +201,9 @@
       },
       {
         "condition": "always",
-        "name": "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
-        "source": "literal",
-        "value": "604800"
-      },
-      {
-        "condition": "always",
         "name": "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
         "source": "literal",
         "value": "2000"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
-        "source": "stack resource",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_USAGE_TABLE",
-        "source": "stack resource",
-        "value": null
       },
       {
         "condition": "always",
@@ -219,27 +213,9 @@
       },
       {
         "condition": "always",
-        "name": "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
-        "source": "literal",
-        "value": "512"
-      },
-      {
-        "condition": "always",
         "name": "FILE_TRANSFER_CHECKSUM_MODE",
         "source": "literal",
         "value": "none"
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
-        "source": "stack resource",
-        "value": null
-      },
-      {
-        "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
-        "source": "stack resource",
-        "value": null
       },
       {
         "condition": "always",
@@ -519,7 +495,9 @@
     "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
     "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
     "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
-    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS"
+    "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+    "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT",
+    "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS"
   ],
   "schema_version": 2,
   "settings": [
@@ -1039,15 +1017,45 @@
       },
       {
         "condition": "always",
-        "name": "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "name": "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_USAGE_TABLE",
+        "source": "stack resource",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "EXPORTS_ENABLED",
         "source": "literal",
-        "value": "8"
+        "value": "true"
+      },
+      {
+        "condition": "always",
+        "name": "EXPORTS_DYNAMODB_TABLE",
+        "source": "stack resource",
+        "value": null
       },
       {
         "condition": "always",
         "name": "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
         "source": "literal",
         "value": "2147483648"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
+        "source": "derived from workflow reserved concurrency",
+        "value": null
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
+        "source": "literal",
+        "value": "53687091200"
       },
       {
         "condition": "always",
@@ -1063,12 +1071,6 @@
       },
       {
         "condition": "always",
-        "name": "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
-        "source": "literal",
-        "value": "53687091200"
-      },
-      {
-        "condition": "always",
         "name": "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
         "source": "stack resource",
         "value": null
@@ -1081,15 +1083,15 @@
       },
       {
         "condition": "always",
-        "name": "EXPORTS_ENABLED",
+        "name": "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS",
         "source": "literal",
-        "value": "true"
+        "value": "86400"
       },
       {
         "condition": "always",
-        "name": "EXPORTS_DYNAMODB_TABLE",
-        "source": "stack resource",
-        "value": null
+        "name": "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT",
+        "source": "literal",
+        "value": "200"
       },
       {
         "condition": "always",
@@ -1112,12 +1114,14 @@
     ],
     "handlers": [
       "nova_workflows.handlers.validate_export_handler",
-      "nova_workflows.handlers.copy_export_handler",
       "nova_workflows.handlers.prepare_export_copy_handler",
+      "nova_workflows.handlers.copy_export_handler",
       "nova_workflows.handlers.start_queued_export_copy_handler",
       "nova_workflows.handlers.poll_queued_export_copy_handler",
       "nova_workflows.handlers.finalize_export_handler",
-      "nova_workflows.handlers.fail_export_handler"
+      "nova_workflows.handlers.export_copy_worker_handler",
+      "nova_workflows.handlers.fail_export_handler",
+      "nova_workflows.handlers.reconcile_transfer_state_handler"
     ]
   }
 }

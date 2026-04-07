@@ -11,6 +11,12 @@ from typing import Annotated, Any, get_args, get_origin
 from pydantic import SecretStr
 from pydantic.fields import FieldInfo
 
+from nova_cdk.runtime_release_manifest import (
+    RuntimeEnvContractSpec,
+    api_lambda_environment_contract,
+    workflow_handler_names,
+    workflow_task_environment_contract,
+)
 from nova_file_api.config import Settings
 
 try:
@@ -54,16 +60,6 @@ class DeployInputContract:
     description: str
 
 
-@dataclass(frozen=True)
-class RuntimeEnvContract:
-    """Environment variable expected in a deployed Lambda runtime."""
-
-    name: str
-    source: str
-    condition: str
-    value: str | None = None
-
-
 EXTRA_RUNTIME_ENV_VARS = (
     "API_RELEASE_ARTIFACT_SHA256",
     "AWS_DEFAULT_REGION",
@@ -71,6 +67,8 @@ EXTRA_RUNTIME_ENV_VARS = (
     "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
     "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
     "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
+    "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT",
+    "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS",
 )
 
 
@@ -358,245 +356,13 @@ DEPLOY_INPUTS: tuple[DeployInputContract, ...] = (
     ),
 )
 
-API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
-    RuntimeEnvContract("FILE_TRANSFER_BUCKET", "stack resource", "always"),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_UPLOAD_PREFIX", "literal", "always", "uploads/"
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
-    ),
-    RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
-    RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
-    RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
-    RuntimeEnvContract("ALLOWED_ORIGINS", "CDK deploy input", "always"),
-    RuntimeEnvContract(
-        "ACTIVITY_STORE_BACKEND", "literal", "always", "dynamodb"
-    ),
-    RuntimeEnvContract("ACTIVITY_ROLLUPS_TABLE", "stack resource", "always"),
-    RuntimeEnvContract("OIDC_ISSUER", "CDK deploy input", "always"),
-    RuntimeEnvContract("OIDC_AUDIENCE", "CDK deploy input", "always"),
-    RuntimeEnvContract("OIDC_JWKS_URL", "CDK deploy input", "always"),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS",
-        "literal",
-        "always",
-        "1800",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS",
-        "literal",
-        "always",
-        "900",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
-        "literal",
-        "always",
-        "8",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
-        "literal",
-        "always",
-        str(2 * 1024 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
-        "literal",
-        "always",
-        "5",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
-        "literal",
-        "always",
-        str(30 * 60),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
-        "literal",
-        "always",
-        str(50 * 1024 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_MAX_CONCURRENCY", "literal", "always", "4"
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
-        "literal",
-        "always",
-        "200",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
-        "literal",
-        "always",
-        str(1024 * 1024 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_MAX_UPLOAD_BYTES",
-        "literal",
-        "always",
-        str(536_870_912_000),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES",
-        "literal",
-        "always",
-        str(100 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_PART_SIZE_BYTES",
-        "literal",
-        "always",
-        str(128 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_ID", "literal", "always", "default"
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_VERSION",
-        "literal",
-        "always",
-        "2026-04-03",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS",
-        "literal",
-        "always",
-        "60",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS",
-        "literal",
-        "always",
-        str(7 * 24 * 60 * 60),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT",
-        "literal",
-        "always",
-        "2000",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_UPLOAD_SESSIONS_TABLE",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_USAGE_TABLE",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_USE_ACCELERATE_ENDPOINT",
-        "literal",
-        "always",
-        "false",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
-        "literal",
-        "always",
-        "512",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_CHECKSUM_MODE", "literal", "always", "none"
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "true"),
-    RuntimeEnvContract(
-        "IDEMPOTENCY_DYNAMODB_TABLE", "stack resource", "always"
-    ),
-    RuntimeEnvContract(
-        "EXPORT_WORKFLOW_STATE_MACHINE_ARN",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "API_RELEASE_ARTIFACT_SHA256",
-        "release execution manifest",
-        "always",
-    ),
-)
+RuntimeEnvContract = RuntimeEnvContractSpec
 
+API_LAMBDA_ENV: tuple[RuntimeEnvContract, ...] = (
+    api_lambda_environment_contract()
+)
 WORKFLOW_TASK_ENV: tuple[RuntimeEnvContract, ...] = (
-    RuntimeEnvContract("FILE_TRANSFER_BUCKET", "stack resource", "always"),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_UPLOAD_PREFIX", "literal", "always", "uploads/"
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_PREFIX", "literal", "always", "exports/"
-    ),
-    RuntimeEnvContract("FILE_TRANSFER_TMP_PREFIX", "literal", "always", "tmp/"),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY",
-        "literal",
-        "always",
-        "8",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES",
-        "literal",
-        "always",
-        str(2 * 1024 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS",
-        "literal",
-        "always",
-        "5",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS",
-        "literal",
-        "always",
-        str(30 * 60),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES",
-        "literal",
-        "always",
-        str(50 * 1024 * 1024 * 1024),
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract(
-        "FILE_TRANSFER_EXPORT_COPY_QUEUE_URL",
-        "stack resource",
-        "always",
-    ),
-    RuntimeEnvContract("EXPORTS_ENABLED", "literal", "always", "true"),
-    RuntimeEnvContract("EXPORTS_DYNAMODB_TABLE", "stack resource", "always"),
-    RuntimeEnvContract("IDEMPOTENCY_ENABLED", "literal", "always", "false"),
+    workflow_task_environment_contract()
 )
 
 FORBIDDEN_ENV_JSON_KEYS = ("IDEMPOTENCY_MODE", "IDEMPOTENCY_DYNAMODB_TABLE")
@@ -676,15 +442,7 @@ def build_contract_payload() -> dict[str, Any]:
             "forbidden_env_vars": list(API_LAMBDA_FORBIDDEN_ENV_VARS),
         },
         "workflow_task_environment": {
-            "handlers": [
-                "nova_workflows.handlers.validate_export_handler",
-                "nova_workflows.handlers.copy_export_handler",
-                "nova_workflows.handlers.prepare_export_copy_handler",
-                "nova_workflows.handlers.start_queued_export_copy_handler",
-                "nova_workflows.handlers.poll_queued_export_copy_handler",
-                "nova_workflows.handlers.finalize_export_handler",
-                "nova_workflows.handlers.fail_export_handler",
-            ],
+            "handlers": list(workflow_handler_names()),
             "env": [asdict(contract) for contract in WORKFLOW_TASK_ENV],
             "forbidden_env_vars": list(WORKFLOW_TASK_FORBIDDEN_ENV_VARS),
         },

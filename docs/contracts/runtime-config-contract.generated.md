@@ -140,8 +140,17 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_UPLOAD_PREFIX | literal | always | uploads/ |
 | FILE_TRANSFER_EXPORT_PREFIX | literal | always | exports/ |
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
+| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | EXPORTS_ENABLED | literal | always | true |
 | EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
+| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | derived from workflow reserved concurrency | always | - |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS | literal | always | 1800 |
+| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
 | ALLOWED_ORIGINS | CDK deploy input | always | - |
 | ACTIVITY_STORE_BACKEND | literal | always | dynamodb |
 | ACTIVITY_ROLLUPS_TABLE | stack resource | always | - |
@@ -150,14 +159,7 @@ Forbidden ENV_VARS_JSON keys:
 | OIDC_JWKS_URL | CDK deploy input | always | - |
 | FILE_TRANSFER_PRESIGN_UPLOAD_TTL_SECONDS | literal | always | 1800 |
 | FILE_TRANSFER_PRESIGN_DOWNLOAD_TTL_SECONDS | literal | always | 900 |
-| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
-| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
-| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
-| FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS | literal | always | 1800 |
-| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
 | FILE_TRANSFER_MAX_CONCURRENCY | literal | always | 4 |
-| FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT | literal | always | 200 |
-| FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES | literal | always | 1099511627776 |
 | FILE_TRANSFER_MAX_UPLOAD_BYTES | literal | always | 536870912000 |
 | FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES | literal | always | 104857600 |
 | FILE_TRANSFER_PART_SIZE_BYTES | literal | always | 134217728 |
@@ -167,15 +169,9 @@ Forbidden ENV_VARS_JSON keys:
 | FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT | stack resource | always | - |
 | FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS | literal | always | 60 |
 | FILE_TRANSFER_POLICY_APPCONFIG_PROFILE | stack resource | always | - |
-| FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS | literal | always | 604800 |
 | FILE_TRANSFER_TARGET_UPLOAD_PART_COUNT | literal | always | 2000 |
-| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
-| FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | FILE_TRANSFER_USE_ACCELERATE_ENDPOINT | literal | always | false |
-| FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT | literal | always | 512 |
 | FILE_TRANSFER_CHECKSUM_MODE | literal | always | none |
-| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
-| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
 | IDEMPOTENCY_ENABLED | literal | always | true |
 | IDEMPOTENCY_DYNAMODB_TABLE | stack resource | always | - |
 | EXPORT_WORKFLOW_STATE_MACHINE_ARN | stack resource | always | - |
@@ -187,7 +183,7 @@ Forbidden API Lambda env vars:
 ## Workflow task Lambda environment contract
 
 Task handlers:
-`nova_workflows.handlers.validate_export_handler`, `nova_workflows.handlers.copy_export_handler`, `nova_workflows.handlers.prepare_export_copy_handler`, `nova_workflows.handlers.start_queued_export_copy_handler`, `nova_workflows.handlers.poll_queued_export_copy_handler`, `nova_workflows.handlers.finalize_export_handler`, `nova_workflows.handlers.fail_export_handler`
+`nova_workflows.handlers.validate_export_handler`, `nova_workflows.handlers.prepare_export_copy_handler`, `nova_workflows.handlers.copy_export_handler`, `nova_workflows.handlers.start_queued_export_copy_handler`, `nova_workflows.handlers.poll_queued_export_copy_handler`, `nova_workflows.handlers.finalize_export_handler`, `nova_workflows.handlers.export_copy_worker_handler`, `nova_workflows.handlers.fail_export_handler`, `nova_workflows.handlers.reconcile_transfer_state_handler`
 
 | Name | Source | Condition | Value |
 | --- | --- | --- | --- |
@@ -195,19 +191,23 @@ Task handlers:
 | FILE_TRANSFER_UPLOAD_PREFIX | literal | always | uploads/ |
 | FILE_TRANSFER_EXPORT_PREFIX | literal | always | exports/ |
 | FILE_TRANSFER_TMP_PREFIX | literal | always | tmp/ |
-| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | literal | always | 8 |
-| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
-| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
-| FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS | literal | always | 1800 |
-| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
-| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
-| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
+| FILE_TRANSFER_UPLOAD_SESSIONS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_USAGE_TABLE | stack resource | always | - |
 | EXPORTS_ENABLED | literal | always | true |
 | EXPORTS_DYNAMODB_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_PART_SIZE_BYTES | literal | always | 2147483648 |
+| FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY | derived from workflow reserved concurrency | always | - |
+| FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES | literal | always | 53687091200 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS | literal | always | 5 |
+| FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS | literal | always | 1800 |
+| FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE | stack resource | always | - |
+| FILE_TRANSFER_EXPORT_COPY_QUEUE_URL | stack resource | always | - |
+| FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS | literal | always | 86400 |
+| FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT | literal | always | 200 |
 | IDEMPOTENCY_ENABLED | literal | always | false |
 
 Forbidden workflow task env vars:
 `ACTIVITY_STORE_BACKEND`, `ACTIVITY_ROLLUPS_TABLE`, `ALLOWED_ORIGINS`, `API_RELEASE_ARTIFACT_SHA256`, `EXPORT_WORKFLOW_STATE_MACHINE_ARN`, `IDEMPOTENCY_DYNAMODB_TABLE`, `NOVA_RUNTIME_PROFILE`, `OIDC_AUDIENCE`, `OIDC_ISSUER`, `OIDC_JWKS_URL`
 
 Generated extra runtime env vars intentionally outside `Settings`:
-`API_RELEASE_ARTIFACT_SHA256`, `AWS_DEFAULT_REGION`, `FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE`, `FILE_TRANSFER_EXPORT_COPY_QUEUE_URL`, `FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS`, `FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS`
+`API_RELEASE_ARTIFACT_SHA256`, `AWS_DEFAULT_REGION`, `FILE_TRANSFER_EXPORT_COPY_PARTS_TABLE`, `FILE_TRANSFER_EXPORT_COPY_QUEUE_URL`, `FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS`, `FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS`, `FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT`, `FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS`

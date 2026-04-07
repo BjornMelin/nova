@@ -19,6 +19,10 @@ if __package__ in {None, ""}:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from nova_cdk.runtime_release_manifest import (
+    expected_runtime_reserved_concurrency,
+    function_logical_id_prefixes,
+)
 from scripts.release import common
 from scripts.release.resolve_deploy_output import load_deploy_output
 
@@ -61,25 +65,8 @@ _CORS_ALLOWED_HEADERS = {
     "content-type",
     "idempotency-key",
 }
-_STANDARD_LAMBDA_ACCOUNT_CONCURRENCY = 1000
 _AWS_CLI_TIMEOUT_SECONDS = 30
-_PRODUCTION_ENVIRONMENTS = {"prod", "production"}
-_API_RESERVED_CONCURRENCY_DEFAULTS = {True: 25, False: 5}
-_WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS = {True: 10, False: 2}
-_FUNCTION_LOGICAL_ID_PREFIXES = {
-    "api": ("NovaApiFunction",),
-    "workflow": (
-        "ValidateExportFunction",
-        "PrepareExportCopyFunction",
-        "CopyExportFunction",
-        "StartQueuedExportCopyFunction",
-        "PollQueuedExportCopyFunction",
-        "FinalizeExportFunction",
-        "ExportCopyWorkerFunction",
-        "FailExportFunction",
-        "ReconcileTransferStateFunction",
-    ),
-}
+_FUNCTION_LOGICAL_ID_PREFIXES = function_logical_id_prefixes()
 _APP_CONFIG_COMPLETE_STATES = {"COMPLETE"}
 
 
@@ -164,11 +151,6 @@ def _aws_cli_json(*args: str) -> Any:
         ) from exc
 
 
-def _is_production_environment(environment_name: str) -> bool:
-    """Return whether one environment name maps to production."""
-    return environment_name.strip().casefold() in _PRODUCTION_ENVIRONMENTS
-
-
 def _account_concurrency_limit(*, region: str) -> int:
     """Return the Lambda regional account concurrency limit."""
     payload = _aws_cli_json(
@@ -193,14 +175,9 @@ def _expected_reserved_concurrency(
     account_concurrency_limit: int,
 ) -> tuple[int | None, int | None]:
     """Return expected API and workflow reservations for one deploy."""
-    is_production = _is_production_environment(environment_name)
-    if not is_production and (
-        account_concurrency_limit < _STANDARD_LAMBDA_ACCOUNT_CONCURRENCY
-    ):
-        return None, None
-    return (
-        _API_RESERVED_CONCURRENCY_DEFAULTS[is_production],
-        _WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS[is_production],
+    return expected_runtime_reserved_concurrency(
+        environment_name=environment_name,
+        account_concurrency_limit=account_concurrency_limit,
     )
 
 
