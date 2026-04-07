@@ -1,7 +1,6 @@
-"""Recording aioboto3 session helpers for workflow tests."""
-
 from __future__ import annotations
 
+import pytest
 from botocore.config import Config
 
 
@@ -22,7 +21,7 @@ class _AsyncContextValue:
         return False
 
 
-class _RecordingSession:
+class RecordingSession:
     def __init__(self) -> None:
         self.client_calls: list[tuple[str, Config | None]] = []
         self.resource_calls: list[tuple[str, Config | None]] = []
@@ -38,3 +37,8 @@ class _RecordingSession:
     ) -> _AsyncContextValue:
         self.resource_calls.append((service_name, config))
         return _AsyncContextValue(object())
+
+
+@pytest.fixture
+def recording_session() -> RecordingSession:
+    return RecordingSession()

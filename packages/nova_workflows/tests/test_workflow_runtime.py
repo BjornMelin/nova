@@ -26,8 +26,6 @@ from nova_workflows.workflow_runtime import (
     workflow_services,
 )
 
-from .support.aioboto3 import _RecordingSession
-
 
 def test_workflow_settings_require_exports_table_when_exports_enabled() -> None:
     """Exports-enabled workflow settings must require a DynamoDB table."""
@@ -158,14 +156,14 @@ async def test_workflow_services_reject_blank_copy_worker_settings() -> None:
 @pytest.mark.anyio
 async def test_workflow_services_use_shared_aws_client_configs(
     monkeypatch: pytest.MonkeyPatch,
+    recording_session,
 ) -> None:
     import nova_workflows.workflow_runtime as workflow_runtime_module
 
-    session = _RecordingSession()
     monkeypatch.setattr(
         workflow_runtime_module.aioboto3,
         "Session",
-        lambda: session,
+        lambda: recording_session,
     )
 
     async with workflow_services(
@@ -184,13 +182,21 @@ async def test_workflow_services_use_shared_aws_client_configs(
     ) as services:
         assert services.transfer_service is not None
 
-    assert [name for name, _ in session.client_calls] == ["s3", "sqs"]
-    assert [name for name, _ in session.resource_calls] == ["dynamodb"]
-    assert isinstance(session.client_calls[0][1], Config)
-    assert session.client_calls[0][1].s3 == {"use_accelerate_endpoint": True}
-    assert isinstance(session.client_calls[1][1], Config)
-    assert session.client_calls[1][1].s3 is None
-    assert isinstance(session.resource_calls[0][1], Config)
+    assert [name for name, _ in recording_session.client_calls] == [
+        "s3",
+        "sqs",
+    ]
+    assert [name for name, _ in recording_session.resource_calls] == [
+        "dynamodb"
+    ]
+    assert isinstance(recording_session.client_calls[0][1], Config)
+    assert recording_session.client_calls[0][1].s3 == {
+        "use_accelerate_endpoint": True
+    }
+    assert isinstance(recording_session.client_calls[1][1], Config)
+    assert recording_session.client_calls[1][1].s3 is None
+    assert isinstance(recording_session.resource_calls[0][1], Config)
+    assert recording_session.resource_calls[0][1].s3 is None
 
 
 def test_export_transfer_config_strips_bucket() -> None:

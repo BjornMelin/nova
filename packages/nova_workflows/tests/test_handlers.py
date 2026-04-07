@@ -10,8 +10,6 @@ from botocore.config import Config
 from nova_file_api.workflow_facade import ExportCopyTaskMessage
 from nova_workflows import handlers
 
-from .support.aioboto3 import _RecordingSession
-
 
 class _FakeLargeCopyService:
     def __init__(self) -> None:
@@ -86,8 +84,8 @@ async def test_export_copy_worker_marks_invalid_messages_as_failures(
 @pytest.mark.anyio
 async def test_reconcile_transfer_state_uses_shared_aws_client_configs(
     monkeypatch: pytest.MonkeyPatch,
+    recording_session,
 ) -> None:
-    session = _RecordingSession()
     captured: dict[str, object] = {}
     settings = handlers.WorkflowSettings.model_validate(
         {
@@ -120,7 +118,11 @@ async def test_reconcile_transfer_state_uses_shared_aws_client_configs(
         async def reconcile(self) -> _FakeResult:
             return _FakeResult()
 
-    monkeypatch.setattr(handlers.aioboto3, "Session", lambda: session)
+    monkeypatch.setattr(
+        handlers.aioboto3,
+        "Session",
+        lambda: recording_session,
+    )
     monkeypatch.setattr(
         handlers,
         "WorkflowSettings",
@@ -145,9 +147,13 @@ async def test_reconcile_transfer_state_uses_shared_aws_client_configs(
     result = await handlers._reconcile_transfer_state(event={})
 
     assert result == {"status": "ok"}
-    assert [name for name, _ in session.client_calls] == ["s3"]
-    assert [name for name, _ in session.resource_calls] == ["dynamodb"]
-    assert isinstance(session.client_calls[0][1], Config)
-    assert session.client_calls[0][1].s3 == {"use_accelerate_endpoint": True}
-    assert isinstance(session.resource_calls[0][1], Config)
-    assert session.resource_calls[0][1].s3 is None
+    assert [name for name, _ in recording_session.client_calls] == ["s3"]
+    assert [name for name, _ in recording_session.resource_calls] == [
+        "dynamodb"
+    ]
+    assert isinstance(recording_session.client_calls[0][1], Config)
+    assert recording_session.client_calls[0][1].s3 == {
+        "use_accelerate_endpoint": True
+    }
+    assert isinstance(recording_session.resource_calls[0][1], Config)
+    assert recording_session.resource_calls[0][1].s3 is None
