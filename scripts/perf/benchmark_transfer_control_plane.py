@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -23,25 +23,16 @@ if str(REPO_ROOT) not in sys.path:
 
 from nova_file_api.activity import MemoryActivityStore
 from nova_file_api.app import create_app
+from nova_file_api.auth import Authenticator
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
-from nova_file_api.dependencies import (
-    build_idempotency_store,
-    get_activity_store,
-    get_authenticator,
-    get_export_service,
-    get_idempotency_store,
-    get_metrics,
-    get_settings,
-    get_transfer_service,
-    get_two_tier_cache,
-)
 from nova_file_api.exports import (
     ExportService,
     MemoryExportPublisher,
     MemoryExportRepository,
 )
 from nova_file_api.models import Principal
+from nova_file_api.runtime import ApiRuntime, build_idempotency_store
 from nova_file_api.transfer import TransferService
 from nova_file_api.transfer_config import transfer_config_from_settings
 from nova_runtime_support.metrics import MetricsCollector
@@ -118,40 +109,26 @@ def _build_test_app(
     settings: Settings,
     metrics: MetricsCollector,
     transfer_service: TransferService,
+    export_repository: MemoryExportRepository,
     export_service: ExportService,
 ) -> Any:
-    app = create_app(settings=settings)
     cache = _build_cache_stack()
     idempotency_store = build_idempotency_store(
         settings=settings,
         dynamodb_resource=None,
     )
-
-    def _override(value: object) -> Callable[[], object]:
-        def _provider() -> object:
-            return value
-
-        return _provider
-
-    app.state._skip_runtime_state_initialization = True
-    app.state.cache = cache
-    app.state.authenticator = _StubAuthenticator()
-    app.state.settings = settings
-    app.dependency_overrides[get_settings] = _override(settings)
-    app.dependency_overrides[get_metrics] = _override(metrics)
-    app.dependency_overrides[get_two_tier_cache] = _override(cache)
-    app.dependency_overrides[get_authenticator] = _override(
-        _StubAuthenticator()
+    runtime = ApiRuntime(
+        settings=settings,
+        metrics=metrics,
+        cache=cache,
+        authenticator=cast(Authenticator, cast(Any, _StubAuthenticator())),
+        transfer_service=transfer_service,
+        export_repository=export_repository,
+        export_service=export_service,
+        activity_store=MemoryActivityStore(),
+        idempotency_store=idempotency_store,
     )
-    app.dependency_overrides[get_transfer_service] = _override(transfer_service)
-    app.dependency_overrides[get_export_service] = _override(export_service)
-    app.dependency_overrides[get_activity_store] = _override(
-        MemoryActivityStore()
-    )
-    app.dependency_overrides[get_idempotency_store] = _override(
-        idempotency_store
-    )
-    return app
+    return create_app(runtime=runtime)
 
 
 async def _request_samples(
@@ -186,8 +163,9 @@ async def _main_async(args: argparse.Namespace) -> None:
         config=transfer_config_from_settings(settings),
         s3_client=_PerfS3Client(),
     )
+    export_repository = MemoryExportRepository()
     export_service = ExportService(
-        repository=MemoryExportRepository(),
+        repository=export_repository,
         publisher=MemoryExportPublisher(),
         metrics=metrics,
     )
@@ -195,6 +173,7 @@ async def _main_async(args: argparse.Namespace) -> None:
         settings=settings,
         metrics=metrics,
         transfer_service=transfer_service,
+        export_repository=export_repository,
         export_service=export_service,
     )
     logging.getLogger().setLevel(logging.ERROR)
@@ -258,27 +237,15 @@ async def _main_async(args: argparse.Namespace) -> None:
                 "file_size_bytes": args.file_size_bytes,
                 "iterations": args.iterations,
                 "warmup": args.warmup,
+                "initiate_ms": summarize_latency(
+                    samples_ms=initiate_samples,
+                    iterations=args.iterations,
+                ),
+                "sign_parts_ms": summarize_latency(
+                    samples_ms=sign_samples,
+                    iterations=args.iterations,
+                ),
                 "sign_part_count": args.sign_part_count,
-                "initiate": {
-                    **summarize_latency(
-                        samples_ms=initiate_samples,
-                        iterations=args.iterations,
-                    ),
-                    "throughput_rps": round(
-                        args.iterations / (sum(initiate_samples) / 1000.0),
-                        3,
-                    ),
-                },
-                "sign_parts": {
-                    **summarize_latency(
-                        samples_ms=sign_samples,
-                        iterations=args.iterations,
-                    ),
-                    "throughput_rps": round(
-                        args.iterations / (sum(sign_samples) / 1000.0),
-                        3,
-                    ),
-                },
             },
             indent=2,
             sort_keys=True,
@@ -286,48 +253,35 @@ async def _main_async(args: argparse.Namespace) -> None:
     )
 
 
-def main() -> None:
-    """Run the current transfer control-plane API benchmark."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--iterations",
-        type=int,
-        default=25,
-        help="Measured iterations per route.",
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=__doc__ or "transfer control plane benchmark"
     )
-    parser.add_argument(
-        "--warmup",
-        type=int,
-        default=5,
-        help="Warmup iterations before timing.",
-    )
+    parser.add_argument("--iterations", type=int, default=200)
+    parser.add_argument("--warmup", type=int, default=25)
     parser.add_argument(
         "--file-size-bytes",
         type=int,
-        default=500 * 1024 * 1024 * 1024,
-        help="Upload size used for initiate requests.",
+        default=128 * 1024 * 1024,
     )
-    parser.add_argument(
-        "--sign-part-count",
-        type=int,
-        default=8,
-        help="Number of parts requested in each sign-parts call.",
-    )
+    parser.add_argument("--sign-part-count", type=int, default=16)
     args = parser.parse_args()
     if args.iterations <= 0:
-        parser.error("Argument --iterations must be a positive integer")
-    if args.file_size_bytes <= 0:
-        parser.error("Argument --file-size-bytes must be a positive integer")
-    if args.sign_part_count <= 0:
-        parser.error("Argument --sign-part-count must be a positive integer")
+        parser.error("--iterations must be positive.")
     if args.warmup < 0:
-        parser.error("Argument --warmup must be greater than or equal to 0")
+        parser.error("--warmup must be non-negative.")
     if args.warmup >= args.iterations:
-        parser.error(
-            "Argument --warmup must be less than --iterations for "
-            "valid timing calculations"
-        )
-    asyncio.run(_main_async(args))
+        parser.error("--warmup must be smaller than --iterations.")
+    if args.file_size_bytes <= 0:
+        parser.error("--file-size-bytes must be positive.")
+    if args.sign_part_count <= 0:
+        parser.error("--sign-part-count must be positive.")
+    return args
+
+
+def main() -> None:
+    """Run the benchmark entrypoint."""
+    asyncio.run(_main_async(_parse_args()))
 
 
 if __name__ == "__main__":

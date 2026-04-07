@@ -47,6 +47,9 @@ the bulk data plane. Product and API detail: `README.md`.
   Functions execution when one is running; queued copy workers must check the
   export record before copying parts.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
+- Runtime assembly: the Lambda path bootstraps one process-reused
+  `ApiRuntime` container outside Mangum lifespan and stores it only at
+  `app.state.runtime`; local development uses the public managed-app builder.
 - Workflows: Step Functions + `packages/nova_workflows` task handlers.
 - Multipart cleanup: `packages/nova_workflows` also owns the scheduled
   reconciliation handler for expired sessions and orphaned multipart uploads.

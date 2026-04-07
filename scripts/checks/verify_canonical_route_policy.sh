@@ -213,7 +213,7 @@ from __future__ import annotations
 
 import sys
 
-from nova_file_api.app import create_app
+from nova_file_api.app import create_managed_app
 from nova_file_api.config import Settings
 
 
@@ -262,7 +262,7 @@ def validate_openapi_paths(schema: dict, app_label: str) -> None:
 
 
 validate_openapi_paths(
-    create_app(
+    create_managed_app(
         settings=Settings.model_validate({"IDEMPOTENCY_ENABLED": False})
     ).openapi(),
     "nova_file_api",

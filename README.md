@@ -75,7 +75,7 @@ Browser / Dash / TS / Python / R clients
                 |
      API Gateway REST API + WAF
                 |
-      Lambda (FastAPI via Mangum)
+ Lambda (FastAPI via explicit process-reused runtime bootstrap + Mangum)
                 |
  DynamoDB + AppConfig + S3 + Step Functions + SQS
                 |

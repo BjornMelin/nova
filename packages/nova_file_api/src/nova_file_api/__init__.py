@@ -1,5 +1,5 @@
 """nova-file-api package."""
 
-from nova_file_api.app import create_app
+from nova_file_api.app import create_app, create_managed_app
 
-__all__ = ["create_app"]
+__all__ = ["create_app", "create_managed_app"]

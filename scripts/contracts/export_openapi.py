@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from nova_file_api.app import create_app as create_file_app
+from nova_file_api.app import create_managed_app as create_file_app
 from nova_file_api.config import Settings
 
 OpenApiFactory = Callable[..., Any]

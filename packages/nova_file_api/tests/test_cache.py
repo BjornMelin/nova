@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from fastapi import FastAPI
 
 from nova_file_api.activity import MemoryActivityStore
-from nova_file_api.app import create_app
+from nova_file_api.app import create_managed_app
 from nova_file_api.cache import LocalTTLCache, TwoTierCache
 from nova_file_api.config import Settings
+from nova_file_api.runtime import ApiRuntime, RuntimeBootstrap
 from nova_runtime_support.metrics import MetricsCollector
 
 from .support.app import build_runtime_deps, build_test_app
@@ -110,13 +113,13 @@ async def test_injected_app_lifespan_keeps_external_state_for_reentry() -> None:
     app: FastAPI = build_test_app(deps)
 
     async with app.router.lifespan_context(app):
-        assert app.state.cache is cache
+        assert app.state.runtime.cache is cache
 
     assert authenticator.closed is False
-    assert app.state.cache is cache
+    assert app.state.runtime.cache is cache
 
     async with app.router.lifespan_context(app):
-        assert app.state.cache is cache
+        assert app.state.runtime.cache is cache
 
 
 @pytest.mark.anyio
@@ -128,42 +131,38 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
     authenticators: list[_TrackableAuthenticator] = []
     caches: list[TwoTierCache] = []
 
-    def _fake_initialize_runtime_state(
-        app: FastAPI,
+    async def _fake_bootstrap_api_runtime(
         *,
         settings: Settings,
-        s3_client: object,
-        accelerate_s3_client: object | None = None,
-        dynamodb_resource: object | None = None,
-        stepfunctions_client: object | None = None,
-    ) -> None:
-        del (
-            settings,
-            s3_client,
-            accelerate_s3_client,
-            dynamodb_resource,
-            stepfunctions_client,
-        )
+    ) -> RuntimeBootstrap:
+        del settings
         authenticator = _TrackableAuthenticator()
         cache = TwoTierCache(local=_build_local_cache())
         authenticators.append(authenticator)
         caches.append(cache)
-        app.state.authenticator = authenticator
-        app.state.cache = cache
-        app.state.idempotency_store = object()
+        return RuntimeBootstrap(
+            runtime=ApiRuntime(
+                settings=Settings.model_validate(
+                    {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
+                ),
+                metrics=MetricsCollector(namespace="Tests"),
+                cache=cache,
+                authenticator=cast(Any, authenticator),
+                transfer_service=cast(Any, object()),
+                export_repository=cast(Any, object()),
+                export_service=cast(Any, object()),
+                activity_store=MemoryActivityStore(),
+                idempotency_store=cast(Any, object()),
+            )
+        )
 
-    monkeypatch.setattr(
-        app_module.aioboto3,
-        "Session",
-        lambda: _FakeSession(),
-    )
     monkeypatch.setattr(
         app_module,
-        "initialize_runtime_state",
-        _fake_initialize_runtime_state,
+        "bootstrap_api_runtime",
+        _fake_bootstrap_api_runtime,
     )
 
-    app = create_app(
+    app = create_managed_app(
         settings=Settings.model_validate(
             {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
         )
@@ -172,12 +171,12 @@ async def test_runtime_app_lifespan_clears_runtime_state_for_reentry(
     async with app.router.lifespan_context(app):
         first_cache = caches[0]
         first_authenticator = authenticators[0]
-        assert app.state.cache is first_cache
+        assert app.state.runtime.cache is first_cache
         assert first_authenticator.closed is False
 
     async with app.router.lifespan_context(app):
         second_cache = caches[1]
-        assert app.state.cache is second_cache
+        assert app.state.runtime.cache is second_cache
         assert second_cache is not first_cache
 
     assert len(caches) == 2
@@ -193,38 +192,34 @@ async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
 
     authenticator = _ExplodingAuthenticator()
 
-    def _fake_initialize_runtime_state(
-        app: FastAPI,
+    async def _fake_bootstrap_api_runtime(
         *,
         settings: Settings,
-        s3_client: object,
-        accelerate_s3_client: object | None = None,
-        dynamodb_resource: object | None = None,
-        stepfunctions_client: object | None = None,
-    ) -> None:
-        del (
-            settings,
-            s3_client,
-            accelerate_s3_client,
-            dynamodb_resource,
-            stepfunctions_client,
+    ) -> RuntimeBootstrap:
+        del settings
+        return RuntimeBootstrap(
+            runtime=ApiRuntime(
+                settings=Settings.model_validate(
+                    {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
+                ),
+                metrics=MetricsCollector(namespace="Tests"),
+                cache=TwoTierCache(local=_build_local_cache()),
+                authenticator=cast(Any, authenticator),
+                transfer_service=cast(Any, object()),
+                export_repository=cast(Any, object()),
+                export_service=cast(Any, object()),
+                activity_store=MemoryActivityStore(),
+                idempotency_store=cast(Any, object()),
+            )
         )
-        app.state.authenticator = authenticator
-        app.state.cache = TwoTierCache(local=_build_local_cache())
-        app.state.idempotency_store = object()
 
-    monkeypatch.setattr(
-        app_module.aioboto3,
-        "Session",
-        lambda: _FakeSession(),
-    )
     monkeypatch.setattr(
         app_module,
-        "initialize_runtime_state",
-        _fake_initialize_runtime_state,
+        "bootstrap_api_runtime",
+        _fake_bootstrap_api_runtime,
     )
 
-    app = create_app(
+    app = create_managed_app(
         settings=Settings.model_validate(
             {"IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency"}
         )
@@ -234,24 +229,14 @@ async def test_runtime_app_lifespan_clears_runtime_state_when_cleanup_fails(
         pass
 
     assert authenticator.closed is True
-    assert getattr(app.state, "authenticator", None) is None
-    assert getattr(app.state, "cache", None) is None
-    assert getattr(app.state, "idempotency_store", None) is None
+    assert getattr(app.state, "runtime", None) is None
 
 
 @pytest.mark.anyio
 async def test_runtime_app_lifespan_rejects_partial_appconfig_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import nova_file_api.app as app_module
-
-    monkeypatch.setattr(
-        app_module.aioboto3,
-        "Session",
-        lambda: _FakeSession(),
-    )
-
-    app = create_app(
+    app = create_managed_app(
         settings=Settings.model_validate(
             {
                 "IDEMPOTENCY_DYNAMODB_TABLE": "test-idempotency",

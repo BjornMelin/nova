@@ -2,13 +2,26 @@
 
 FastAPI control-plane package for file transfers and export workflows in the Nova runtime.
 
-## Process entrypoint
+## Process entrypoints
 
-Besides the public factory function `create_app()`, the package exposes a
-module-level ASGI app at `nova_file_api.main:app` (implemented in `main.py`)
-for local development and tooling. The production Lambda entrypoint is
-`nova_file_api.lambda_handler.handler`, which adapts the same FastAPI app
-through a native Lambda proxy handler instead of an in-function web server.
+The package exposes two public app/runtime assembly seams:
+
+- `create_app(runtime=…)` builds the FastAPI surface around one prebuilt
+  `ApiRuntime` container.
+- `create_managed_app()` builds the same FastAPI surface but lets app lifespan
+  own runtime bootstrap and shutdown for local development and tooling.
+
+At the package root, `nova_file_api` re-exports both builders. There is no
+settings-driven `create_app(…)` path.
+
+The module-level ASGI app at `nova_file_api.main:app` uses
+`create_managed_app()` for local development and tooling. The production Lambda
+entrypoint is `nova_file_api.lambda_handler.handler`, which bootstraps one
+process-reused `ApiRuntime` container explicitly and then runs Mangum with
+lifespan disabled so warm Lambda processes reuse that container across
+invocations. If another caller owns a FastAPI app with lifespan-managed
+startup, that caller should construct `Mangum(app, lifespan="auto")` directly
+instead of routing through Nova's canonical Lambda helper.
 
 ## Browser contract
 
