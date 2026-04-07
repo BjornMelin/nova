@@ -2,8 +2,8 @@
 ADR: 0010
 Title: Fail enqueue on queue publish errors and scope readiness to critical dependencies
 Status: Accepted
-Version: 1.6
-Date: 2026-04-06
+Version: 1.7
+Date: 2026-04-07
 Related:
   - "[SPEC-0003: Observability](../spec/SPEC-0003-observability.md)"
   - "[SPEC-0006: JWT/OIDC verification and principal mapping](../spec/SPEC-0006-jwt-oidc-verification-and-principal-mapping.md)"
@@ -28,7 +28,7 @@ rollup writes so `distinct_event_types` is accurate under concurrency.
 Three production regressions were identified:
 
 1. Enqueue could return success even when SQS publish failed.
-2. Readiness could fail when `jobs_enabled` was intentionally false.
+2. Readiness could fail when optional features were intentionally disabled.
 3. DynamoDB-backed rollups could report `distinct_event_types = 0` even with
    activity.
 
@@ -36,8 +36,8 @@ These regressions degrade reliability and observability at runtime.
 
 ## Alternatives
 
-- A: Keep existing behavior (silent enqueue publish failures, feature flags in
-  readiness, incomplete rollups)
+- A: Keep existing behavior (silent enqueue publish failures, optional feature
+  flags in readiness, incomplete rollups)
 - B: Fail-fast enqueue (`503 queue_unavailable`), readiness on critical
   dependencies only, conditional marker-based rollup counting
 - C: Add asynchronous reconciliation workers to repair queue and rollup
@@ -86,6 +86,8 @@ Implementation commitments:
 
 - 2026-03-31 (v1.5): Canonicalized export enqueue route and record terminology
   to match the implemented `/v1/exports` baseline.
+- 2026-04-07 (v1.7): Removed retired `jobs_enabled` wording from the accepted
+  readiness regression context.
 - 2026-04-06 (v1.6): Updated readiness wording to match the upstream
   verifier-owned auth dependency healthcheck.
 - 2026-03-09 (v1.4): Repointed bearer-verifier readiness authority

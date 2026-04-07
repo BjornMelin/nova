@@ -2,16 +2,18 @@
 Spec: 0012
 Title: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages
 Status: Active
-Version: 3.0
-Date: 2026-03-18
+Version: 3.1
+Date: 2026-04-07
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[requirements.md](../requirements.md)"
   - "[ADR-0013: Final-state SDK topology (superseded)](../adr/superseded/ADR-0013-final-state-sdk-topology-generated-core-plus-thin-adapters.md)"
-  - "[ADR-0038: Green-field SDK architecture by language](../adr/ADR-0038-sdk-architecture-by-language.md)"
-  - "[SPEC-0029: SDK architecture and artifact contract](./SPEC-0029-sdk-architecture-and-artifact-contract.md)"
+  - "[ADR-0037: Consolidate SDK generation and package layout](../adr/ADR-0037-sdk-generation-consolidation.md)"
+  - "[ADR-0038: SDK architecture by language (superseded)](../adr/superseded/ADR-0038-sdk-architecture-by-language.md)"
+  - "[SPEC-0030: SDK generation and package layout](./SPEC-0030-sdk-generation-and-package-layout.md)"
+  - "[SPEC-0029: SDK architecture and artifact contract (superseded)](./superseded/SPEC-0029-sdk-architecture-and-artifact-contract.md)"
   - "[SPEC-0011: Multi-language SDK architecture and package map (superseded)](./superseded/SPEC-0011-multi-language-sdk-architecture-and-package-map.md)"
   - "[SPEC-0004: CI/CD and docs](./SPEC-0004-ci-cd-and-docs.md)"
   - "[Hard Cutover Checklist (archived)](../../history/2026-03-v1-hard-cut/release/HARD-CUTOVER-CHECKLIST.md)"

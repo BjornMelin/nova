@@ -2,8 +2,8 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.6
-Date: 2026-03-22
+Version: 2.7
+Date: 2026-04-07
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -22,8 +22,8 @@ cross-package boundaries for the Nova monorepo.
 
 | Path | Canonical ownership |
 | --- | --- |
-| `packages/nova_file_api/` | File-transfer routes, export routes, capability/release endpoints, health/readiness, metrics summary, canonical ASGI entrypoint, and the transfer/export/session/quota/copy domain modules and persistence helpers consumed by API and workflow runtimes |
-| `packages/nova_workflows/` | Workflow settings, task-handler runtime assembly, and export orchestration over pure `nova_file_api` domain modules |
+| `packages/nova_file_api/` | File-transfer routes, export routes, capability/release endpoints, health/readiness, metrics summary, the public `create_app(runtime=...)` and `create_managed_app()` assembly seams, the typed `ApiRuntime` container stored at `app.state.runtime`, request-level application coordinators below the route boundary, and the transfer/export/session/quota/copy domain modules and persistence helpers consumed by API and workflow runtimes |
+| `packages/nova_workflows/` | Workflow settings, task-handler runtime assembly, and export orchestration over pure `nova_file_api` domain/runtime surfaces and the shared `nova_file_api.workflow_facade` bridge for workflow-safe imports such as AWS client-config helpers |
 | `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, shared metrics/logging setup, and shared transfer config contracts |
 | `packages/nova_dash_bridge/` | Browser/Dash uploader assets and component helpers over canonical Nova HTTP routes |
 | `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
@@ -47,9 +47,9 @@ cross-package boundaries for the Nova monorepo.
    - become the source of truth for auth policy or storage rules
    - recreate an in-process runtime seam inside the bridge package
 5. `packages/nova_workflows/` owns workflow settings and runtime assembly. It
-   may import pure transfer/export domain modules from `nova_file_api`, but it
-   must not import the API app factory, route modules, or shared HTTP
-   transport glue.
+   may import pure transfer/export domain modules from `nova_file_api` and the
+   explicitly exported workflow facade, but it must not import the API app
+   factory, route modules, or shared HTTP transport glue.
 6. Runtime packages own process bootstrap; release-only service Dockerfiles must
    stay outside workspace package paths so container-only edits do not trigger
    package version planning.
@@ -58,7 +58,8 @@ cross-package boundaries for the Nova monorepo.
 
 1. `nova_file_api` may depend on `packages/contracts` artifacts.
 2. `nova_workflows` may depend on pure `nova_file_api` domain/runtime modules
-   for export execution, but not on API transport or route surfaces.
+   and the `nova_file_api.workflow_facade` export surface for export
+   execution, but not on API transport or route surfaces.
 3. `nova_dash_bridge` depends on canonical runtime contracts through
    generated Python SDK packages or direct HTTP integration, not on handwritten
    contract forks or direct runtime-internal imports.
@@ -70,13 +71,14 @@ cross-package boundaries for the Nova monorepo.
 
 ## 5. SDK and bridge relationship
 
-1. Nova owns the public Python SDK as the sole release-grade public SDK
-   authority.
+1. Nova owns one canonical generated package per language: public Python and
+   release-grade TypeScript packages plus the first-class internal R package.
 2. `nova_dash_bridge` remains a Python integration surface and must track the
    canonical Python contract surface without introducing alternate mount
    prefixes.
-3. TypeScript and R retained scaffolding may exist in-repo, but they are
-   non-authoritative and must not be presented as public SDKs.
+3. TypeScript is an active release-grade SDK surface. R remains an internal
+   first-class package surface with generated-contract governance, but it is
+   not a separate runtime authority.
 4. Canonical OpenAPI remains the sole SDK authority for generated contract
    surfaces.
 5. Internal-only operations remain documented in canonical OpenAPI and are
@@ -95,10 +97,12 @@ cross-package boundaries for the Nova monorepo.
    auth-policy authority.
 5. Bridge docs describe browser/Dash helpers only, not embedded server
    adapters.
+6. Active docs describe the public runtime seam as `create_app(runtime=...)`
+   plus `create_managed_app()`, with `app.state.runtime` as the only live app
+   runtime container slot.
 
 ## 7. Traceability
 
-- [FR-0001](../requirements.md#fr-0001-async-job-endpoints-and-orchestration)
-- [FR-0008](../requirements.md#fr-0008-openapi-contract-ownership)
-- [NFR-0105](../requirements.md#nfr-0105-contract-traceability)
-- [IR-0000](../requirements.md#ir-0000-nova-local-runtime-and-release-authority)
+- [Functional requirements](../requirements.md#functional-requirements)
+- [Quality requirements](../requirements.md#quality-requirements)
+- [Release and automation requirements](../requirements.md#release-and-automation-requirements)

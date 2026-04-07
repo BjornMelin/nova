@@ -2,8 +2,8 @@
 Spec: 0010
 Title: Observability Analytics and Activity Rollups
 Status: Active
-Version: 1.4
-Date: 2026-02-13
+Version: 1.5
+Date: 2026-04-07
 Related:
   - "[ADR-0009: EMF + DynamoDB + CloudWatch observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0003: Observability](./SPEC-0003-observability.md)"
@@ -54,15 +54,18 @@ When using DynamoDB rollups:
 Dashboards SHOULD cover:
 
 - API traffic, error rate, and latency
-- async queue backlog/lag
-- worker throughput and failures
+- export queue backlog/lag and age
+- export status-update throughput and failures
 - activity trend views
 
 Runtime metrics feeding these views SHOULD include:
 
-- `jobs_queue_lag_ms` observed on first worker transition out of `pending`
-- `jobs_worker_result_updates_total`
-- `jobs_worker_result_updates_<status>`
+- `exports_queue_lag_ms` observed on first worker transition out of `pending`
+- `exports_queued_age_ms`
+- `exports_copying_age_ms`
+- `exports_finalizing_age_ms`
+- `exports_status_updates_total`
+- `exports_status_updates_<status>`
 
 ## 4. Alarm requirements
 
@@ -70,8 +73,8 @@ Alarms SHOULD be defined for:
 
 - sustained 5xx spikes
 - latency SLO breach
-- queue lag/backlog thresholds
-- worker failure rate anomalies
+- export queue lag/backlog thresholds
+- export status-update failure anomalies
 
 ## 5. Traceability
 
