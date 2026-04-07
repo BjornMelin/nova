@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, cast
 
 import aioboto3
 import structlog
-from botocore.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
 
 from nova_file_api.auth import SupportsAuthenticatorAsyncClose
+from nova_file_api.aws import (
+    aws_client_config,
+    s3_client_config,
+)
 from nova_file_api.config import Settings
 from nova_file_api.dependencies import initialize_runtime_state
 from nova_file_api.exception_handlers import register_exception_handlers
@@ -178,7 +181,16 @@ def _install_openapi_override(*, app: FastAPI) -> None:
         app.openapi_schema = schema
         return schema
 
-    app.__dict__["openapi"] = custom_openapi
+    _assign_openapi_hook(app=app, custom_openapi=custom_openapi)
+
+
+def _assign_openapi_hook(
+    *,
+    app: Any,
+    custom_openapi: Callable[[], dict[str, Any]],
+) -> None:
+    """Assign FastAPI's documented OpenAPI override hook."""
+    app.openapi = custom_openapi
 
 
 async def _close_authenticator(*, app: FastAPI) -> None:
@@ -238,12 +250,6 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             else:
                 runtime_settings = app.state.settings
                 session = aioboto3.Session()
-                standard_s3_config = Config(
-                    s3={"use_accelerate_endpoint": False}
-                )
-                accelerate_s3_config = Config(
-                    s3={"use_accelerate_endpoint": True}
-                )
                 requires_dynamodb = (
                     runtime_settings.file_transfer_enabled
                     or runtime_settings.idempotency_enabled
@@ -292,25 +298,44 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
                 async with AsyncExitStack() as stack:
                     s3_client = await stack.enter_async_context(
-                        session.client("s3", config=standard_s3_config)
+                        session.client(
+                            "s3",
+                            config=s3_client_config(
+                                use_accelerate_endpoint=False
+                            ),
+                        )
                     )
                     accelerate_s3_client = await stack.enter_async_context(
-                        session.client("s3", config=accelerate_s3_config)
+                        session.client(
+                            "s3",
+                            config=s3_client_config(
+                                use_accelerate_endpoint=True
+                            ),
+                        )
                     )
                     dynamodb_resource = None
                     if requires_dynamodb:
                         dynamodb_resource = await stack.enter_async_context(
-                            session.resource("dynamodb")
+                            session.resource(
+                                "dynamodb",
+                                config=aws_client_config(),
+                            )
                         )
                     stepfunctions_client = None
                     if requires_stepfunctions:
                         stepfunctions_client = await stack.enter_async_context(
-                            session.client("stepfunctions")
+                            session.client(
+                                "stepfunctions",
+                                config=aws_client_config(),
+                            )
                         )
                     appconfig_client = None
                     if requires_appconfig:
                         appconfig_client = await stack.enter_async_context(
-                            session.client("appconfigdata")
+                            session.client(
+                                "appconfigdata",
+                                config=aws_client_config(),
+                            )
                         )
 
                     runtime_state_kwargs = {

@@ -1,13 +1,18 @@
-"""Workflow-facing facade over transfer/export persistence modules.
+"""Workflow-facing facade over approved file API workflow internals.
 
 Workflow task handlers import this module instead of reaching into
 ``export_runtime``, ``transfer_reconciliation``, ``transfer_usage``,
-``upload_sessions``, ``export_copy_parts``, ``export_copy_worker``, or
-``export_transfer`` directly so cross-package boundaries stay explicit.
+``upload_sessions``, ``export_copy_parts``, ``export_copy_worker``,
+``export_transfer``, or local AWS config helpers directly so cross-package
+boundaries stay explicit.
 """
 
 from __future__ import annotations
 
+from nova_file_api.aws import (
+    aws_client_config,
+    s3_client_config,
+)
 from nova_file_api.export_copy_parts import (
     DynamoResource as ExportCopyPartsDynamoResource,
     build_export_copy_part_repository,
@@ -68,8 +73,10 @@ __all__ = [
     "TransferUsageDynamoResource",
     "UploadSessionDynamoResource",
     "WorkflowExportStateService",
+    "aws_client_config",
     "build_export_copy_part_repository",
     "build_transfer_usage_window_repository",
     "build_upload_session_repository",
+    "s3_client_config",
     "update_export_status_shared",
 ]

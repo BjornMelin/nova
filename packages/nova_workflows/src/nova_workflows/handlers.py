@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import AbstractAsyncContextManager, AsyncExitStack
+from contextlib import AsyncExitStack
 from typing import Any, cast
 
 import aioboto3
 import structlog
-from botocore.config import Config
 
 from nova_file_api.workflow_facade import (
     ExportCopyTaskMessage,
@@ -17,8 +16,10 @@ from nova_file_api.workflow_facade import (
     TransferReconciliationService,
     TransferUsageDynamoResource,
     UploadSessionDynamoResource,
+    aws_client_config,
     build_transfer_usage_window_repository,
     build_upload_session_repository,
+    s3_client_config,
 )
 from nova_workflows.models import ExportWorkflowInput
 from nova_workflows.runtime import export_services, workflow_services
@@ -229,24 +230,21 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
     del event
     settings = WorkflowSettings()
     session = aioboto3.Session()
-    s3_config = Config(
-        s3={
-            "use_accelerate_endpoint": (
-                settings.file_transfer_use_accelerate_endpoint
-            )
-        }
-    )
     async with AsyncExitStack() as stack:
         s3_client = await stack.enter_async_context(
-            cast(
-                AbstractAsyncContextManager[Any],
-                session.client("s3", config=s3_config),
+            session.client(
+                "s3",
+                config=s3_client_config(
+                    use_accelerate_endpoint=(
+                        settings.file_transfer_use_accelerate_endpoint
+                    )
+                ),
             )
         )
         dynamodb_resource = await stack.enter_async_context(
-            cast(
-                AbstractAsyncContextManager[Any],
-                session.resource("dynamodb"),
+            session.resource(
+                "dynamodb",
+                config=aws_client_config(),
             )
         )
         upload_session_repository = build_upload_session_repository(

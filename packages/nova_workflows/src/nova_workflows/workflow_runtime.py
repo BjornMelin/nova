@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import cast
 
 import aioboto3
-from botocore.config import Config
 
 from nova_file_api.workflow_facade import (
     DynamoExportRepository,
@@ -17,7 +16,9 @@ from nova_file_api.workflow_facade import (
     LargeExportCopyCoordinator,
     S3ExportTransferService,
     WorkflowExportStateService,
+    aws_client_config,
     build_export_copy_part_repository,
+    s3_client_config,
 )
 from nova_runtime_support.metrics import MetricsCollector
 from nova_workflows.workflow_config import (
@@ -73,7 +74,10 @@ async def export_services(
     session = aioboto3.Session()
     async with AsyncExitStack() as stack:
         dynamodb_resource = await stack.enter_async_context(
-            session.resource("dynamodb")
+            session.resource(
+                "dynamodb",
+                config=aws_client_config(),
+            )
         )
         export_service = _build_export_service(
             resolved_settings=resolved_settings,
@@ -104,20 +108,28 @@ async def workflow_services(
             "EXPORTS_ENABLED=true"
         )
     session = aioboto3.Session()
-    s3_config = Config(
-        s3={
-            "use_accelerate_endpoint": (
-                resolved_settings.file_transfer_use_accelerate_endpoint
-            )
-        }
-    )
     async with AsyncExitStack() as stack:
         s3_client = await stack.enter_async_context(
-            session.client("s3", config=s3_config)
+            session.client(
+                "s3",
+                config=s3_client_config(
+                    use_accelerate_endpoint=(
+                        resolved_settings.file_transfer_use_accelerate_endpoint
+                    )
+                ),
+            )
         )
-        sqs_client = await stack.enter_async_context(session.client("sqs"))
+        sqs_client = await stack.enter_async_context(
+            session.client(
+                "sqs",
+                config=aws_client_config(),
+            )
+        )
         dynamodb_resource = await stack.enter_async_context(
-            session.resource("dynamodb")
+            session.resource(
+                "dynamodb",
+                config=aws_client_config(),
+            )
         )
         export_service = _build_export_service(
             resolved_settings=resolved_settings,
