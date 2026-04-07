@@ -107,12 +107,14 @@ def main() -> None:
         )
 
     if release_control_requested:
-        dev_runtime_cfn_execution_role_arn = app.node.try_get_context(
-            "dev_runtime_cfn_execution_role_arn"
-        ) or os.environ.get("DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN")
-        prod_runtime_cfn_execution_role_arn = app.node.try_get_context(
-            "prod_runtime_cfn_execution_role_arn"
-        ) or os.environ.get("PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN")
+        dev_runtime_cfn_execution_role_arn = context_or_env_value(
+            "dev_runtime_cfn_execution_role_arn",
+            "DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN",
+        )
+        prod_runtime_cfn_execution_role_arn = context_or_env_value(
+            "prod_runtime_cfn_execution_role_arn",
+            "PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN",
+        )
         if (
             not dev_runtime_cfn_execution_role_arn
             or not prod_runtime_cfn_execution_role_arn

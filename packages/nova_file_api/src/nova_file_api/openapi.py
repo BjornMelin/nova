@@ -122,6 +122,7 @@ def install_openapi_override(*, app: FastAPI) -> None:
     def custom_openapi() -> dict[str, Any]:
         schema = app.openapi_schema
         if schema is not None:
+            patch_http_validation_error_schema(schema)
             return schema
         schema = original_openapi()
         patch_http_validation_error_schema(schema)

@@ -272,6 +272,10 @@ def _parse_args() -> argparse.Namespace:
         parser.error("--warmup must be non-negative.")
     if args.warmup >= args.iterations:
         parser.error("--warmup must be smaller than --iterations.")
+    if args.file_size_bytes <= 0:
+        parser.error("--file-size-bytes must be positive.")
+    if args.sign_part_count <= 0:
+        parser.error("--sign-part-count must be positive.")
     return args
 
 
