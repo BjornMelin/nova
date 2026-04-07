@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
+from botocore.config import Config
 from fastapi import FastAPI
 
 from nova_file_api.app import create_app
@@ -14,6 +15,41 @@ from nova_file_api.dependencies import (
 from nova_file_api.models import ActivityStoreBackend
 
 from .support.dynamodb import MemoryDynamoResource
+
+
+class _AsyncContextValue:
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    async def __aenter__(self) -> object:
+        return self._value
+
+    async def __aexit__(
+        self,
+        exc_type: object,
+        exc: object,
+        tb: object,
+    ) -> bool:
+        del exc_type, exc, tb
+        return False
+
+
+class _RecordingSession:
+    def __init__(self) -> None:
+        self.client_calls: list[tuple[str, Config | None]] = []
+        self.resource_calls: list[tuple[str, Config | None]] = []
+
+    def client(
+        self, service_name: str, *, config: Config | None = None
+    ) -> _AsyncContextValue:
+        self.client_calls.append((service_name, config))
+        return _AsyncContextValue(object())
+
+    def resource(
+        self, service_name: str, *, config: Config | None = None
+    ) -> _AsyncContextValue:
+        self.resource_calls.append((service_name, config))
+        return _AsyncContextValue(object())
 
 
 def _settings() -> Settings:
@@ -228,3 +264,80 @@ def test_create_app_enables_strict_content_type() -> None:
     app = create_app(settings=_settings())
 
     assert app.router.strict_content_type is True
+
+
+@pytest.mark.anyio
+async def test_runtime_app_lifespan_uses_shared_aws_client_configs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import nova_file_api.app as app_module
+
+    session = _RecordingSession()
+
+    def _fake_initialize_runtime_state(
+        app: FastAPI,
+        *,
+        settings: Settings,
+        s3_client: object,
+        accelerate_s3_client: object | None = None,
+        dynamodb_resource: object | None = None,
+        stepfunctions_client: object | None = None,
+        appconfig_client: object | None = None,
+    ) -> None:
+        del (
+            app,
+            settings,
+            s3_client,
+            accelerate_s3_client,
+            dynamodb_resource,
+            stepfunctions_client,
+            appconfig_client,
+        )
+
+    monkeypatch.setattr(
+        app_module.aioboto3,
+        "Session",
+        lambda: session,
+    )
+    monkeypatch.setattr(
+        app_module,
+        "initialize_runtime_state",
+        _fake_initialize_runtime_state,
+    )
+
+    app = create_app(
+        settings=Settings.model_validate(
+            {
+                "EXPORTS_ENABLED": True,
+                "EXPORTS_DYNAMODB_TABLE": "exports-table",
+                "EXPORT_WORKFLOW_STATE_MACHINE_ARN": (
+                    "arn:aws:states:us-east-1:123456789012:stateMachine:nova"
+                ),
+                "FILE_TRANSFER_ENABLED": False,
+                "IDEMPOTENCY_ENABLED": False,
+                "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION": "app",
+                "FILE_TRANSFER_POLICY_APPCONFIG_ENVIRONMENT": "env",
+                "FILE_TRANSFER_POLICY_APPCONFIG_PROFILE": "profile",
+            }
+        )
+    )
+
+    async with app.router.lifespan_context(app):
+        pass
+
+    assert [name for name, _ in session.client_calls] == [
+        "s3",
+        "s3",
+        "stepfunctions",
+        "appconfigdata",
+    ]
+    assert [name for name, _ in session.resource_calls] == ["dynamodb"]
+    assert isinstance(session.client_calls[0][1], Config)
+    assert session.client_calls[0][1].s3 == {"use_accelerate_endpoint": False}
+    assert isinstance(session.client_calls[1][1], Config)
+    assert session.client_calls[1][1].s3 == {"use_accelerate_endpoint": True}
+    assert isinstance(session.client_calls[2][1], Config)
+    assert session.client_calls[2][1].s3 is None
+    assert isinstance(session.client_calls[3][1], Config)
+    assert session.client_calls[3][1].s3 is None
+    assert isinstance(session.resource_calls[0][1], Config)

@@ -270,6 +270,17 @@ def test_openapi_schema_generation_smoke() -> None:
     )
 
 
+def test_openapi_schema_generation_reuses_cached_schema() -> None:
+    """The custom OpenAPI hook should keep FastAPI schema caching intact."""
+    app = _build_openapi_app()
+
+    first_schema = app.openapi()
+    second_schema = app.openapi()
+
+    assert first_schema is second_schema
+    assert app.openapi_schema is first_schema
+
+
 def test_openapi_tag_descriptions_capture_runtime_domain_boundaries() -> None:
     """OpenAPI tags should describe the active public API surface areas."""
     app = _build_openapi_app()
