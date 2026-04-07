@@ -2,8 +2,8 @@
 ADR: 0009
 Title: Observability stack: EMF metrics, DynamoDB rollups, CloudWatch dashboards
 Status: Accepted
-Version: 1.2
-Date: 2026-02-12
+Version: 1.3
+Date: 2026-04-07
 Related:
   - "[ADR-0010: Enqueue failure and readiness semantics](./ADR-0010-enqueue-failure-and-readiness-semantics.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](../spec/SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -21,8 +21,9 @@ rollups in DynamoDB for low-cardinality analytics.
 
 ## Context
 
-The service needs production-operable visibility for latency/error/SQS backlog,
-plus user activity trend insights without high-cardinality custom metric spend.
+The service needs production-operable visibility for latency/error/export queue
+backlog and age, plus user activity trend insights without high-cardinality
+custom metric spend.
 
 ## Alternatives
 
@@ -46,8 +47,10 @@ Implementation commitments:
 
 - Emit structured logs with `request_id`.
 - Emit EMF-compatible low-cardinality metrics.
-- Record queue lag from worker processing transitions
-  (`jobs_queue_lag_ms`) and worker update throughput counters.
+- Record export queue lag and age from worker processing transitions
+  (`exports_queue_lag_ms`, `exports_queued_age_ms`,
+  `exports_copying_age_ms`, `exports_finalizing_age_ms`) plus export
+  status-update throughput counters.
 - Track daily activity rollups in DynamoDB for dashboard summaries.
 - Keep rollup counters accurate using conditional marker writes for first-seen
   user/day and event-type/day records.
@@ -62,6 +65,8 @@ Implementation commitments:
 
 ## Changelog
 
+- 2026-04-07 (v1.3): Hard-cut active metrics language from retired `jobs_*`
+  names to the implemented export queue and status-update metrics.
 - 2026-02-12 (v1.0): Initial acceptance.
 - 2026-02-12 (v1.1): Added explicit marker-based rollup correctness commitment.
 - 2026-02-12 (v1.2): Added explicit queue lag and worker throughput metric

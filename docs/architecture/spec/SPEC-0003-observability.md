@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 2.0
-Date: 2026-04-06
+Version: 2.1
+Date: 2026-04-07
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -24,8 +24,7 @@ Readiness rules:
 
 - `/v1/health/ready` `ok` MUST reflect the current runtime checks reported in
   the response body.
-- Feature flags (for example `jobs_enabled`) MUST NOT drive readiness
-  pass/fail.
+- Feature flags MUST NOT drive readiness pass/fail.
 - Optional feature disablement MUST NOT mark service unready.
 - Missing/blank `FILE_TRANSFER_BUCKET` MUST fail the `transfer_runtime`
   readiness check.
@@ -55,11 +54,13 @@ Metrics MUST include at least:
 - endpoint latency
 - auth failures
 - quota rejection counters
+- request-level transfer/export application counters
 - stale upload-session reconciliation counters
-- enqueue latency and queue-oriented counters
-- queue lag observed at first worker transition out of `pending`
-  (`jobs_queue_lag_ms`)
-- worker update throughput counters (`jobs_worker_result_updates_total` and
+- export enqueue latency and queue-oriented counters
+- export queue lag and status-age counters observed from the export worker lane
+  (`exports_queue_lag_ms`, `exports_queued_age_ms`,
+  `exports_copying_age_ms`, `exports_finalizing_age_ms`)
+- export status-update throughput counters (`exports_status_updates_total` and
   per-status variants)
 
 Metrics dimensions MUST avoid high-cardinality identifiers.
@@ -82,8 +83,8 @@ In AWS deployments, DynamoDB SHOULD back rollups.
 Release readiness requires CloudWatch dashboards/alarms for:
 
 - API latency/error/traffic
-- queue backlog and age
-- worker success/failure trends
+- export queue backlog and age
+- export status-transition and failure trends
 - activity rollup trends
 - incomplete multipart upload storage older than seven days
 - DynamoDB throttles across upload-session and transfer-usage tables

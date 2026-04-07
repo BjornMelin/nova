@@ -15,6 +15,7 @@ Within that runtime, FastAPI routes stay boundary-only. Request-owned
 idempotency, metrics, and activity orchestration lives in explicit
 application-layer coordinators below the route layer, and those coordinators
 delegate transfer/export domain work to `TransferService` and `ExportService`.
+The live runtime container is stored only at `app.state.runtime`.
 
 At the package root, `nova_file_api` re-exports both builders. There is no
 settings-driven `create_app(…)` path.

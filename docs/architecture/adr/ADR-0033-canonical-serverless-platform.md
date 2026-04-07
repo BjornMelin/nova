@@ -2,8 +2,8 @@
 ADR: 0033
 Title: Canonical serverless platform
 Status: Implemented
-Version: 1.0
-Date: 2026-03-25
+Version: 1.1
+Date: 2026-04-07
 Related:
   - "[SPEC-0016: Hard-cut v1 route contract and route-literal guardrails](../spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0027: Public API v2](../spec/SPEC-0027-public-api-v2.md)"
@@ -17,14 +17,15 @@ Related:
   - "[ADR-0038: Reset docs authority](./ADR-0038-docs-authority-reset.md)"
   - "[ADR-0039: Explicit Lambda runtime bootstrap and typed runtime container](./ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md)"
   - "[requirements.md](../requirements.md)"
-  - "[GREENFIELD-WAVE-2-EXECUTION.md](../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
+  - "[GREENFIELD-WAVE-2-EXECUTION.md](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Decision
 
 Adopt **regional API Gateway REST API + direct Regional WAF + one canonical
 custom domain → Lambda (FastAPI via the repo-owned Lambda entrypoint,
-Mangum-backed, zip-packaged) → Step
+Mangum-backed, zip-packaged, with an explicit process-reused `ApiRuntime`
+container at `app.state.runtime`) → Step
 Functions Standard / DynamoDB / S3** as the canonical AWS runtime, with the
 default `execute-api` endpoint disabled.
 
@@ -60,6 +61,8 @@ Operationally lighter than ECS, but weaker fit for the broader workflow/orchestr
 
 - keep `infra/nova_cdk` as the canonical platform IaC surface
 - keep `packages/nova_workflows` as the workflow/runtime implementation seam
+- keep the public Lambda path on the explicit typed runtime bootstrap from
+  `ADR-0039`; local development and tooling use the managed app builder
 - keep public API packaging in release automation and have CDK consume explicit
   immutable artifact metadata instead of rebuilding the API package locally
 - keep future transport additions native-first: use `StreamingResponse` for

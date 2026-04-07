@@ -1,7 +1,7 @@
 # Nova repository overview
 
 Status: Active orientation doc
-Last reviewed: 2026-03-28
+Last reviewed: 2026-04-07
 
 ## One-sentence summary
 
@@ -24,7 +24,6 @@ bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
 
 - `IMPLEMENTATION-STATUS-MATRIX.md`
 - `ACTIVE-DOCS-INDEX.md`
-- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `../architecture/README.md`
 - `../runbooks/README.md`
 
@@ -32,6 +31,16 @@ bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
 
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
-- `../architecture/requirements-wave-2.md`
-- `../architecture/adr/ADR-0033-canonical-serverless-platform.md` through `../architecture/adr/ADR-0038-docs-authority-reset.md`
-- `../architecture/spec/SPEC-0027-public-api-v2.md` through `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
+- `../architecture/requirements.md`
+- `../architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `../architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+- `../architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+- `../architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+- `../architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+- `../architecture/adr/ADR-0038-docs-authority-reset.md`
+- `../architecture/adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
+- `../architecture/spec/SPEC-0027-public-api-v2.md`
+- `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
+- `../architecture/spec/SPEC-0029-platform-serverless.md`
+- `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+- `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
