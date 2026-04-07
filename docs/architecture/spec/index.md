@@ -1,7 +1,7 @@
 # Architecture specifications
 
 Status: Active index
-Last reviewed: 2026-03-29
+Last reviewed: 2026-04-07
 
 ## Canonical architecture authority chain
 

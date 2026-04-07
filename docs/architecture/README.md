@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-03-29
+Last reviewed: 2026-04-07
 
 ## Purpose
 
@@ -29,6 +29,7 @@ Use these documents for active architecture decisions and implementation:
 - `adr/ADR-0036-dynamodb-idempotency-no-redis.md`
 - `adr/ADR-0037-sdk-generation-consolidation.md`
 - `adr/ADR-0038-docs-authority-reset.md`
+- `adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
 - `spec/SPEC-0027-public-api-v2.md`
 - `spec/SPEC-0028-export-workflow-state-machine.md`
 - `spec/SPEC-0029-platform-serverless.md`

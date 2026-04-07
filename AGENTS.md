@@ -65,6 +65,15 @@ the bulk data plane. Product and API detail: `README.md`.
 - Deployed base URL and release provenance: `deploy-output.json` (not manual
   or free-text config when that artifact exists).
 
+**Forward guidance for future transport surfaces:**
+
+- Prefer native FastAPI/Starlette transport behavior over repo-local wrappers.
+- Future byte streaming should use `StreamingResponse`; future SSE work should
+  stay on the documented framework integration path rather than a custom
+  abstraction.
+- Future WebSocket or other long-lived connection work must explicitly justify
+  Lambda fit before it lands.
+
 **Never reintroduce** (code, docs, CI, prompts, reviews):
 
 - Session / same-origin auth or a dedicated auth service

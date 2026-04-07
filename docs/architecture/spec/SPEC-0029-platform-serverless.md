@@ -2,8 +2,8 @@
 SPEC: 0029
 Title: Canonical serverless platform
 Status: Implemented
-Version: 1.1
-Date: 2026-04-03
+Version: 1.2
+Date: 2026-04-07
 Related:
   - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
 ---
@@ -56,3 +56,13 @@ Related:
 - post-deploy validation must prove release identity, readiness, protected
   auth behavior, browser CORS preflight, and legacy-path 404 drift against the
   deploy-output artifact
+
+## Future transport extensions
+
+- prefer native FastAPI and Starlette transport behavior over repo-local
+  wrappers
+- future byte-streaming endpoints use `StreamingResponse`
+- future SSE endpoints follow the documented framework integration path rather
+  than a Nova-specific abstraction layer
+- future WebSocket or other long-lived connection work must justify Lambda fit
+  before it becomes part of the active platform contract

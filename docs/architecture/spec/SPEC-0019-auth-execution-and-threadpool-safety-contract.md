@@ -19,9 +19,8 @@ Defines how Nova executes in-process auth safely in async runtime code.
 
 1. Local synchronous JWT verification must run behind a threadpool boundary
    **when** verification remains synchronous on async request paths. When JWT
-   verification is async-native in the file API ([ADR-0033](../adr/ADR-0033-single-runtime-auth-authority.md),
-   [ADR-0037](../adr/ADR-0037-async-first-public-surface.md)), the
-   process-scoped async verifier must be instantiated during managed runtime
+   verification is async-native in the file API, the process-scoped async
+   verifier must be instantiated during managed runtime
    bootstrap for the active app surface: the Lambda path bootstraps one
    process-reused `ApiRuntime` container before Mangum request handling, and
    local development uses the managed FastAPI app builder. The verifier must
@@ -50,7 +49,9 @@ Defines how Nova executes in-process auth safely in async runtime code.
    handlers.
 3. Process-wide limiter mutation is not the general-purpose concurrency control
    strategy for the runtime.
-4. The bridge package must not reintroduce server-side sync-over-async transfer
+4. Active runtime docs and settings must not expose a generic blocking-I/O
+   thread-token tuning surface when no such runtime setting exists.
+5. The bridge package must not reintroduce server-side sync-over-async transfer
    adapters. Embedded FastAPI/Flask transfer surfaces are retired; browser
    helpers forward bearer auth to the canonical Nova HTTP API instead.
 

@@ -14,7 +14,7 @@
 - `docs/clients/README.md`
 - `release/README.md`
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
-- `docs/architecture/adr/ADR-0033` through `ADR-0038`
+- `docs/architecture/adr/ADR-0033` through `ADR-0039`
 - `docs/architecture/spec/SPEC-0027` through `SPEC-0031`
 - `docs/contracts/deploy-output-authority-v2.schema.json`
 - `docs/contracts/workflow-post-deploy-validate.schema.json`

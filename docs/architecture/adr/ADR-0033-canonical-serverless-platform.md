@@ -62,6 +62,10 @@ Operationally lighter than ECS, but weaker fit for the broader workflow/orchestr
 - keep `packages/nova_workflows` as the workflow/runtime implementation seam
 - keep public API packaging in release automation and have CDK consume explicit
   immutable artifact metadata instead of rebuilding the API package locally
+- keep future transport additions native-first: use `StreamingResponse` for
+  byte streaming, keep SSE on the documented FastAPI/Starlette integration path
+  instead of a repo-local wrapper, and require explicit Lambda-fit
+  justification before adding WebSocket or other long-lived connections
 - keep `deploy-output.json` / `deploy-output.sha256` as the published runtime
   authority for the custom-domain base URL and deployed release provenance
 - keep active docs, runbooks, and release flows aligned to the serverless/CDK surface only

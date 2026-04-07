@@ -60,6 +60,9 @@ Public API v2 exposes only explicit transfer and export workflow resources under
 - no hand-built auth/session security schemes
 - use native FastAPI `Security` and `responses=…`
 - keep only minimal OpenAPI post-processing if a real generator gap remains
+- future transport extensions should follow
+  [SPEC-0029](./SPEC-0029-platform-serverless.md): native framework transport
+  behavior first, no repo-local SSE or byte-streaming abstraction layer
 
 ## Additive transfer contract
 

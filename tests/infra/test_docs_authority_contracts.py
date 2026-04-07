@@ -30,7 +30,7 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/clients/README.md",
         "release/README.md",
         "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
-        "docs/architecture/adr/ADR-0033` through `ADR-0038",
+        "docs/architecture/adr/ADR-0033` through `ADR-0039",
         "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
         "docs/contracts/deploy-output-authority-v2.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
@@ -121,6 +121,7 @@ def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
     moved_root_paths = _repo_paths(
         "docs/architecture/adr/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
         "docs/architecture/adr/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/ADR-0007-two-tier-cache-and-idempotency-store.md",
         "docs/architecture/adr/ADR-0012-no-lambda-runtime-scope.md",
         "docs/architecture/adr/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
         "docs/architecture/spec/SPEC-0008-async-jobs-and-worker-orchestration.md",
@@ -131,6 +132,7 @@ def test_moved_superseded_docs_live_only_in_archive_dirs() -> None:
     moved_superseded_paths = _repo_paths(
         "docs/architecture/adr/superseded/ADR-0001-deployment-on-ecs-fargate-behind-alb.md",
         "docs/architecture/adr/superseded/ADR-0006-async-orchestration-sqs-ecs-worker.md",
+        "docs/architecture/adr/superseded/ADR-0007-two-tier-cache-and-idempotency-store.md",
         "docs/architecture/adr/superseded/ADR-0012-no-lambda-runtime-scope.md",
         "docs/architecture/adr/superseded/ADR-0015-nova-api-platform-final-hosting-and-deployment-architecture-2026.md",
         "docs/architecture/spec/superseded/SPEC-0008-async-jobs-and-worker-orchestration.md",

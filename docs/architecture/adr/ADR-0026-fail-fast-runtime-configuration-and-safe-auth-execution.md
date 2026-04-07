@@ -79,12 +79,13 @@ Choose **Option B**.
 6. Any remaining threadpool/offload tuning stays scoped to blocking work that
    still exists outside the async-native JWT path.
 7. Deploy and operator docs must enforce the current strict idempotency
-   contract: `IDEMPOTENCY_ENABLED=true` requires a shared Redis claim store,
-   and shared-store failures fail closed without an `IDEMPOTENCY_MODE`
-   surface.
+   contract: `IDEMPOTENCY_ENABLED=true` requires the shared DynamoDB
+   idempotency table, and shared-store failures fail closed without an
+   `IDEMPOTENCY_MODE` surface.
 8. Deploy scripts, infra tests, and operator docs consume a generated
    runtime-config contract artifact derived from the typed runtime settings plus
-   the minimal curated deploy metadata required for ECS template wiring.
+   the minimal curated deploy metadata required for the active Lambda/runtime
+   deploy wiring.
 9. Runtime settings declare explicit string `validation_alias` values for env
    names, and release tooling reads `validation_alias` only.
 
@@ -115,10 +116,9 @@ Choose **Option B**.
 
 ## Green-field program supplement
 
-When [ADR-0037](./ADR-0037-async-first-public-surface.md) and
-[ADR-0033](./ADR-0033-single-runtime-auth-authority.md) are fully
-implemented, **async-native** JWT verification on FastAPI paths reduces the
-volume of work that must use threadpool offload. This ADR and
+With the active async-native verifier and explicit runtime bootstrap now in
+place, FastAPI auth paths have reduced the amount of work that must use
+threadpool offload. This ADR and
 [SPEC-0019](../spec/SPEC-0019-auth-execution-and-threadpool-safety-contract.md)
 continue to govern **any remaining** synchronous verification or blocking work
 on async handlers until and unless fully eliminated.
