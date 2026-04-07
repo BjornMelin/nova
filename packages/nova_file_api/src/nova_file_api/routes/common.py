@@ -9,7 +9,6 @@ from fastapi import Header, Path, Query
 from nova_file_api.config import Settings
 from nova_file_api.errors import invalid_request
 from nova_file_api.models import ErrorEnvelope, ReadinessResponse
-from nova_runtime_support.metrics import MetricsCollector
 
 OpenApiResponse = dict[str, Any]
 OpenApiResponses = dict[int | str, OpenApiResponse]
@@ -100,27 +99,6 @@ READINESS_UNAVAILABLE_RESPONSE: OpenApiResponses = {
         description="Service Unavailable - Readiness failed.",
     )
 }
-
-
-def emit_request_metric(
-    *,
-    metrics: MetricsCollector,
-    route: str,
-    status: str,
-) -> None:
-    """Emit a low-cardinality request counter.
-
-    Args:
-        metrics: Metrics collector used for EMF output.
-        route: Route name used for metric dimensions.
-        status: Request outcome label.
-    """
-    metrics.emit_emf(
-        metric_name="requests_total",
-        value=1,
-        unit="Count",
-        dimensions={"route": route, "status": status},
-    )
 
 
 def validated_idempotency_key(
