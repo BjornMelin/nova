@@ -287,7 +287,7 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
 async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
     failures: list[str] = []
     messages: list[tuple[str, ExportCopyTaskMessage]] = []
-    poison_messages: list[tuple[ExportCopyPoisonMessage, int | None]] = []
+    poison_messages: list[tuple[str, ExportCopyPoisonMessage, int | None]] = []
     message_lag_ms: list[int | None] = []
     unresolved_invalid_lag_ms: list[int | None] = []
     for record in cast(list[dict[str, Any]], event.get("Records", [])):
@@ -298,6 +298,10 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
             payload = ExportCopyTaskMessage.from_dict(
                 cast(dict[str, object], json.loads(body))
             )
+            if not _export_copy_task_message_is_valid(payload):
+                raise ValueError(
+                    "queued export copy message has invalid coordinates"
+                )
         except Exception:
             poison = _poison_message_from_sqs_record(record)
             _LOGGER.warning(
@@ -315,7 +319,7 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
                 failures.append(message_id)
                 unresolved_invalid_lag_ms.append(sent_timestamp_ms)
             else:
-                poison_messages.append((poison, sent_timestamp_ms))
+                poison_messages.append((message_id, poison, sent_timestamp_ms))
             continue
         messages.append((message_id, payload))
         message_lag_ms.append(sent_timestamp_ms)
@@ -337,16 +341,28 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
             services.large_copy_service.record_invalid_message(
                 terminalizable=False
             )
-        for poison, lag_ms in poison_messages:
+        for message_id, poison, lag_ms in poison_messages:
             services.large_copy_service.observe_message_lag(
                 sent_timestamp_ms=lag_ms
             )
             services.large_copy_service.record_invalid_message(
                 terminalizable=True
             )
-            await services.large_copy_service.terminalize_poison_message(
-                poison=poison
-            )
+            try:
+                await services.large_copy_service.terminalize_poison_message(
+                    poison=poison
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "workflow_export_copy_worker_poison_terminalization_failed",
+                    message_id=message_id,
+                    export_id=poison.export_id,
+                    part_number=poison.part_number,
+                    upload_id=poison.upload_id,
+                    sent_timestamp_ms=lag_ms,
+                    exc_info=True,
+                )
+                failures.append(message_id)
         failures.extend(
             await services.large_copy_service.process_message_batch(
                 messages=messages
@@ -392,6 +408,17 @@ def _poison_message_from_sqs_record(
         part_number=part_number,
         upload_id=upload_id,
     )
+
+
+def _export_copy_task_message_is_valid(
+    payload: ExportCopyTaskMessage,
+) -> bool:
+    """Return whether a worker payload has a valid copy coordinate range."""
+    if payload.part_number < 1:
+        return False
+    if payload.start_byte < 0 or payload.end_byte < 0:
+        return False
+    return payload.start_byte <= payload.end_byte
 
 
 def _message_attribute_string(

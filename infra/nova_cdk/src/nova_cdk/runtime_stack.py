@@ -918,6 +918,14 @@ class NovaRuntimeStack(Stack):
             self,
             "InlineExportCopyReady",
         )
+        inline_finalize_copy_choice = sfn.Choice(
+            self,
+            "InlineFinalizeExportStatus",
+        )
+        queued_finalize_copy_choice = sfn.Choice(
+            self,
+            "QueuedFinalizeExportStatus",
+        )
         queued_copy_progress_choice = sfn.Choice(
             self,
             "QueuedExportCopyReady",
@@ -939,7 +947,14 @@ class NovaRuntimeStack(Stack):
                         "$.copy_progress_state",
                         "ready",
                     ),
-                    finalize_queued_task.next(export_completed),
+                    finalize_queued_task.next(
+                        queued_finalize_copy_choice.when(
+                            sfn.Condition.string_equals(
+                                "$.status", "cancelled"
+                            ),
+                            export_cancelled,
+                        ).otherwise(export_completed)
+                    ),
                 )
                 .when(
                     sfn.Condition.string_equals(
@@ -990,7 +1005,14 @@ class NovaRuntimeStack(Stack):
                                 ),
                                 export_cancelled,
                             ).otherwise(
-                                finalize_inline_task.next(export_completed)
+                                finalize_inline_task.next(
+                                    inline_finalize_copy_choice.when(
+                                        sfn.Condition.string_equals(
+                                            "$.status", "cancelled"
+                                        ),
+                                        export_cancelled,
+                                    ).otherwise(export_completed)
+                                )
                             )
                         )
                     )

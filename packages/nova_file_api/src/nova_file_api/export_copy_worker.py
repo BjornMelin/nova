@@ -393,6 +393,10 @@ class LargeExportCopyCoordinator:
                 total_parts=0,
             )
         if export.status == ExportStatus.FAILED:
+            await self._abort_multipart_upload(
+                upload_id=upload_id,
+                export_key=export_key,
+            )
             raise RuntimeError("queued export copy already failed")
         part_records = await self._parts.list_for_export(
             export_id=export.export_id

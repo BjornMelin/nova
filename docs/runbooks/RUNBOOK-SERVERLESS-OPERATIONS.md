@@ -159,8 +159,7 @@ and export baseline monitoring. The dashboard includes:
   `uploads_complete`, and `uploads_abort`
 - API throttles, API 5xx, and reserved-concurrency saturation
 - export queued/copying/finalizing age
-- export worker queue age, message lag, invalid-message trends, poison
-  terminalization/stale-orphan trends, and DLQ depth
+- export worker queue age, DLQ depth, and worker throttles
 - incomplete multipart upload footprint and `>7 day` MPU metrics wired to S3
   Storage Lens metric names
 - transfer and export observability dashboard coverage

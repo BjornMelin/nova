@@ -173,7 +173,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     assert copying is not None
     assert copying.status == ExportStatus.COPYING
 
-    await finalize_export(
+    finalized = await finalize_export(
         workflow_input=copied,
         export_service=export_service,
     )
@@ -181,6 +181,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     assert finished is not None
     assert finished.status == ExportStatus.SUCCEEDED
     assert finished.output is not None
+    assert finalized.status == ExportStatus.SUCCEEDED
 
 
 @pytest.mark.anyio
@@ -190,7 +191,7 @@ async def test_fail_export_persists_error_detail() -> None:
         update={"error": "TaskFailed", "cause": "copy task timed out"}
     )
 
-    await fail_export(
+    failed = await fail_export(
         workflow_input=failed_input,
         export_service=export_service,
     )
@@ -199,6 +200,7 @@ async def test_fail_export_persists_error_detail() -> None:
     assert finished is not None
     assert finished.status == ExportStatus.FAILED
     assert finished.error == "copy task timed out"
+    assert failed.status == ExportStatus.FAILED
 
 
 @pytest.mark.anyio

@@ -9,6 +9,7 @@ from nova_file_api.export_models import (
     ExportRecord,
     ExportStatus,
 )
+from nova_file_api.export_runtime import ExportStatusTransitionError
 from nova_file_api.workflow_facade import (
     ExportCopyPollResult,
     ExportCopyResult,
@@ -76,15 +77,19 @@ async def copy_export(
     if export is None:
         raise LookupError("export not found")
     if export.status == ExportStatus.CANCELLED:
-        return workflow_input.model_copy(
-            update={"copy_progress_state": "cancelled"}
+        return _cancelled_workflow_input(workflow_input=workflow_input)
+    try:
+        await export_service.update_status(
+            export_id=workflow_input.export_id,
+            status=ExportStatus.COPYING,
+            output=None,
+            error=None,
         )
-    await export_service.update_status(
-        export_id=workflow_input.export_id,
-        status=ExportStatus.COPYING,
-        output=None,
-        error=None,
-    )
+    except ExportStatusTransitionError:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return _cancelled_workflow_input(workflow_input=workflow_input)
+        raise
     export_result = await transfer_service.copy_upload_to_export(
         source_bucket=file_transfer_bucket,
         source_key=workflow_input.source_key,
@@ -99,9 +104,7 @@ async def copy_export(
         await transfer_service.delete_export_object(
             export_key=export_result.export_key
         )
-        return workflow_input.model_copy(
-            update={"copy_progress_state": "cancelled"}
-        )
+        return _cancelled_workflow_input(workflow_input=workflow_input)
     return workflow_input.model_copy(
         update={
             "output": WorkflowOutput.from_export_output(
@@ -139,9 +142,7 @@ async def prepare_export_copy(
     if not updated_ok:
         latest = await export_service.repository.get(workflow_input.export_id)
         if latest is not None and latest.status == ExportStatus.CANCELLED:
-            return workflow_input.model_copy(
-                update={"copy_progress_state": "cancelled"}
-            )
+            return _cancelled_workflow_input(workflow_input=workflow_input)
         if latest is None or latest.status != ExportStatus.CANCELLED:
             raise RuntimeError(
                 "export copy planning changed before state could persist"
@@ -169,14 +170,12 @@ async def start_queued_export_copy(
 ) -> ExportWorkflowInput:
     """Create the worker-lane MPU, persist part state, and enqueue work."""
     if workflow_input.copy_progress_state == "cancelled":
-        return workflow_input
+        return _cancelled_workflow_input(workflow_input=workflow_input)
     export = await export_service.repository.get(workflow_input.export_id)
     if export is None:
         raise LookupError("export not found")
     if export.status == ExportStatus.CANCELLED:
-        return workflow_input.model_copy(
-            update={"copy_progress_state": "cancelled"}
-        )
+        return _cancelled_workflow_input(workflow_input=workflow_input)
     if workflow_input.output is None:
         raise ValueError(
             "workflow output is required before queueing copy work"
@@ -187,12 +186,18 @@ async def start_queued_export_copy(
             update={"copy_progress_state": "ready"}
         )
     queued = await large_copy_service.start(export=export, prepared=prepared)
-    copying_record = await export_service.update_status(
-        export_id=workflow_input.export_id,
-        status=ExportStatus.COPYING,
-        output=None,
-        error=None,
-    )
+    try:
+        copying_record = await export_service.update_status(
+            export_id=workflow_input.export_id,
+            status=ExportStatus.COPYING,
+            output=None,
+            error=None,
+        )
+    except ExportStatusTransitionError:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return _cancelled_workflow_input(workflow_input=workflow_input)
+        raise
     updated_record = copying_record.model_copy(
         update={
             "source_size_bytes": prepared.source_size_bytes,
@@ -210,9 +215,7 @@ async def start_queued_export_copy(
     if not updated_ok:
         latest = await export_service.repository.get(workflow_input.export_id)
         if latest is not None and latest.status == ExportStatus.CANCELLED:
-            return workflow_input.model_copy(
-                update={"copy_progress_state": "cancelled"}
-            )
+            return _cancelled_workflow_input(workflow_input=workflow_input)
         if latest is None or latest.status != ExportStatus.CANCELLED:
             raise RuntimeError(
                 "export copy metadata changed before queued state could persist"
@@ -277,25 +280,35 @@ async def finalize_export(
     if export is None:
         raise LookupError("export not found")
     if export.status == ExportStatus.CANCELLED:
-        return workflow_input.model_copy(
-            update={"status": ExportStatus.CANCELLED}
+        return _cancelled_workflow_input(
+            workflow_input=workflow_input,
+            status=ExportStatus.CANCELLED,
         )
     if workflow_input.output is None:
         raise ValueError("workflow output is required before finalization")
     output = workflow_input.output.to_export_output()
-    await export_service.update_status(
-        export_id=workflow_input.export_id,
-        status=ExportStatus.FINALIZING,
-        output=output,
-        error=None,
-    )
-    await export_service.update_status(
-        export_id=workflow_input.export_id,
-        status=ExportStatus.SUCCEEDED,
-        output=output,
-        error=None,
-    )
-    return workflow_input
+    try:
+        await export_service.update_status(
+            export_id=workflow_input.export_id,
+            status=ExportStatus.FINALIZING,
+            output=output,
+            error=None,
+        )
+        await export_service.update_status(
+            export_id=workflow_input.export_id,
+            status=ExportStatus.SUCCEEDED,
+            output=output,
+            error=None,
+        )
+    except ExportStatusTransitionError:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return _cancelled_workflow_input(
+                workflow_input=workflow_input,
+                status=ExportStatus.CANCELLED,
+            )
+        raise
+    return workflow_input.model_copy(update={"status": ExportStatus.SUCCEEDED})
 
 
 async def fail_export(
@@ -308,16 +321,26 @@ async def fail_export(
     if export is None:
         raise LookupError("export not found")
     if export.status == ExportStatus.CANCELLED:
-        return workflow_input.model_copy(
-            update={"status": ExportStatus.CANCELLED}
+        return _cancelled_workflow_input(
+            workflow_input=workflow_input,
+            status=ExportStatus.CANCELLED,
         )
-    await export_service.update_status(
-        export_id=workflow_input.export_id,
-        status=ExportStatus.FAILED,
-        output=None,
-        error=workflow_input.failure_detail(),
-    )
-    return workflow_input
+    try:
+        await export_service.update_status(
+            export_id=workflow_input.export_id,
+            status=ExportStatus.FAILED,
+            output=None,
+            error=workflow_input.failure_detail(),
+        )
+    except ExportStatusTransitionError:
+        latest = await export_service.repository.get(workflow_input.export_id)
+        if latest is not None and latest.status == ExportStatus.CANCELLED:
+            return _cancelled_workflow_input(
+                workflow_input=workflow_input,
+                status=ExportStatus.CANCELLED,
+            )
+        raise
+    return workflow_input.model_copy(update={"status": ExportStatus.FAILED})
 
 
 def _export_output(result: ExportCopyResult) -> ExportOutput:
@@ -326,6 +349,21 @@ def _export_output(result: ExportCopyResult) -> ExportOutput:
         key=result.export_key,
         download_filename=result.download_filename,
     )
+
+
+def _cancelled_workflow_input(
+    *,
+    workflow_input: ExportWorkflowInput,
+    status: ExportStatus | None = None,
+) -> ExportWorkflowInput:
+    """Return one cancelled workflow payload with stale output cleared."""
+    update: dict[str, object] = {
+        "copy_progress_state": "cancelled",
+        "output": None,
+    }
+    if status is not None:
+        update["status"] = status
+    return workflow_input.model_copy(update=update)
 
 
 def _prepared_export_copy(

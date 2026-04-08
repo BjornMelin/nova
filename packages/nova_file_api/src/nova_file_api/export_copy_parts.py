@@ -575,6 +575,9 @@ class DynamoExportCopyPartRepository:
         This path is used for poison-message recovery on the active upload.
         """
         table = await self._resolve_table()
+        current = await self.get(export_id=export_id, part_number=part_number)
+        if current is None:
+            return None
         now = datetime.now(tz=UTC)
         try:
             response = await table.update_item(
@@ -595,7 +598,7 @@ class DynamoExportCopyPartRepository:
                     "#upload_id": "upload_id",
                 },
                 ExpressionAttributeValues={
-                    ":attempts": attempts,
+                    ":attempts": max(current.attempts, attempts),
                     ":copied": ExportCopyPartStatus.COPIED.value,
                     ":error": error,
                     ":failed": ExportCopyPartStatus.FAILED.value,
