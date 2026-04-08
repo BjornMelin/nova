@@ -41,11 +41,14 @@ the bulk data plane. Product and API detail: `README.md`.
   `/v1/capabilities/transfers` exposes the effective transfer policy envelope.
 - Exports: `/v1/exports`. Idempotency and workflow state: DynamoDB. Moderate
   export copies stay inline; larger server-side copies use an internal
-  SQS-backed worker lane with durable part state in DynamoDB and Step Functions
-  Standard polling/finalization.
+  SQS-backed worker lane with durable part state in DynamoDB, canonical SQS
+  message attributes for poison recovery, and Step Functions Standard
+  polling/finalization.
 - Export cancellation persists caller intent and stops the active Step
-  Functions execution when one is running; queued copy workers must check the
-  export record before copying parts.
+  Functions execution when one is running; `cancelled` is authoritative over
+  later fail/finalize attempts, queued copy workers must check the export
+  record before copying parts, and inline copy must delete copied output when
+  cancellation lands after the copy finishes.
 - API runtime: FastAPI in `packages/nova_file_api` (repo Lambda entrypoint).
 - Runtime assembly: the Lambda path bootstraps one process-reused
   `ApiRuntime` container outside Mangum lifespan and stores it only at

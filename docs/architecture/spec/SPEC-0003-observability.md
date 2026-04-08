@@ -2,8 +2,8 @@
 Spec: 0003
 Title: Observability
 Status: Active
-Version: 2.1
-Date: 2026-04-07
+Version: 2.2
+Date: 2026-04-08
 Related:
   - "[ADR-0009: Observability stack](../adr/ADR-0009-observability-analytics-emf-dynamodb-cloudwatch.md)"
   - "[SPEC-0010: Observability analytics and activity rollups](./SPEC-0010-observability-analytics-and-activity-rollups.md)"
@@ -60,6 +60,17 @@ Metrics MUST include at least:
 - export queue lag and status-age counters observed from the export worker lane
   (`exports_queue_lag_ms`, `exports_queued_age_ms`,
   `exports_copying_age_ms`, `exports_finalizing_age_ms`)
+- export worker message lag plus invalid-message, unresolved-invalid,
+  poison-terminalized, poison-stale/orphaned, retry-exhaustion, abort, and
+  worker batch-failure counters (`exports_worker_message_lag_ms`,
+  `exports_worker_messages_invalid_total`,
+  `exports_worker_messages_invalid_unresolved_total`,
+  `exports_worker_poison_terminalized_total`,
+  `exports_worker_poison_stale_total`,
+  `exports_worker_poison_orphaned_total`,
+  `exports_worker_retry_exhausted_total`,
+  `exports_worker_abort_total`,
+  `exports_worker_message_failures_total`)
 - export status-update throughput counters (`exports_status_updates_total` and
   per-status variants)
 
@@ -84,6 +95,7 @@ Release readiness requires CloudWatch dashboards/alarms for:
 
 - API latency/error/traffic
 - export queue backlog and age
+- export worker malformed-message, poison-recovery, and abort trends
 - export status-transition and failure trends
 - activity rollup trends
 - incomplete multipart upload storage older than seven days
