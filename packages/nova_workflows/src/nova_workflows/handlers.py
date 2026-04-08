@@ -11,6 +11,7 @@ import aioboto3
 import structlog
 
 from nova_file_api.workflow_facade import (
+    ExportCopyPoisonMessage,
     ExportCopyTaskMessage,
     TransferReconciliationConfig,
     TransferReconciliationService,
@@ -286,29 +287,57 @@ async def _reconcile_transfer_state(*, event: dict[str, Any]) -> dict[str, Any]:
 async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
     failures: list[str] = []
     messages: list[tuple[str, ExportCopyTaskMessage]] = []
+    poison_messages: list[tuple[ExportCopyPoisonMessage, int | None]] = []
+    message_lag_ms: list[int | None] = []
     for record in cast(list[dict[str, Any]], event.get("Records", [])):
         message_id = str(record.get("messageId", ""))
+        sent_timestamp_ms = _worker_sent_timestamp_ms(record)
         try:
             body = str(record.get("body", "{}"))
             payload = ExportCopyTaskMessage.from_dict(
                 cast(dict[str, object], json.loads(body))
             )
         except Exception:
+            poison = _poison_message_from_sqs_record(record)
             _LOGGER.warning(
                 "workflow_export_copy_worker_message_invalid",
                 message_id=message_id,
+                export_id=poison.export_id if poison is not None else None,
+                part_number=(
+                    poison.part_number if poison is not None else None
+                ),
+                upload_id=poison.upload_id if poison is not None else None,
+                sent_timestamp_ms=sent_timestamp_ms,
                 exc_info=True,
             )
-            failures.append(message_id)
+            if poison is None:
+                failures.append(message_id)
+            else:
+                poison_messages.append((poison, sent_timestamp_ms))
             continue
         messages.append((message_id, payload))
-    if not messages:
+        message_lag_ms.append(sent_timestamp_ms)
+    if not messages and not poison_messages:
         return {
             "batchItemFailures": [
                 {"itemIdentifier": message_id} for message_id in failures
             ]
         }
     async with workflow_services(settings=WorkflowSettings()) as services:
+        for lag_ms in message_lag_ms:
+            services.large_copy_service.observe_message_lag(
+                sent_timestamp_ms=lag_ms
+            )
+        for poison, lag_ms in poison_messages:
+            services.large_copy_service.observe_message_lag(
+                sent_timestamp_ms=lag_ms
+            )
+            services.large_copy_service.record_invalid_message(
+                terminalizable=True
+            )
+            await services.large_copy_service.terminalize_poison_message(
+                poison=poison
+            )
         failures.extend(
             await services.large_copy_service.process_message_batch(
                 messages=messages
@@ -320,3 +349,61 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
             for message_id in dict.fromkeys(failures)
         ]
     }
+
+
+def _poison_message_from_sqs_record(
+    record: dict[str, Any],
+) -> ExportCopyPoisonMessage | None:
+    message_attributes = cast(
+        dict[str, Any],
+        record.get("messageAttributes") or {},
+    )
+    export_id = _message_attribute_string(
+        message_attributes,
+        name="export_id",
+    )
+    upload_id = _message_attribute_string(
+        message_attributes,
+        name="upload_id",
+    )
+    part_number_value = _message_attribute_string(
+        message_attributes,
+        name="part_number",
+    )
+    if export_id is None or upload_id is None or part_number_value is None:
+        return None
+    try:
+        part_number = int(part_number_value)
+    except ValueError:
+        return None
+    if part_number < 1:
+        return None
+    return ExportCopyPoisonMessage(
+        export_id=export_id,
+        part_number=part_number,
+        upload_id=upload_id,
+    )
+
+
+def _message_attribute_string(
+    message_attributes: dict[str, Any],
+    *,
+    name: str,
+) -> str | None:
+    attribute = message_attributes.get(name)
+    if not isinstance(attribute, dict):
+        return None
+    value = attribute.get("stringValue")
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _worker_sent_timestamp_ms(record: dict[str, Any]) -> int | None:
+    attributes = cast(dict[str, Any], record.get("attributes") or {})
+    value = attributes.get("SentTimestamp")
+    if isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            return None
+        return parsed if parsed >= 0 else None
+    return None

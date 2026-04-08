@@ -18,6 +18,7 @@ from nova_file_api.export_copy_parts import (
     build_export_copy_part_repository,
 )
 from nova_file_api.export_copy_worker import (
+    ExportCopyPoisonMessage,
     ExportCopyPollResult,
     ExportCopyStrategy,
     ExportCopyTaskMessage,
@@ -56,6 +57,7 @@ __all__ = [
     "DynamoExportRepository",
     "DynamoResource",
     "ExportCopyPartsDynamoResource",
+    "ExportCopyPoisonMessage",
     "ExportCopyPollResult",
     "ExportCopyResult",
     "ExportCopyStrategy",
