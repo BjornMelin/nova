@@ -72,6 +72,13 @@ async def copy_export(
     file_transfer_bucket: str,
 ) -> ExportWorkflowInput:
     """Copy upload content to the export location and return workflow output."""
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    if export.status == ExportStatus.CANCELLED:
+        return workflow_input.model_copy(
+            update={"copy_progress_state": "cancelled"}
+        )
     await export_service.update_status(
         export_id=workflow_input.export_id,
         status=ExportStatus.COPYING,
@@ -85,6 +92,16 @@ async def copy_export(
         export_id=workflow_input.export_id,
         filename=workflow_input.filename,
     )
+    latest = await export_service.repository.get(workflow_input.export_id)
+    if latest is None:
+        raise LookupError("export not found")
+    if latest.status == ExportStatus.CANCELLED:
+        await transfer_service.delete_export_object(
+            export_key=export_result.export_key
+        )
+        return workflow_input.model_copy(
+            update={"copy_progress_state": "cancelled"}
+        )
     return workflow_input.model_copy(
         update={
             "output": WorkflowOutput.from_export_output(
@@ -256,6 +273,13 @@ async def finalize_export(
     export_service: WorkflowExportStateService,
 ) -> ExportWorkflowInput:
     """Persist the finalizing and succeeded states for the export."""
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    if export.status == ExportStatus.CANCELLED:
+        return workflow_input.model_copy(
+            update={"status": ExportStatus.CANCELLED}
+        )
     if workflow_input.output is None:
         raise ValueError("workflow output is required before finalization")
     output = workflow_input.output.to_export_output()
@@ -280,6 +304,13 @@ async def fail_export(
     export_service: WorkflowExportStateService,
 ) -> ExportWorkflowInput:
     """Persist workflow failure status and error detail."""
+    export = await export_service.repository.get(workflow_input.export_id)
+    if export is None:
+        raise LookupError("export not found")
+    if export.status == ExportStatus.CANCELLED:
+        return workflow_input.model_copy(
+            update={"status": ExportStatus.CANCELLED}
+        )
     await export_service.update_status(
         export_id=workflow_input.export_id,
         status=ExportStatus.FAILED,

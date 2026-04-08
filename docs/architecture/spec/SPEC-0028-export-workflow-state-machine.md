@@ -51,8 +51,13 @@ The workflow uses one of two internal copy lanes after validation:
 - no hidden worker-only failure channel
 - queued worker failures MUST become normal export workflow failures after
   retries or DLQ exhaustion
+- malformed queued-worker messages MUST carry enough internal metadata to mark
+  the active part or export terminal instead of retrying forever without a
+  durable export outcome
 - cancellation MUST stop the Step Functions execution and queued workers MUST
   check the export record before copying more parts
+- inline copy MUST perform a post-copy cancellation fence and delete the copied
+  export object before any success finalization path continues
 
 ## Query rules
 

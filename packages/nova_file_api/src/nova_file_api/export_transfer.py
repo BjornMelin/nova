@@ -68,6 +68,9 @@ class ExportTransferService(Protocol):
     ) -> ExportCopyResult:
         """Copy a scoped upload object into the export prefix."""
 
+    async def delete_export_object(self, *, export_key: str) -> None:
+        """Delete a copied export object after a cancelled inline copy."""
+
 
 class S3ExportTransferService:
     """S3-backed implementation of the workflow export-copy seam."""
@@ -149,6 +152,25 @@ class S3ExportTransferService:
             export_key=export_key,
             download_filename=download_filename,
         )
+
+    async def delete_export_object(self, *, export_key: str) -> None:
+        """Delete a copied export object from the export prefix."""
+        try:
+            await self._s3.delete_object(
+                Bucket=self.config.bucket,
+                Key=export_key,
+            )
+        except ClientError as exc:
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                return
+            raise RuntimeError(
+                "failed to delete cancelled export object"
+            ) from exc
+        except BotoCoreError as exc:
+            raise RuntimeError(
+                "failed to delete cancelled export object"
+            ) from exc
 
     async def _head_object(
         self,

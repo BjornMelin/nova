@@ -913,6 +913,10 @@ class NovaRuntimeStack(Stack):
             task.add_catch(workflow_failure, result_path="$.workflow_error")
 
         copy_strategy_choice = sfn.Choice(self, "SelectExportCopyLane")
+        inline_copy_progress_choice = sfn.Choice(
+            self,
+            "InlineExportCopyReady",
+        )
         queued_copy_progress_choice = sfn.Choice(
             self,
             "QueuedExportCopyReady",
@@ -977,8 +981,16 @@ class NovaRuntimeStack(Stack):
                         queued_copy_chain,
                     )
                     .otherwise(
-                        copy_task.next(finalize_inline_task).next(
-                            export_completed
+                        copy_task.next(
+                            inline_copy_progress_choice.when(
+                                sfn.Condition.string_equals(
+                                    "$.copy_progress_state",
+                                    "cancelled",
+                                ),
+                                export_cancelled,
+                            ).otherwise(
+                                finalize_inline_task.next(export_completed)
+                            )
                         )
                     )
                 )
