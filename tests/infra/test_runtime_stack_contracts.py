@@ -128,6 +128,15 @@ def _workflow_function_resources(
     }
 
 
+def _resource_tags(resource: dict[str, Any]) -> dict[str, str]:
+    """Return one resource's tag map from the synthesized template."""
+    return {
+        str(tag["Key"]): str(tag["Value"])
+        for tag in resource["Properties"].get("Tags", [])
+        if isinstance(tag, dict) and "Key" in tag and "Value" in tag
+    }
+
+
 def _definition_fragment(resources: dict[str, Any]) -> str:
     """Return the rendered Step Functions JSON fragment for assertions."""
     state_machines = _resources_of_type(
@@ -487,6 +496,26 @@ def test_runtime_stack_adds_transfer_reconciliation_and_cost_controls() -> None:
     ] == {"AccelerationStatus": "Enabled"}
     assert "ExportNovaStorageLensConfigurationId" in bundle.outputs
     assert "ExportNovaTransferSpendBudgetName" in bundle.outputs
+
+
+def test_runtime_stack_tags_release_support_managed_resources() -> None:
+    """Runtime resources should carry the ABAC tags used by release support."""
+    bundle = _build_bundle()
+
+    representative_types = {
+        "AWS::Lambda::Function",
+        "AWS::DynamoDB::Table",
+        "AWS::S3::Bucket",
+        "AWS::StepFunctions::StateMachine",
+        "AWS::Events::Rule",
+    }
+    for resource_type in representative_types:
+        resources = _resources_of_type(bundle.resources, resource_type)
+        assert resources
+        for resource in resources.values():
+            tags = _resource_tags(resource)
+            assert tags["Owner"] == "NOVA"
+            assert tags["NovaDeploymentEnvironment"] == "dev"
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:

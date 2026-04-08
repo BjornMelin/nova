@@ -60,6 +60,10 @@ should be removed after the AWS-native release path is verified.
    Omit `HOSTED_ZONE_ID` / `hosted_zone_id` only for release-control bootstrap.
    Redeploy the support stack with the hosted zone before using those default
    roles for runtime deploys that must manage the API alias record in Route 53.
+   The release buildspecs now fail closed when `NovaReleaseSupportStack` is the
+   canonical execution-role provider and the deployed support-stack template
+   drifts from the checked-in source, so stale support-stack IAM is no longer
+   tolerated during release.
 
    ```bash
    npx aws-cdk@2.1117.0 deploy NovaReleaseSupportStack \
@@ -107,3 +111,6 @@ should be removed after the AWS-native release path is verified.
 4. The CloudFormation execution roles are trusted only by CloudFormation and
    own the Route 53/API Gateway/WAF/Lambda/Step Functions/AppConfig/SNS/SQS/
    budgets mutations for the runtime stacks.
+5. When `NovaReleaseSupportStack` owns the default execution roles, a release
+   fails before runtime deploy if the support stack is not redeployed to match
+   the current repo template.

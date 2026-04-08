@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from aws_cdk import App, Environment
 from aws_cdk.assertions import Template
 
@@ -32,6 +33,7 @@ def _context() -> dict[str, str]:
         "dev_runtime_config_parameter_name": (
             "/nova/release/runtime-config/dev"
         ),
+        "release_support_stack_id": "NovaReleaseSupportStack",
         "prod_runtime_stack_id": "NovaRuntimeProdStack",
         "prod_runtime_cfn_execution_role_arn": (
             "arn:aws:iam::111111111111:role/nova-prod-cfn"
@@ -43,14 +45,20 @@ def _context() -> dict[str, str]:
     }
 
 
-def _template() -> Template:
-    app = App(context=_context())
+def _template(context: dict[str, str] | None = None) -> Template:
+    app = App(context=_context() if context is None else context)
     stack = NovaReleaseControlPlaneStack(
         app,
         "ReleaseControlContractStack",
         env=Environment(account="111111111111", region="us-east-1"),
     )
     return Template.from_stack(stack)
+
+
+def test_release_control_stack_preserves_empty_context() -> None:
+    """An explicit empty context must not fall back to the default fixture."""
+    with pytest.raises(ValueError):
+        _template(context={})
 
 
 def test_release_control_plane_stack_synthesizes_required_resources() -> None:
@@ -125,6 +133,9 @@ def test_release_control_stack_receives_release_env_contract() -> None:
         "PROD_RUNTIME_STACK_ID",
         "DEV_RUNTIME_CONFIG_PARAMETER_NAME",
         "PROD_RUNTIME_CONFIG_PARAMETER_NAME",
+        "DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+        "PROD_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+        "RELEASE_SUPPORT_STACK_ID",
         "RELEASE_SIGNING_SECRET_ID",
     ]:
         assert required in env_var_names
@@ -202,3 +213,43 @@ def test_release_control_stack_scopes_dev_and_prod_permissions() -> None:
     assert "nova-dev-cfn" not in prod_policy_text
     assert "parameter/cdk-bootstrap/hnb659fds/version" in dev_policy_text
     assert "parameter/cdk-bootstrap/hnb659fds/version" in prod_policy_text
+    assert "stack/NovaReleaseSupportStack/" in dev_policy_text
+    assert "stack/NovaReleaseSupportStack/" in prod_policy_text
+
+
+def test_release_control_stack_omits_support_stack_contract() -> None:
+    context = _context()
+    context.pop("release_support_stack_id")
+    template = _template(context=context).to_json()
+    projects = resources_of_type(
+        template["Resources"], "AWS::CodeBuild::Project"
+    )
+    env_var_names = {
+        str(environment_variable.get("Name"))
+        for project in projects.values()
+        for environment_variable in project["Properties"]
+        .get("Environment", {})
+        .get("EnvironmentVariables", [])
+        if isinstance(environment_variable, dict)
+        and "Name" in environment_variable
+    }
+    assert "RELEASE_SUPPORT_STACK_ID" not in env_var_names
+
+    policies = resources_of_type(template["Resources"], "AWS::IAM::Policy")
+    dev_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PublishAndDeployDevProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    prod_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PromoteAndDeployProdProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    dev_policy_text = str(dev_role_policy["Properties"]["PolicyDocument"])
+    prod_policy_text = str(prod_role_policy["Properties"]["PolicyDocument"])
+
+    assert "stack/NovaReleaseSupportStack/" not in dev_policy_text
+    assert "stack/NovaReleaseSupportStack/" not in prod_policy_text

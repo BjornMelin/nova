@@ -142,6 +142,11 @@ uv run --package nova-cdk python app.py
   hosted-zone permissions until the support stack is redeployed with
   `HOSTED_ZONE_ID` / `hosted_zone_id`, or until explicit equivalent execution
   role ARNs are supplied to the release control plane.
+- When `NovaReleaseSupportStack` is the canonical execution-role provider, the
+  dev and prod release buildspecs now synthesize the support stack from the
+  current repo and fail closed if the deployed support stack template drifts.
+  A runtime release is no longer allowed to proceed with stale support-stack
+  IAM or role wiring.
 - Runtime-only synth/diff/deploy must not require release-control inputs.
   If `RELEASE_CONNECTION_ARN` is absent, the CDK app should synthesize only
   the runtime stack path even when runtime deploy artifacts and runtime stack
@@ -150,10 +155,11 @@ uv run --package nova-cdk python app.py
   - one CloudFormation execution role for the dev runtime stack
   - one CloudFormation execution role for the prod runtime stack
   - both roles are trusted only by `cloudformation.amazonaws.com`
-  - both roles attach a curated runtime-service policy set (CloudFormation,
-    API Gateway, Lambda, Step Functions, DynamoDB, S3, SNS, SQS, AppConfig,
-    budgets, CloudWatch, Route 53, logs, EventBridge, WAF) plus scoped IAM
-    role-management actions for Nova runtime roles
+  - both roles attach Nova-owned inline least-privilege statements for the
+    runtime resource surface (API Gateway, Lambda, Step Functions, DynamoDB,
+    S3, SNS, SQS, AppConfig, budgets, CloudWatch, Route 53, logs,
+    EventBridge, WAF) plus scoped IAM role-management actions for Nova runtime
+    roles; they no longer inherit AWS-managed full-access policies
   - if `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
     `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` are both provided explicitly, the app
     skips `NovaReleaseSupportStack` and uses those role ARNs directly

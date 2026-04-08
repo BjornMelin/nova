@@ -13,12 +13,17 @@ from .runtime_naming import (
     APPCONFIG_ENVIRONMENT_TAG_KEY,
     APPCONFIG_MANAGED_BY_TAG_KEY,
     APPCONFIG_MANAGED_BY_TAG_VALUE,
+    RESOURCE_ENVIRONMENT_TAG_KEY,
+    RESOURCE_OWNER_TAG_KEY,
+    RESOURCE_OWNER_TAG_VALUE,
     export_copy_worker_dlq_name,
     export_copy_worker_queue_name,
+    export_workflow_log_group_name,
     observability_dashboard_name,
     runtime_alarm_names,
     transfer_spend_budget_name,
 )
+from .runtime_release_manifest import API_FUNCTION, WORKFLOW_FUNCTIONS
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
@@ -27,6 +32,123 @@ def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
         return None
     value = str(raw).strip()
     return value or None
+
+
+def _create_request_tag_conditions(
+    *,
+    deployment_environment: str,
+) -> dict[str, Any]:
+    return {
+        "StringEquals": {
+            (
+                f"aws:RequestTag/{RESOURCE_OWNER_TAG_KEY}"
+            ): RESOURCE_OWNER_TAG_VALUE,
+            (
+                f"aws:RequestTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
+            ): deployment_environment,
+        },
+        "ForAllValues:StringEquals": {
+            "aws:TagKeys": [
+                RESOURCE_OWNER_TAG_KEY,
+                RESOURCE_ENVIRONMENT_TAG_KEY,
+            ]
+        },
+    }
+
+
+def _resource_tag_conditions(
+    *,
+    deployment_environment: str,
+) -> dict[str, Any]:
+    return {
+        "StringEquals": {
+            (
+                f"aws:ResourceTag/{RESOURCE_OWNER_TAG_KEY}"
+            ): RESOURCE_OWNER_TAG_VALUE,
+            (
+                f"aws:ResourceTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
+            ): deployment_environment,
+        }
+    }
+
+
+def _runtime_lambda_function_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard Lambda ARNs for the runtime stack in this account."""
+    base_arn = f"arn:{partition}:lambda:{region}:{account}:function:*"
+    return [base_arn, f"{base_arn}:*"]
+
+
+def _runtime_state_machine_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard Step Functions ARNs."""
+    base_arn = f"arn:{partition}:states:{region}:{account}:stateMachine:*"
+    return [base_arn, f"{base_arn}:*"]
+
+
+def _runtime_dynamodb_table_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard DynamoDB table ARNs for runtime-managed tables."""
+    return [f"arn:{partition}:dynamodb:{region}:{account}:table/*"]
+
+
+def _runtime_s3_bucket_arns(*, partition: str) -> list[str]:
+    """Return wildcard S3 bucket ARNs for runtime-managed buckets."""
+    return [f"arn:{partition}:s3:::*", f"arn:{partition}:s3:::*/*"]
+
+
+def _runtime_logs_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+    deployment_environment: str,
+) -> list[str]:
+    """Return deterministic CloudWatch Logs ARNs for runtime log groups."""
+    log_group_names = [
+        f"{API_FUNCTION.function_name}Logs",
+        *(f"{authority.function_name}Logs" for authority in WORKFLOW_FUNCTIONS),
+        export_workflow_log_group_name(deployment_environment),
+    ]
+    return [
+        (
+            f"arn:{partition}:logs:{region}:{account}:log-group:"
+            f"{log_group_name}:*"
+        )
+        for log_group_name in log_group_names
+    ]
+
+
+def _runtime_events_rule_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard EventBridge rule ARNs for runtime-managed rules."""
+    return [f"arn:{partition}:events:{region}:{account}:rule/*"]
+
+
+def _runtime_wafv2_web_acl_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard WAFv2 Web ACL ARNs for runtime-managed web ACLs."""
+    return [f"arn:{partition}:wafv2:{region}:{account}:regional/webacl/*/*"]
 
 
 @dataclass(frozen=True)
@@ -174,35 +296,44 @@ class NovaReleaseSupportStack(Stack):
                 "CloudFormation execution role for Nova runtime stack "
                 "deployments driven by the release control plane."
             ),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSCloudFormationFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonAPIGatewayAdministrator"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSLambda_FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSStepFunctionsFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonDynamoDBFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonS3FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchLogsFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonEventBridgeFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSWAFFullAccess"
-                ),
-            ],
+        )
+        lambda_function_arns = _runtime_lambda_function_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        state_machine_arns = _runtime_state_machine_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        dynamodb_table_arns = _runtime_dynamodb_table_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        s3_bucket_arns = _runtime_s3_bucket_arns(partition=self.partition)
+        log_group_arns = _runtime_logs_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+            deployment_environment=deployment_environment,
+        )
+        event_rule_arns = _runtime_events_rule_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        waf_web_acl_arns = _runtime_wafv2_web_acl_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        request_tag_conditions = _create_request_tag_conditions(
+            deployment_environment=deployment_environment
+        )
+        resource_tag_conditions = _resource_tag_conditions(
+            deployment_environment=deployment_environment
         )
         role.add_to_policy(
             iam.PolicyStatement(
@@ -226,6 +357,215 @@ class NovaReleaseSupportStack(Stack):
                     f"arn:{self.partition}:iam::{self.account}:role/Nova*",
                     f"arn:{self.partition}:iam::{self.account}:role/nova-*",
                 ],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "apigateway:DELETE",
+                    "apigateway:GET",
+                    "apigateway:PATCH",
+                    "apigateway:POST",
+                    "apigateway:PUT",
+                    "apigateway:TagResource",
+                    "apigateway:UntagResource",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:CreateEventSourceMapping",
+                ],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:AddPermission",
+                    "lambda:DeleteFunction",
+                    "lambda:DeleteFunctionConcurrency",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConfiguration",
+                    "lambda:ListTags",
+                    "lambda:PublishVersion",
+                    "lambda:PutFunctionConcurrency",
+                    "lambda:RemovePermission",
+                    "lambda:TagResource",
+                    "lambda:UntagResource",
+                    "lambda:UpdateFunctionCode",
+                    "lambda:UpdateFunctionConfiguration",
+                ],
+                resources=lambda_function_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:CreateFunction",
+                ],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "states:DeleteStateMachine",
+                    "states:DescribeStateMachine",
+                    "states:ListTagsForResource",
+                    "states:PublishStateMachineVersion",
+                    "states:TagResource",
+                    "states:UntagResource",
+                    "states:UpdateStateMachine",
+                ],
+                resources=state_machine_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["states:CreateStateMachine"],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:DeleteTable",
+                    "dynamodb:DescribeContinuousBackups",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:DescribeTimeToLive",
+                    "dynamodb:TagResource",
+                    "dynamodb:UntagResource",
+                    "dynamodb:UpdateContinuousBackups",
+                    "dynamodb:UpdateTable",
+                    "dynamodb:UpdateTimeToLive",
+                ],
+                resources=dynamodb_table_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["dynamodb:CreateTable"],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "s3:DeleteBucket",
+                    "s3:DeleteBucketTagging",
+                    "s3:DeleteStorageLensConfiguration",
+                    "s3:GetAccelerateConfiguration",
+                    "s3:GetBucketCors",
+                    "s3:GetBucketEncryption",
+                    "s3:GetBucketLifecycleConfiguration",
+                    "s3:GetBucketNotification",
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:GetBucketTagging",
+                    "s3:GetBucketVersioning",
+                    "s3:GetStorageLensConfiguration",
+                    "s3:GetStorageLensConfigurationTagging",
+                    "s3:PutAccelerateConfiguration",
+                    "s3:PutBucketCors",
+                    "s3:PutBucketEncryption",
+                    "s3:PutBucketLifecycleConfiguration",
+                    "s3:PutBucketNotification",
+                    "s3:PutBucketPublicAccessBlock",
+                    "s3:PutBucketTagging",
+                    "s3:PutBucketVersioning",
+                    "s3:PutStorageLensConfiguration",
+                    "s3:PutStorageLensConfigurationTagging",
+                ],
+                resources=s3_bucket_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:CreateBucket"],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:DeleteLogGroup",
+                    "logs:DeleteRetentionPolicy",
+                    "logs:DescribeLogGroups",
+                    "logs:PutRetentionPolicy",
+                    "logs:TagResource",
+                    "logs:UntagResource",
+                ],
+                resources=log_group_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["logs:CreateLogGroup"],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "events:DeleteRule",
+                    "events:DescribeRule",
+                    "events:DisableRule",
+                    "events:EnableRule",
+                    "events:ListTargetsByRule",
+                    "events:PutTargets",
+                    "events:RemoveTargets",
+                    "events:TagResource",
+                    "events:UntagResource",
+                ],
+                resources=event_rule_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["events:PutRule"],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wafv2:AssociateWebACL",
+                    "wafv2:DeleteLoggingConfiguration",
+                    "wafv2:DeleteWebACL",
+                    "wafv2:DisassociateWebACL",
+                    "wafv2:GetLoggingConfiguration",
+                    "wafv2:GetWebACL",
+                    "wafv2:ListResourcesForWebACL",
+                    "wafv2:ListTagsForResource",
+                    "wafv2:PutLoggingConfiguration",
+                    "wafv2:TagResource",
+                    "wafv2:UntagResource",
+                    "wafv2:UpdateWebACL",
+                ],
+                resources=waf_web_acl_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["wafv2:CreateWebACL"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
@@ -272,13 +612,21 @@ class NovaReleaseSupportStack(Stack):
                             f"aws:RequestTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
                         ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
+                            f"aws:RequestTag/{RESOURCE_OWNER_TAG_KEY}"
+                        ): RESOURCE_OWNER_TAG_VALUE,
+                        (
                             f"aws:RequestTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                        ): deployment_environment,
+                        (
+                            f"aws:RequestTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     },
                     "ForAllValues:StringEquals": {
                         "aws:TagKeys": [
                             APPCONFIG_MANAGED_BY_TAG_KEY,
+                            RESOURCE_OWNER_TAG_KEY,
                             APPCONFIG_ENVIRONMENT_TAG_KEY,
+                            RESOURCE_ENVIRONMENT_TAG_KEY,
                         ]
                     },
                 },
@@ -308,7 +656,13 @@ class NovaReleaseSupportStack(Stack):
                             f"aws:ResourceTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
                         ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
+                            f"aws:ResourceTag/{RESOURCE_OWNER_TAG_KEY}"
+                        ): RESOURCE_OWNER_TAG_VALUE,
+                        (
                             f"aws:ResourceTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                        ): deployment_environment,
+                        (
+                            f"aws:ResourceTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     }
                 },

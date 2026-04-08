@@ -30,7 +30,8 @@ provenance-bound runtime validation.
 2. The `NovaReleaseControlPlaneStack` is deployed in the target AWS account.
 3. Either:
    - `NovaReleaseSupportStack` is deployed in the same account and provides the
-     canonical dev/prod CloudFormation execution roles, or
+     canonical dev/prod CloudFormation execution roles and matches the current
+     checked-in support-stack template, or
    - explicit `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
      `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` values are supplied to the release
      control plane.
@@ -102,6 +103,9 @@ executor workflows as the canonical Nova verification shape.
    and wired those role outputs into the pipeline environment.
 4. Confirm the dev stage:
    - validates `release/RELEASE-PREP.json`
+   - when `NovaReleaseSupportStack` is the canonical execution-role provider,
+     synthesizes the support stack from the current repo plus runtime-config
+     inputs and fails closed if the deployed support stack has drifted
    - publishes only to `CODEARTIFACT_STAGING_REPOSITORY`
    - builds the immutable API Lambda zip
    - builds the immutable workflow Lambda zip
@@ -110,6 +114,8 @@ executor workflows as the canonical Nova verification shape.
    - deploys the runtime from that exact artifact identity
 5. Confirm the prod stage:
    - reuses the stored release execution manifest
+   - repeats the support-stack drift gate before the prod runtime deploy when
+     the canonical execution-role path still uses `NovaReleaseSupportStack`
    - promotes staged packages to `CODEARTIFACT_PROD_REPOSITORY`
    - deploys the runtime from the exact approved artifact coordinates
    - may temporarily deploy `allowed_origins=["*"]` for the first production

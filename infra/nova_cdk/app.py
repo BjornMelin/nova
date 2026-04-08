@@ -105,14 +105,17 @@ def main() -> None:
         )
 
     if release_control_requested:
-        dev_runtime_cfn_execution_role_arn = context_or_env_value(
+        dev_role_provided = context_or_env_value(
             "dev_runtime_cfn_execution_role_arn",
             "DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN",
         )
-        prod_runtime_cfn_execution_role_arn = context_or_env_value(
+        prod_role_provided = context_or_env_value(
             "prod_runtime_cfn_execution_role_arn",
             "PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN",
         )
+        release_support_stack_id: str | None = None
+        dev_runtime_cfn_execution_role_arn = dev_role_provided
+        prod_runtime_cfn_execution_role_arn = prod_role_provided
         if (
             not dev_runtime_cfn_execution_role_arn
             or not prod_runtime_cfn_execution_role_arn
@@ -125,6 +128,8 @@ def main() -> None:
                     region=region,
                 ),
             )
+            if not dev_role_provided and not prod_role_provided:
+                release_support_stack_id = release_support_stack.stack_name
             dev_runtime_cfn_execution_role_arn = (
                 dev_runtime_cfn_execution_role_arn
                 or release_support_stack.dev_cfn_execution_role.role_arn
@@ -140,6 +145,7 @@ def main() -> None:
                 app,
                 dev_cfn_execution_role_arn=dev_runtime_cfn_execution_role_arn,
                 prod_cfn_execution_role_arn=prod_runtime_cfn_execution_role_arn,
+                support_stack_id=release_support_stack_id,
             ),
             env=Environment(
                 account=account,

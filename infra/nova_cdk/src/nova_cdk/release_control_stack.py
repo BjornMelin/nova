@@ -69,6 +69,12 @@ class ReleaseControlInputs:
     dev: ReleaseEnvironmentConfig
     prod: ReleaseEnvironmentConfig
     approval_email: str | None
+    support_stack_id: str | None
+
+
+def _role_name_from_arn(role_arn: str) -> str:
+    """Return the IAM role name portion of one role ARN."""
+    return role_arn.rsplit("/", maxsplit=1)[-1]
 
 
 def _load_environment_config(
@@ -110,6 +116,7 @@ def load_release_control_inputs(
     *,
     dev_cfn_execution_role_arn: str | None = None,
     prod_cfn_execution_role_arn: str | None = None,
+    support_stack_id: str | None = None,
 ) -> ReleaseControlInputs:
     """Resolve required stack inputs from CDK context or environment.
 
@@ -119,6 +126,9 @@ def load_release_control_inputs(
             CloudFormation execution role ARN.
         prod_cfn_execution_role_arn: Optional override for the prod runtime
             CloudFormation execution role ARN.
+        support_stack_id: Optional override for the canonical support-stack id
+            when the release control plane should fail closed on support-stack
+            drift before runtime deploys.
 
     Returns:
         Parsed release control-plane input contract.
@@ -183,6 +193,12 @@ def load_release_control_inputs(
             scope,
             key="release_approval_email",
             env_var="RELEASE_APPROVAL_EMAIL",
+        ),
+        support_stack_id=support_stack_id
+        or _optional_value(
+            scope,
+            key="release_support_stack_id",
+            env_var="RELEASE_SUPPORT_STACK_ID",
         ),
     )
 
@@ -509,7 +525,15 @@ class NovaReleaseControlPlaneStack(Stack):
             "RELEASE_ARTIFACT_BUCKET": _env(release_artifact_bucket),
             "RELEASE_MANIFEST_BUCKET": _env(release_manifest_bucket),
             "RELEASE_PIPELINE_NAME": _env(_PIPELINE_NAME),
+            "DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME": _env(
+                _role_name_from_arn(inputs.dev.cfn_execution_role_arn)
+            ),
+            "PROD_RUNTIME_CFN_EXECUTION_ROLE_NAME": _env(
+                _role_name_from_arn(inputs.prod.cfn_execution_role_arn)
+            ),
         }
+        if inputs.support_stack_id is not None:
+            env_vars["RELEASE_SUPPORT_STACK_ID"] = _env(inputs.support_stack_id)
         if include_prod_repository:
             env_vars["CODEARTIFACT_PROD_REPOSITORY"] = _env(
                 inputs.codeartifact_prod_repository
@@ -699,6 +723,16 @@ class NovaReleaseControlPlaneStack(Stack):
                     (
                         f"arn:{self.partition}:cloudformation:{self.region}:"
                         f"{self.account}:stack/{runtime_config.stack_id}/*"
+                    ),
+                    *(
+                        [
+                            (
+                                f"arn:{self.partition}:cloudformation:{self.region}:"
+                                f"{self.account}:stack/{inputs.support_stack_id}/*"
+                            )
+                        ]
+                        if inputs.support_stack_id is not None
+                        else []
                     ),
                     (
                         f"arn:{self.partition}:cloudformation:{self.region}:"

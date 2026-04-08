@@ -41,6 +41,9 @@ roles, and the optional read-only GitHub validation surface.
    runtime-deploy permissions.
 5. `NovaReleaseSupportStack` is the canonical provider of the default dev/prod
    CloudFormation execution roles unless explicit equivalent ARNs are supplied.
+6. When `NovaReleaseSupportStack` is the canonical execution-role provider, the
+   release stages must fail closed if the deployed support-stack template drifts
+   from the checked-in source used to build the runtime release.
 
 ## 4. CI/CD least-privilege matrix
 
@@ -51,6 +54,7 @@ roles, and the optional read-only GitHub validation surface.
 | `secretsmanager:GetSecretValue` | CodeBuild release role | Signing secret ARN scope only |
 | `ssm:GetParameter` | CodeBuild release role | Runtime-config parameter ARN scope only |
 | `cloudformation:CreateChangeSet`, `ExecuteChangeSet`, `Describe*`, `DeleteChangeSet`, `GetTemplate*` | CodeBuild release role | Runtime stack-name scope only |
+| `cloudformation:GetTemplate` for `NovaReleaseSupportStack` | CodeBuild release role | Read-only support-stack drift gate when the support stack owns the canonical execution roles |
 | `iam:PassRole` for CloudFormation execution roles | CodeBuild release role | Exact ARN allowlist + `iam:PassedToService=cloudformation.amazonaws.com` |
 | `codepipeline:PutApprovalResult` | Approved promotion actor | Manual approval stage/action scope |
 | `ssm:GetParameters` for `/cdk-bootstrap/<qualifier>/version` | CloudFormation execution roles only | Bootstrap version parameter ARN scope only |
@@ -59,7 +63,7 @@ roles, and the optional read-only GitHub validation surface.
 | CloudWatch alarm/dashboard mutation during deploy | CloudFormation execution roles only | Named Nova alarm/dashboard ARN scope only; list/read actions may remain `*` when AWS requires it |
 | SNS and SQS mutation during deploy | CloudFormation execution roles only | Named Nova topic/queue ARN scope only |
 | Budget mutation during deploy | CloudFormation execution roles only | Named Nova budget ARN scope only |
-| Resource mutation during deploy | CloudFormation execution roles only | Environment stack scope only |
+| Runtime resource mutation during deploy | CloudFormation execution roles only | Explicit service-action allowlists; wildcard resources remain only where AWS create/list semantics do not support tighter scoping |
 | Read-only release/runtime evidence access | Optional read-only validation role | No mutation or approval actions |
 
 ## 5. Test and enforcement contract
