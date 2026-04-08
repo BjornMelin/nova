@@ -14,13 +14,18 @@ import boto3
 import yaml
 from aws_cdk import App, Environment
 from aws_cdk.assertions import Template
+from botocore.exceptions import ClientError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "infra" / "nova_cdk" / "src"
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments."""
+    """Parse CLI arguments.
+
+    Returns:
+        The parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--account", required=True)
     parser.add_argument("--dev-role-name", required=True)
@@ -62,12 +67,22 @@ def _expected_template(args: argparse.Namespace) -> dict[str, Any]:
 def _deployed_template(args: argparse.Namespace) -> dict[str, Any]:
     """Load the current support-stack template from CloudFormation."""
     client = boto3.client("cloudformation", region_name=args.region)
-    response = client.get_template(
-        StackName=args.stack_name,
-        TemplateStage="Original",
-    )
+    try:
+        response = client.get_template(
+            StackName=args.stack_name,
+            TemplateStage="Original",
+        )
+    except ClientError as exc:
+        raise RuntimeError(
+            f"failed to load deployed support stack {args.stack_name}"
+        ) from exc
     body = response["TemplateBody"]
-    payload = yaml.safe_load(body) if isinstance(body, str) else body
+    try:
+        payload = yaml.safe_load(body) if isinstance(body, str) else body
+    except yaml.YAMLError as exc:
+        raise ValueError(
+            f"failed to parse deployed support stack {args.stack_name}"
+        ) from exc
     if not isinstance(payload, dict):
         raise TypeError(
             "deployed support-stack template did not decode to an object"
@@ -99,10 +114,21 @@ def _diff_text(expected: dict[str, Any], actual: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    """Compare the deployed support-stack template to the current source."""
+    """Compare the deployed support-stack template to the current source.
+
+    Returns:
+        Zero when the deployed template matches source, otherwise one.
+    """
     args = parse_args()
     expected = _expected_template(args)
-    actual = _deployed_template(args)
+    try:
+        actual = _deployed_template(args)
+    except (ClientError, RuntimeError, TypeError, ValueError) as exc:
+        print(
+            f"Failed to load deployed release-support stack: {exc}",
+            file=sys.stderr,
+        )
+        return 1
     if actual == expected:
         print(
             "Release-support stack matches the current repo template:",

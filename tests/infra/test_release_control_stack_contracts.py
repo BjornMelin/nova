@@ -44,8 +44,8 @@ def _context() -> dict[str, str]:
     }
 
 
-def _template() -> Template:
-    app = App(context=_context())
+def _template(context: dict[str, str] | None = None) -> Template:
+    app = App(context=context or _context())
     stack = NovaReleaseControlPlaneStack(
         app,
         "ReleaseControlContractStack",
@@ -208,3 +208,41 @@ def test_release_control_stack_scopes_dev_and_prod_permissions() -> None:
     assert "parameter/cdk-bootstrap/hnb659fds/version" in prod_policy_text
     assert "stack/NovaReleaseSupportStack/" in dev_policy_text
     assert "stack/NovaReleaseSupportStack/" in prod_policy_text
+
+
+def test_release_control_stack_omits_support_stack_contract() -> None:
+    context = _context()
+    context.pop("release_support_stack_id")
+    template = _template(context=context).to_json()
+    projects = resources_of_type(
+        template["Resources"], "AWS::CodeBuild::Project"
+    )
+    env_var_names = {
+        str(environment_variable.get("Name"))
+        for project in projects.values()
+        for environment_variable in project["Properties"]
+        .get("Environment", {})
+        .get("EnvironmentVariables", [])
+        if isinstance(environment_variable, dict)
+        and "Name" in environment_variable
+    }
+    assert "RELEASE_SUPPORT_STACK_ID" not in env_var_names
+
+    policies = resources_of_type(template["Resources"], "AWS::IAM::Policy")
+    dev_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PublishAndDeployDevProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    prod_role_policy = next(
+        policy
+        for policy in policies.values()
+        if "PromoteAndDeployProdProjectRole"
+        in str(policy["Properties"].get("Roles", []))
+    )
+    dev_policy_text = str(dev_role_policy["Properties"]["PolicyDocument"])
+    prod_policy_text = str(prod_role_policy["Properties"]["PolicyDocument"])
+
+    assert "stack/NovaReleaseSupportStack/" not in dev_policy_text
+    assert "stack/NovaReleaseSupportStack/" not in prod_policy_text

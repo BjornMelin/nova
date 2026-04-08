@@ -92,6 +92,14 @@ def test_release_buildspecs_fail_closed_on_support_stack_drift() -> None:
             "HOSTED_ZONE_ID",
         ]:
             assert required in text, rel_path
+        assert 'if [ -n "${RELEASE_SUPPORT_STACK_ID:-}" ]; then' in text, (
+            rel_path
+        )
+        verifier_pos = text.find("scripts.release.verify_release_support_stack")
+        deploy_pos = text.find("npx aws-cdk@2.1117.0 deploy")
+        assert verifier_pos != -1, rel_path
+        assert deploy_pos != -1, rel_path
+        assert verifier_pos < deploy_pos, rel_path
 
 
 def test_release_buildspecs_pin_uv_version() -> None:

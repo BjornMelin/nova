@@ -19,7 +19,6 @@ from .runtime_naming import (
     runtime_alarm_names,
     transfer_spend_budget_name,
 )
-from .runtime_release_manifest import API_FUNCTION, WORKFLOW_FUNCTIONS
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
@@ -36,16 +35,66 @@ def _runtime_lambda_function_arns(
     partition: str,
     region: str,
 ) -> list[str]:
-    """Return the deployed Nova Lambda function and version ARNs."""
-    authorities = (API_FUNCTION, *WORKFLOW_FUNCTIONS)
-    arns: list[str] = []
-    for authority in authorities:
-        base_arn = (
-            f"arn:{partition}:lambda:{region}:{account}:function:"
-            f"{authority.function_name}"
-        )
-        arns.extend([base_arn, f"{base_arn}:*"])
-    return arns
+    """Return wildcard Lambda ARNs for the runtime stack in this account."""
+    base_arn = f"arn:{partition}:lambda:{region}:{account}:function:*"
+    return [base_arn, f"{base_arn}:*"]
+
+
+def _runtime_state_machine_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard Step Functions ARNs."""
+    base_arn = f"arn:{partition}:states:{region}:{account}:stateMachine:*"
+    return [base_arn, f"{base_arn}:*"]
+
+
+def _runtime_dynamodb_table_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard DynamoDB table ARNs for runtime-managed tables."""
+    return [f"arn:{partition}:dynamodb:{region}:{account}:table/*"]
+
+
+def _runtime_s3_bucket_arns(*, partition: str) -> list[str]:
+    """Return wildcard S3 bucket ARNs for runtime-managed buckets."""
+    return [f"arn:{partition}:s3:::*", f"arn:{partition}:s3:::*/*"]
+
+
+def _runtime_logs_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard CloudWatch Logs ARNs for runtime-managed log groups."""
+    base_arn = f"arn:{partition}:logs:{region}:{account}:log-group:*"
+    return [base_arn, f"{base_arn}:*"]
+
+
+def _runtime_events_rule_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard EventBridge rule ARNs for runtime-managed rules."""
+    return [f"arn:{partition}:events:{region}:{account}:rule/*"]
+
+
+def _runtime_wafv2_web_acl_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return wildcard WAFv2 Web ACL ARNs for runtime-managed web ACLs."""
+    return [f"arn:{partition}:wafv2:{region}:{account}:regional/webacl/*/*"]
 
 
 @dataclass(frozen=True)
@@ -199,6 +248,32 @@ class NovaReleaseSupportStack(Stack):
             partition=self.partition,
             region=self.region,
         )
+        state_machine_arns = _runtime_state_machine_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        dynamodb_table_arns = _runtime_dynamodb_table_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        s3_bucket_arns = _runtime_s3_bucket_arns(partition=self.partition)
+        log_group_arns = _runtime_logs_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        event_rule_arns = _runtime_events_rule_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
+        waf_web_acl_arns = _runtime_wafv2_web_acl_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
+        )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
@@ -282,7 +357,7 @@ class NovaReleaseSupportStack(Stack):
                     "states:UntagResource",
                     "states:UpdateStateMachine",
                 ],
-                resources=["*"],
+                resources=state_machine_arns,
             )
         )
         role.add_to_policy(
@@ -299,7 +374,7 @@ class NovaReleaseSupportStack(Stack):
                     "dynamodb:UpdateTable",
                     "dynamodb:UpdateTimeToLive",
                 ],
-                resources=["*"],
+                resources=dynamodb_table_arns,
             )
         )
         role.add_to_policy(
@@ -330,7 +405,7 @@ class NovaReleaseSupportStack(Stack):
                     "s3:PutStorageLensConfiguration",
                     "s3:PutStorageLensConfigurationTagging",
                 ],
-                resources=["*"],
+                resources=s3_bucket_arns,
             )
         )
         role.add_to_policy(
@@ -344,7 +419,7 @@ class NovaReleaseSupportStack(Stack):
                     "logs:TagResource",
                     "logs:UntagResource",
                 ],
-                resources=["*"],
+                resources=log_group_arns,
             )
         )
         role.add_to_policy(
@@ -361,7 +436,7 @@ class NovaReleaseSupportStack(Stack):
                     "events:TagResource",
                     "events:UntagResource",
                 ],
-                resources=["*"],
+                resources=event_rule_arns,
             )
         )
         role.add_to_policy(
@@ -381,7 +456,7 @@ class NovaReleaseSupportStack(Stack):
                     "wafv2:UntagResource",
                     "wafv2:UpdateWebACL",
                 ],
-                resources=["*"],
+                resources=waf_web_acl_arns,
             )
         )
         role.add_to_policy(
