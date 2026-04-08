@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Regional REST API ingress for the canonical Nova runtime."""
 
 from __future__ import annotations

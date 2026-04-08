@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Contract tests for the AWS-native Nova release control-plane stack."""
 
 from __future__ import annotations

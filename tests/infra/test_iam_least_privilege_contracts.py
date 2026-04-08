@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Least-privilege contract tests for workflow task IAM."""
 
 from __future__ import annotations

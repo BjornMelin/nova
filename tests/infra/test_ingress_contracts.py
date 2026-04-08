@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Contract tests for the canonical Nova ingress."""
 
 from __future__ import annotations
