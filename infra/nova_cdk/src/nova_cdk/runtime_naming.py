@@ -135,6 +135,11 @@ def observability_dashboard_name(deployment_environment: str) -> str:
     return f"nova-runtime-observability-{deployment_environment}"
 
 
+def export_workflow_log_group_name(deployment_environment: str) -> str:
+    """Return the workflow state machine CloudWatch Logs group."""
+    return f"nova-export-workflow-{deployment_environment}"
+
+
 def transfer_spend_budget_name(deployment_environment: str) -> str:
     """Return the stable transfer budget name."""
     return f"nova-transfer-{deployment_environment}"

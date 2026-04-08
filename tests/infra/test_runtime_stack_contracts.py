@@ -512,10 +512,10 @@ def test_runtime_stack_tags_release_support_managed_resources() -> None:
     for resource_type in representative_types:
         resources = _resources_of_type(bundle.resources, resource_type)
         assert resources
-        resource = next(iter(resources.values()))
-        tags = _resource_tags(resource)
-        assert tags["Owner"] == "NOVA"
-        assert tags["NovaDeploymentEnvironment"] == "dev"
+        for resource in resources.values():
+            tags = _resource_tags(resource)
+            assert tags["Owner"] == "NOVA"
+            assert tags["NovaDeploymentEnvironment"] == "dev"
 
 
 def test_non_prod_can_disable_reserved_concurrency() -> None:

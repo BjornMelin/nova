@@ -18,6 +18,7 @@ from .runtime_naming import (
     RESOURCE_OWNER_TAG_VALUE,
     export_copy_worker_dlq_name,
     export_copy_worker_queue_name,
+    export_workflow_log_group_name,
     observability_dashboard_name,
     runtime_alarm_names,
     transfer_spend_budget_name,
@@ -113,18 +114,20 @@ def _runtime_logs_arns(
     account: str,
     partition: str,
     region: str,
+    deployment_environment: str,
 ) -> list[str]:
     """Return deterministic CloudWatch Logs ARNs for runtime log groups."""
-    function_names = [
-        API_FUNCTION.function_name,
-        *(authority.function_name for authority in WORKFLOW_FUNCTIONS),
+    log_group_names = [
+        f"{API_FUNCTION.function_name}Logs",
+        *(f"{authority.function_name}Logs" for authority in WORKFLOW_FUNCTIONS),
+        export_workflow_log_group_name(deployment_environment),
     ]
     return [
         (
             f"arn:{partition}:logs:{region}:{account}:log-group:"
-            f"{function_name}Logs:*"
+            f"{log_group_name}:*"
         )
-        for function_name in function_names
+        for log_group_name in log_group_names
     ]
 
 
@@ -314,6 +317,7 @@ class NovaReleaseSupportStack(Stack):
             account=self.account,
             partition=self.partition,
             region=self.region,
+            deployment_environment=deployment_environment,
         )
         event_rule_arns = _runtime_events_rule_arns(
             account=self.account,
@@ -608,13 +612,21 @@ class NovaReleaseSupportStack(Stack):
                             f"aws:RequestTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
                         ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
+                            f"aws:RequestTag/{RESOURCE_OWNER_TAG_KEY}"
+                        ): RESOURCE_OWNER_TAG_VALUE,
+                        (
                             f"aws:RequestTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                        ): deployment_environment,
+                        (
+                            f"aws:RequestTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     },
                     "ForAllValues:StringEquals": {
                         "aws:TagKeys": [
                             APPCONFIG_MANAGED_BY_TAG_KEY,
+                            RESOURCE_OWNER_TAG_KEY,
                             APPCONFIG_ENVIRONMENT_TAG_KEY,
+                            RESOURCE_ENVIRONMENT_TAG_KEY,
                         ]
                     },
                 },
@@ -644,7 +656,13 @@ class NovaReleaseSupportStack(Stack):
                             f"aws:ResourceTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
                         ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
+                            f"aws:ResourceTag/{RESOURCE_OWNER_TAG_KEY}"
+                        ): RESOURCE_OWNER_TAG_VALUE,
+                        (
                             f"aws:ResourceTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                        ): deployment_environment,
+                        (
+                            f"aws:ResourceTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     }
                 },

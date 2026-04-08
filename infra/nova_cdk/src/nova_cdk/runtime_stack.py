@@ -63,6 +63,7 @@ from .runtime_naming import (
     export_copy_worker_dlq_name,
     export_copy_worker_queue_name,
     export_name_prefix,
+    export_workflow_log_group_name,
     observability_dashboard_name,
     runtime_alarm_names,
     stage_name_for_environment,
@@ -949,6 +950,9 @@ class NovaRuntimeStack(Stack):
         state_machine_log_group = logs.LogGroup(
             self,
             "ExportWorkflowLogs",
+            log_group_name=export_workflow_log_group_name(
+                inputs.deployment_environment
+            ),
             retention=logs.RetentionDays.ONE_MONTH,
             removal_policy=RemovalPolicy.RETAIN,
         )

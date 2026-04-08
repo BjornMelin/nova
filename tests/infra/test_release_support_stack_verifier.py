@@ -5,7 +5,6 @@ from __future__ import annotations
 from argparse import Namespace
 
 import pytest
-from botocore.exceptions import ClientError
 
 from .helpers import load_repo_module
 
@@ -147,15 +146,7 @@ def test_main_handles_template_load_failure(
     )
 
     def _boom(parsed_args: Namespace) -> dict[str, object]:
-        raise ClientError(
-            {
-                "Error": {
-                    "Code": "ValidationError",
-                    "Message": "stack not found",
-                }
-            },
-            "GetTemplate",
-        )
+        raise RuntimeError("stack not found")
 
     monkeypatch.setattr(verifier, "_deployed_template", _boom)
 
