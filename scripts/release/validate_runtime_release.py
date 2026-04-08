@@ -25,10 +25,21 @@ if __package__ in {None, ""}:
             _bootstrap_paths.append(str(_p))
     sys.path[:0] = _bootstrap_paths
 
-from nova_cdk.runtime_release_manifest import (
-    expected_runtime_reserved_concurrency,
-    function_logical_id_prefixes,
-)
+try:
+    from nova_cdk.runtime_release_manifest import (
+        expected_runtime_reserved_concurrency,
+        function_logical_id_prefixes,
+    )
+except ModuleNotFoundError as exc:
+    if exc.name in {"nova_cdk", "nova_runtime_support"}:
+        raise RuntimeError(
+            "validate_runtime_release.py requires workspace packages "
+            "`nova_cdk` and `nova_runtime_support` to be importable. Run "
+            "this script via `uv run python scripts/release/"
+            "validate_runtime_release.py` or from an environment where the "
+            "workspace packages are installed."
+        ) from exc
+    raise
 from scripts.release import common
 from scripts.release.resolve_deploy_output import load_deploy_output
 

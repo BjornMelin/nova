@@ -554,9 +554,12 @@ def default_export_copy_max_concurrency(
     """Return the effective export-copy worker concurrency."""
     if workflow_reserved_concurrency is None:
         return FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY_LIMIT
-    return min(
-        FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY_LIMIT,
-        workflow_reserved_concurrency,
+    return max(
+        2,
+        min(
+            FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY_LIMIT,
+            workflow_reserved_concurrency,
+        ),
     )
 
 

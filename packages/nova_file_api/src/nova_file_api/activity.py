@@ -69,15 +69,36 @@ class DynamoTable(Protocol):
     """Subset of DynamoDB table operations used by activity rollups."""
 
     async def update_item(self, **kwargs: object) -> Mapping[str, object]:
-        """Update a DynamoDB item."""
+        """Update a DynamoDB item.
+
+        Args:
+            **kwargs: Keyword arguments forwarded to the DynamoDB client.
+
+        Returns:
+            The mapping returned by DynamoDB.
+        """
         ...
 
     async def put_item(self, **kwargs: object) -> Mapping[str, object]:
-        """Put a DynamoDB item."""
+        """Put a DynamoDB item.
+
+        Args:
+            **kwargs: Keyword arguments forwarded to the DynamoDB client.
+
+        Returns:
+            The mapping returned by DynamoDB.
+        """
         ...
 
     async def get_item(self, **kwargs: object) -> Mapping[str, object]:
-        """Get a DynamoDB item."""
+        """Get a DynamoDB item.
+
+        Args:
+            **kwargs: Keyword arguments forwarded to the DynamoDB client.
+
+        Returns:
+            The mapping returned by DynamoDB.
+        """
         ...
 
 
@@ -85,7 +106,14 @@ class DynamoResource(Protocol):
     """Subset of DynamoDB resource operations used by activity rollups."""
 
     def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
-        """Return one table object or an awaitable table object."""
+        """Return one table object or an awaitable table object.
+
+        Args:
+            table_name: DynamoDB table name to resolve.
+
+        Returns:
+            A table object, or an awaitable that resolves to one.
+        """
         ...
 
 

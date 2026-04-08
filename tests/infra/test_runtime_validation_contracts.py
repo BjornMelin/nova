@@ -76,12 +76,13 @@ def test_runtime_contract_literal_env_matches_synthesized_stack() -> None:
     bundle = _build_bundle()
     api_env = bundle.api_function_env
     functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
-    workflow_env = next(
+    workflow_envs = [
         resource["Properties"]["Environment"]["Variables"]
         for resource in functions.values()
-        if resource["Properties"]["Handler"]
-        == "nova_workflows.handlers.copy_export_handler"
-    )
+        if resource["Properties"]["Handler"].startswith(
+            "nova_workflows.handlers."
+        )
+    ]
     api_contract_names = {
         entry["name"] for entry in payload["api_lambda_environment"]["env"]
     }
@@ -90,25 +91,27 @@ def test_runtime_contract_literal_env_matches_synthesized_stack() -> None:
     }
 
     assert set(api_env) == api_contract_names
-    assert set(workflow_env) == workflow_contract_names
+    assert workflow_envs
+    for workflow_env in workflow_envs:
+        assert set(workflow_env) == workflow_contract_names
 
     for entry in payload["api_lambda_environment"]["env"]:
         if entry["value"] is None:
             continue
         assert api_env[entry["name"]] == entry["value"]
 
-    for entry in payload["workflow_task_environment"]["env"]:
-        if entry["value"] is None:
-            continue
-        assert workflow_env[entry["name"]] == entry["value"]
-
     expected_copy_concurrency = _MANIFEST.default_export_copy_max_concurrency(2)
     assert api_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == str(
         expected_copy_concurrency
     )
-    assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == str(
-        expected_copy_concurrency
-    )
+    for workflow_env in workflow_envs:
+        for entry in payload["workflow_task_environment"]["env"]:
+            if entry["value"] is None:
+                continue
+            assert workflow_env[entry["name"]] == entry["value"]
+        assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == str(
+            expected_copy_concurrency
+        )
 
 
 def test_runtime_contract_handlers_match_authority_and_validator() -> None:
@@ -133,7 +136,7 @@ def test_runtime_contract_handlers_match_authority_and_validator() -> None:
     assert (
         _MANIFEST.function_logical_id_prefixes()
     ) == _VALIDATOR._FUNCTION_LOGICAL_ID_PREFIXES
-    assert expected_handlers <= actual_handlers
+    assert expected_handlers == actual_handlers
 
 
 def test_runtime_validation_reserved_concurrency_defaults_share_authority() -> (
