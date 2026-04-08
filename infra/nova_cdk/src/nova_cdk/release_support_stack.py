@@ -19,6 +19,7 @@ from .runtime_naming import (
     runtime_alarm_names,
     transfer_spend_budget_name,
 )
+from .runtime_release_manifest import API_FUNCTION, WORKFLOW_FUNCTIONS
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
@@ -27,6 +28,24 @@ def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
         return None
     value = str(raw).strip()
     return value or None
+
+
+def _runtime_lambda_function_arns(
+    *,
+    account: str,
+    partition: str,
+    region: str,
+) -> list[str]:
+    """Return the deployed Nova Lambda function and version ARNs."""
+    authorities = (API_FUNCTION, *WORKFLOW_FUNCTIONS)
+    arns: list[str] = []
+    for authority in authorities:
+        base_arn = (
+            f"arn:{partition}:lambda:{region}:{account}:function:"
+            f"{authority.function_name}"
+        )
+        arns.extend([base_arn, f"{base_arn}:*"])
+    return arns
 
 
 @dataclass(frozen=True)
@@ -174,35 +193,11 @@ class NovaReleaseSupportStack(Stack):
                 "CloudFormation execution role for Nova runtime stack "
                 "deployments driven by the release control plane."
             ),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSCloudFormationFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonAPIGatewayAdministrator"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSLambda_FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSStepFunctionsFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonDynamoDBFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonS3FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchLogsFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonEventBridgeFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AWSWAFFullAccess"
-                ),
-            ],
+        )
+        lambda_function_arns = _runtime_lambda_function_arns(
+            account=self.account,
+            partition=self.partition,
+            region=self.region,
         )
         role.add_to_policy(
             iam.PolicyStatement(
@@ -226,6 +221,167 @@ class NovaReleaseSupportStack(Stack):
                     f"arn:{self.partition}:iam::{self.account}:role/Nova*",
                     f"arn:{self.partition}:iam::{self.account}:role/nova-*",
                 ],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "apigateway:DELETE",
+                    "apigateway:GET",
+                    "apigateway:PATCH",
+                    "apigateway:POST",
+                    "apigateway:PUT",
+                    "apigateway:TagResource",
+                    "apigateway:UntagResource",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:AddPermission",
+                    "lambda:DeleteFunction",
+                    "lambda:DeleteFunctionConcurrency",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConfiguration",
+                    "lambda:ListTags",
+                    "lambda:PublishVersion",
+                    "lambda:PutFunctionConcurrency",
+                    "lambda:RemovePermission",
+                    "lambda:TagResource",
+                    "lambda:UntagResource",
+                    "lambda:UpdateFunctionCode",
+                    "lambda:UpdateFunctionConfiguration",
+                ],
+                resources=lambda_function_arns,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "lambda:CreateEventSourceMapping",
+                    "lambda:CreateFunction",
+                    "lambda:DeleteEventSourceMapping",
+                    "lambda:GetEventSourceMapping",
+                    "lambda:ListEventSourceMappings",
+                    "lambda:UpdateEventSourceMapping",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "states:CreateStateMachine",
+                    "states:DeleteStateMachine",
+                    "states:DescribeStateMachine",
+                    "states:ListTagsForResource",
+                    "states:PublishStateMachineVersion",
+                    "states:TagResource",
+                    "states:UntagResource",
+                    "states:UpdateStateMachine",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:CreateTable",
+                    "dynamodb:DeleteTable",
+                    "dynamodb:DescribeContinuousBackups",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:DescribeTimeToLive",
+                    "dynamodb:TagResource",
+                    "dynamodb:UntagResource",
+                    "dynamodb:UpdateContinuousBackups",
+                    "dynamodb:UpdateTable",
+                    "dynamodb:UpdateTimeToLive",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "s3:CreateBucket",
+                    "s3:DeleteBucket",
+                    "s3:DeleteBucketTagging",
+                    "s3:DeleteStorageLensConfiguration",
+                    "s3:GetAccelerateConfiguration",
+                    "s3:GetBucketCors",
+                    "s3:GetBucketEncryption",
+                    "s3:GetBucketLifecycleConfiguration",
+                    "s3:GetBucketNotification",
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:GetBucketTagging",
+                    "s3:GetBucketVersioning",
+                    "s3:GetStorageLensConfiguration",
+                    "s3:GetStorageLensConfigurationTagging",
+                    "s3:PutAccelerateConfiguration",
+                    "s3:PutBucketCors",
+                    "s3:PutBucketEncryption",
+                    "s3:PutBucketLifecycleConfiguration",
+                    "s3:PutBucketNotification",
+                    "s3:PutBucketPublicAccessBlock",
+                    "s3:PutBucketTagging",
+                    "s3:PutBucketVersioning",
+                    "s3:PutStorageLensConfiguration",
+                    "s3:PutStorageLensConfigurationTagging",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:DeleteLogGroup",
+                    "logs:DeleteRetentionPolicy",
+                    "logs:DescribeLogGroups",
+                    "logs:PutRetentionPolicy",
+                    "logs:TagResource",
+                    "logs:UntagResource",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "events:DeleteRule",
+                    "events:DescribeRule",
+                    "events:DisableRule",
+                    "events:EnableRule",
+                    "events:ListTargetsByRule",
+                    "events:PutRule",
+                    "events:PutTargets",
+                    "events:RemoveTargets",
+                    "events:TagResource",
+                    "events:UntagResource",
+                ],
+                resources=["*"],
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wafv2:AssociateWebACL",
+                    "wafv2:CreateWebACL",
+                    "wafv2:DeleteLoggingConfiguration",
+                    "wafv2:DeleteWebACL",
+                    "wafv2:DisassociateWebACL",
+                    "wafv2:GetLoggingConfiguration",
+                    "wafv2:GetWebACL",
+                    "wafv2:ListResourcesForWebACL",
+                    "wafv2:ListTagsForResource",
+                    "wafv2:PutLoggingConfiguration",
+                    "wafv2:TagResource",
+                    "wafv2:UntagResource",
+                    "wafv2:UpdateWebACL",
+                ],
+                resources=["*"],
             )
         )
         role.add_to_policy(

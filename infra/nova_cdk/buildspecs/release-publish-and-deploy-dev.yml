@@ -321,6 +321,18 @@ phases:
       - export CDK_DEFAULT_REGION="${AWS_REGION}"
       - export ENVIRONMENT="${DEV_RUNTIME_ENVIRONMENT}"
       - export RUNTIME_STACK_ID="${DEV_RUNTIME_STACK_ID}"
+      - |
+        if [ -n "${RELEASE_SUPPORT_STACK_ID:-}" ]; then
+          uv run python -m scripts.release.verify_release_support_stack \
+            --stack-name "${RELEASE_SUPPORT_STACK_ID}" \
+            --account "${CDK_DEFAULT_ACCOUNT}" \
+            --region "${AWS_REGION}" \
+            --hosted-zone-id "${HOSTED_ZONE_ID}" \
+            --dev-role-name "${DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME}" \
+            --prod-role-name "${PROD_RUNTIME_CFN_EXECUTION_ROLE_NAME}"
+        else
+          echo "Skipping release-support drift gate because explicit runtime execution roles were supplied."
+        fi
       - >
         npx aws-cdk@2.1117.0 deploy
         --app "uv run --package nova-cdk python infra/nova_cdk/app.py"

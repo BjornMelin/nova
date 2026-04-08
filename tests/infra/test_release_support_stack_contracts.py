@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from aws_cdk import App, Environment
-from aws_cdk.assertions import Match, Template
+from aws_cdk.assertions import Template
 
 from .helpers import load_repo_package_module, resources_of_type
 
@@ -48,66 +48,26 @@ def test_release_support_stack_synthesizes_two_cfn_execution_roles() -> None:
 
 
 def test_release_support_stack_attaches_inline_iam_controls() -> None:
-    template = _template()
-
-    template.has_resource_properties(
-        "AWS::IAM::Role",
-        {
-            "ManagedPolicyArns": Match.array_with(
-                [
-                    {
-                        "Fn::Join": Match.any_value(),
-                    }
-                ]
-            )
-        },
-    )
-    template.has_resource_properties(
-        "AWS::IAM::Policy",
-        {
-            "PolicyDocument": {
-                "Statement": Match.array_with(
-                    [
-                        Match.object_like(
-                            {
-                                "Action": Match.array_with(
-                                    [
-                                        "iam:CreateRole",
-                                        "iam:PassRole",
-                                        "iam:PutRolePolicy",
-                                    ]
-                                ),
-                                "Resource": Match.any_value(),
-                            }
-                        ),
-                        Match.object_like(
-                            {
-                                "Action": "iam:CreateServiceLinkedRole",
-                            }
-                        ),
-                        Match.object_like(
-                            {
-                                "Action": "ssm:GetParameters",
-                                "Resource": {
-                                    "Fn::Join": Match.array_with(
-                                        [
-                                            Match.array_with(
-                                                [
-                                                    "arn:",
-                                                    {"Ref": "AWS::Partition"},
-                                                    ":ssm:us-east-1:111111111111:parameter/cdk-bootstrap/hnb659fds/version",
-                                                ]
-                                            )
-                                        ]
-                                    )
-                                },
-                            }
-                        ),
-                    ]
-                )
-            }
-        },
-    )
+    template_json = _template().to_json()
+    roles = resources_of_type(template_json["Resources"], "AWS::IAM::Role")
+    assert roles
+    for role in roles.values():
+        assert "ManagedPolicyArns" not in role["Properties"]
+    policy_text = json.dumps(template_json, sort_keys=True)
+    assert '"iam:CreateRole"' in policy_text
+    assert '"iam:PassRole"' in policy_text
+    assert '"iam:PutRolePolicy"' in policy_text
+    assert '"apigateway:DELETE"' in policy_text
+    assert '"apigateway:GET"' in policy_text
+    assert '"lambda:CreateFunction"' in policy_text
+    assert '"lambda:UpdateFunctionConfiguration"' in policy_text
+    assert '"lambda:UpdateFunctionCode"' in policy_text
+    assert '"states:CreateStateMachine"' in policy_text
+    assert '"states:UpdateStateMachine"' in policy_text
+    assert '"states:DeleteStateMachine"' in policy_text
+    assert '"iam:CreateServiceLinkedRole"' in policy_text
+    assert '"ssm:GetParameters"' in policy_text
+    assert "parameter/cdk-bootstrap/hnb659fds/version" in policy_text
 
 
 def test_release_support_stack_includes_runtime_service_permissions() -> None:
@@ -115,6 +75,15 @@ def test_release_support_stack_includes_runtime_service_permissions() -> None:
 
     assert "parameter/cdk-bootstrap/hnb659fds/version" in template_json
     assert "ssm:GetParameters" in template_json
+    assert "apigateway:DELETE" in template_json
+    assert "lambda:CreateFunction" in template_json
+    assert "lambda:UpdateFunctionCode" in template_json
+    assert "states:CreateStateMachine" in template_json
+    assert "dynamodb:CreateTable" in template_json
+    assert "s3:PutStorageLensConfiguration" in template_json
+    assert "logs:PutRetentionPolicy" in template_json
+    assert "events:PutRule" in template_json
+    assert "wafv2:CreateWebACL" in template_json
     assert "appconfig:CreateApplication" in template_json
     assert "appconfig:Update*" in template_json
     assert "aws:RequestTag/NovaManagedBy" in template_json
@@ -137,6 +106,15 @@ def test_release_support_stack_includes_runtime_service_permissions() -> None:
     assert '"Action": "route53:*"' not in template_json
     assert '"sns:*"' not in template_json
     assert '"sqs:*"' not in template_json
+    assert "AWSCloudFormationFullAccess" not in template_json
+    assert "AmazonAPIGatewayAdministrator" not in template_json
+    assert "AWSLambda_FullAccess" not in template_json
+    assert "AWSStepFunctionsFullAccess" not in template_json
+    assert "AmazonDynamoDBFullAccess" not in template_json
+    assert "AmazonS3FullAccess" not in template_json
+    assert "CloudWatchLogsFullAccess" not in template_json
+    assert "AmazonEventBridgeFullAccess" not in template_json
+    assert "AWSWAFFullAccess" not in template_json
 
 
 def test_release_support_stack_synthesizes_without_hosted_zone_input() -> None:

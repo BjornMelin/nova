@@ -77,6 +77,23 @@ def test_aws_native_release_buildspecs_emit_deploy_output_authority() -> None:
             assert required in text, rel_path
 
 
+def test_release_buildspecs_fail_closed_on_support_stack_drift() -> None:
+    """Release deploy stages must verify support-stack drift first."""
+    for rel_path in [
+        "infra/nova_cdk/buildspecs/release-publish-and-deploy-dev.yml",
+        "infra/nova_cdk/buildspecs/release-promote-and-deploy-prod.yml",
+    ]:
+        text = _read(rel_path)
+        for required in [
+            "scripts.release.verify_release_support_stack",
+            "RELEASE_SUPPORT_STACK_ID",
+            "DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+            "PROD_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+            "HOSTED_ZONE_ID",
+        ]:
+            assert required in text, rel_path
+
+
 def test_release_buildspecs_pin_uv_version() -> None:
     """Release buildspecs must pin uv to the repo-required version."""
     pinned_buildspecs = [

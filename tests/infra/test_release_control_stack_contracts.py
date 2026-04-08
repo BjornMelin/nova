@@ -32,6 +32,7 @@ def _context() -> dict[str, str]:
         "dev_runtime_config_parameter_name": (
             "/nova/release/runtime-config/dev"
         ),
+        "release_support_stack_id": "NovaReleaseSupportStack",
         "prod_runtime_stack_id": "NovaRuntimeProdStack",
         "prod_runtime_cfn_execution_role_arn": (
             "arn:aws:iam::111111111111:role/nova-prod-cfn"
@@ -125,6 +126,9 @@ def test_release_control_stack_receives_release_env_contract() -> None:
         "PROD_RUNTIME_STACK_ID",
         "DEV_RUNTIME_CONFIG_PARAMETER_NAME",
         "PROD_RUNTIME_CONFIG_PARAMETER_NAME",
+        "DEV_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+        "PROD_RUNTIME_CFN_EXECUTION_ROLE_NAME",
+        "RELEASE_SUPPORT_STACK_ID",
         "RELEASE_SIGNING_SECRET_ID",
     ]:
         assert required in env_var_names
@@ -202,3 +206,5 @@ def test_release_control_stack_scopes_dev_and_prod_permissions() -> None:
     assert "nova-dev-cfn" not in prod_policy_text
     assert "parameter/cdk-bootstrap/hnb659fds/version" in dev_policy_text
     assert "parameter/cdk-bootstrap/hnb659fds/version" in prod_policy_text
+    assert "stack/NovaReleaseSupportStack/" in dev_policy_text
+    assert "stack/NovaReleaseSupportStack/" in prod_policy_text
