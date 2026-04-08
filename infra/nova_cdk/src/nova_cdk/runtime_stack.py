@@ -733,6 +733,7 @@ class NovaRuntimeStack(Stack):
             file_bucket=file_bucket,
             export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
             upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
+            allow_export_delete=True,
         )
         grant_copy_export_permissions(
             function=prepare_copy_fn,
