@@ -53,6 +53,7 @@ def test_deployed_template_decodes_yaml_body(
     class _CloudFormationClient:
         def get_template(self, **kwargs: object) -> dict[str, str]:
             assert kwargs["StackName"] == "NovaReleaseSupportStack"
+            assert kwargs["TemplateStage"] == "Original"
             return {
                 "TemplateBody": "Resources:\n  Example:\n    Type: Test\n",
             }

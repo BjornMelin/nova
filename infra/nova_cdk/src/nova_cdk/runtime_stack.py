@@ -13,6 +13,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    Tags,
     aws_appconfig as appconfig,
     aws_budgets as budgets,
     aws_cloudwatch as cloudwatch,
@@ -55,6 +56,9 @@ from .iam import (
 from .ingress import create_regional_rest_ingress
 from .observability import add_alarm_actions, create_alarm_topic
 from .runtime_naming import (
+    RESOURCE_ENVIRONMENT_TAG_KEY,
+    RESOURCE_OWNER_TAG_KEY,
+    RESOURCE_OWNER_TAG_VALUE,
     appconfig_resource_tags,
     export_copy_worker_dlq_name,
     export_copy_worker_queue_name,
@@ -394,6 +398,11 @@ class NovaRuntimeStack(Stack):
         """Initialize the runtime stack and its primary resources."""
         super().__init__(scope, construct_id, **kwargs)
         inputs = RuntimeStackInputs.from_scope(self)
+        Tags.of(self).add(RESOURCE_OWNER_TAG_KEY, RESOURCE_OWNER_TAG_VALUE)
+        Tags.of(self).add(
+            RESOURCE_ENVIRONMENT_TAG_KEY,
+            inputs.deployment_environment,
+        )
 
         export_table = dynamodb.Table(
             self,

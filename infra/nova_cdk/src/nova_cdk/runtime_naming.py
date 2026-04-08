@@ -7,6 +7,9 @@ from .concurrency import is_production_environment
 APPCONFIG_MANAGED_BY_TAG_KEY = "NovaManagedBy"
 APPCONFIG_MANAGED_BY_TAG_VALUE = "nova-runtime-stack"
 APPCONFIG_ENVIRONMENT_TAG_KEY = "NovaDeploymentEnvironment"
+RESOURCE_OWNER_TAG_KEY = "Owner"
+RESOURCE_OWNER_TAG_VALUE = "NOVA"
+RESOURCE_ENVIRONMENT_TAG_KEY = "NovaDeploymentEnvironment"
 
 
 def stage_name_for_environment(deployment_environment: str) -> str:

@@ -13,12 +13,16 @@ from .runtime_naming import (
     APPCONFIG_ENVIRONMENT_TAG_KEY,
     APPCONFIG_MANAGED_BY_TAG_KEY,
     APPCONFIG_MANAGED_BY_TAG_VALUE,
+    RESOURCE_ENVIRONMENT_TAG_KEY,
+    RESOURCE_OWNER_TAG_KEY,
+    RESOURCE_OWNER_TAG_VALUE,
     export_copy_worker_dlq_name,
     export_copy_worker_queue_name,
     observability_dashboard_name,
     runtime_alarm_names,
     transfer_spend_budget_name,
 )
+from .runtime_release_manifest import API_FUNCTION, WORKFLOW_FUNCTIONS
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
@@ -27,6 +31,44 @@ def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
         return None
     value = str(raw).strip()
     return value or None
+
+
+def _create_request_tag_conditions(
+    *,
+    deployment_environment: str,
+) -> dict[str, Any]:
+    return {
+        "StringEquals": {
+            (
+                f"aws:RequestTag/{RESOURCE_OWNER_TAG_KEY}"
+            ): RESOURCE_OWNER_TAG_VALUE,
+            (
+                f"aws:RequestTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
+            ): deployment_environment,
+        },
+        "ForAllValues:StringEquals": {
+            "aws:TagKeys": [
+                RESOURCE_OWNER_TAG_KEY,
+                RESOURCE_ENVIRONMENT_TAG_KEY,
+            ]
+        },
+    }
+
+
+def _resource_tag_conditions(
+    *,
+    deployment_environment: str,
+) -> dict[str, Any]:
+    return {
+        "StringEquals": {
+            (
+                f"aws:ResourceTag/{RESOURCE_OWNER_TAG_KEY}"
+            ): RESOURCE_OWNER_TAG_VALUE,
+            (
+                f"aws:ResourceTag/{RESOURCE_ENVIRONMENT_TAG_KEY}"
+            ): deployment_environment,
+        }
+    }
 
 
 def _runtime_lambda_function_arns(
@@ -72,9 +114,18 @@ def _runtime_logs_arns(
     partition: str,
     region: str,
 ) -> list[str]:
-    """Return wildcard CloudWatch Logs ARNs for runtime-managed log groups."""
-    base_arn = f"arn:{partition}:logs:{region}:{account}:log-group:*"
-    return [base_arn, f"{base_arn}:*"]
+    """Return deterministic CloudWatch Logs ARNs for runtime log groups."""
+    function_names = [
+        API_FUNCTION.function_name,
+        *(authority.function_name for authority in WORKFLOW_FUNCTIONS),
+    ]
+    return [
+        (
+            f"arn:{partition}:logs:{region}:{account}:log-group:"
+            f"{function_name}Logs:*"
+        )
+        for function_name in function_names
+    ]
 
 
 def _runtime_events_rule_arns(
@@ -274,6 +325,12 @@ class NovaReleaseSupportStack(Stack):
             partition=self.partition,
             region=self.region,
         )
+        request_tag_conditions = _create_request_tag_conditions(
+            deployment_environment=deployment_environment
+        )
+        resource_tag_conditions = _resource_tag_conditions(
+            deployment_environment=deployment_environment
+        )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
@@ -315,6 +372,15 @@ class NovaReleaseSupportStack(Stack):
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
+                    "lambda:CreateEventSourceMapping",
+                ],
+                resources=["*"],
+                conditions=request_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
                     "lambda:AddPermission",
                     "lambda:DeleteFunction",
                     "lambda:DeleteFunctionConcurrency",
@@ -330,25 +396,21 @@ class NovaReleaseSupportStack(Stack):
                     "lambda:UpdateFunctionConfiguration",
                 ],
                 resources=lambda_function_arns,
+                conditions=resource_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
-                    "lambda:CreateEventSourceMapping",
                     "lambda:CreateFunction",
-                    "lambda:DeleteEventSourceMapping",
-                    "lambda:GetEventSourceMapping",
-                    "lambda:ListEventSourceMappings",
-                    "lambda:UpdateEventSourceMapping",
                 ],
                 resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
-                    "states:CreateStateMachine",
                     "states:DeleteStateMachine",
                     "states:DescribeStateMachine",
                     "states:ListTagsForResource",
@@ -358,12 +420,19 @@ class NovaReleaseSupportStack(Stack):
                     "states:UpdateStateMachine",
                 ],
                 resources=state_machine_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["states:CreateStateMachine"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
-                    "dynamodb:CreateTable",
                     "dynamodb:DeleteTable",
                     "dynamodb:DescribeContinuousBackups",
                     "dynamodb:DescribeTable",
@@ -375,12 +444,19 @@ class NovaReleaseSupportStack(Stack):
                     "dynamodb:UpdateTimeToLive",
                 ],
                 resources=dynamodb_table_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["dynamodb:CreateTable"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
-                    "s3:CreateBucket",
                     "s3:DeleteBucket",
                     "s3:DeleteBucketTagging",
                     "s3:DeleteStorageLensConfiguration",
@@ -406,12 +482,19 @@ class NovaReleaseSupportStack(Stack):
                     "s3:PutStorageLensConfigurationTagging",
                 ],
                 resources=s3_bucket_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:CreateBucket"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
-                    "logs:CreateLogGroup",
                     "logs:DeleteLogGroup",
                     "logs:DeleteRetentionPolicy",
                     "logs:DescribeLogGroups",
@@ -420,6 +503,14 @@ class NovaReleaseSupportStack(Stack):
                     "logs:UntagResource",
                 ],
                 resources=log_group_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["logs:CreateLogGroup"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
@@ -430,20 +521,26 @@ class NovaReleaseSupportStack(Stack):
                     "events:DisableRule",
                     "events:EnableRule",
                     "events:ListTargetsByRule",
-                    "events:PutRule",
                     "events:PutTargets",
                     "events:RemoveTargets",
                     "events:TagResource",
                     "events:UntagResource",
                 ],
                 resources=event_rule_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["events:PutRule"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
                     "wafv2:AssociateWebACL",
-                    "wafv2:CreateWebACL",
                     "wafv2:DeleteLoggingConfiguration",
                     "wafv2:DeleteWebACL",
                     "wafv2:DisassociateWebACL",
@@ -457,6 +554,14 @@ class NovaReleaseSupportStack(Stack):
                     "wafv2:UpdateWebACL",
                 ],
                 resources=waf_web_acl_arns,
+                conditions=resource_tag_conditions,
+            )
+        )
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["wafv2:CreateWebACL"],
+                resources=["*"],
+                conditions=request_tag_conditions,
             )
         )
         role.add_to_policy(

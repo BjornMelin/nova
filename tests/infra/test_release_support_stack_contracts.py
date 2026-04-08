@@ -86,13 +86,22 @@ def test_release_support_stack_includes_runtime_service_permissions() -> None:
     assert "wafv2:CreateWebACL" in template_json
     assert "appconfig:CreateApplication" in template_json
     assert "appconfig:Update*" in template_json
-    assert "aws:RequestTag/NovaManagedBy" in template_json
+    assert "aws:RequestTag/Owner" in template_json
+    assert "aws:ResourceTag/Owner" in template_json
+    assert "aws:RequestTag/NovaDeploymentEnvironment" in template_json
     assert "aws:ResourceTag/NovaDeploymentEnvironment" in template_json
+    assert (
+        '"aws:TagKeys": ["Owner", "NovaDeploymentEnvironment"]'
+    ) in template_json
+    assert "NovaApiFunctionLogs" in template_json
+    assert "ValidateExportFunctionLogs" in template_json
+    assert "ExportCopyWorkerFunctionLogs" in template_json
+    assert "log-group:*" not in template_json
+    assert "aws:RequestTag/NovaManagedBy" in template_json
     assert ":lambda:us-east-1:111111111111:function:*" in template_json
     assert ":states:us-east-1:111111111111:stateMachine:*" in template_json
     assert ":dynamodb:us-east-1:111111111111:table/*" in template_json
     assert ":s3:::*" in template_json
-    assert ":logs:us-east-1:111111111111:log-group:*" in template_json
     assert ":events:us-east-1:111111111111:rule/*" in template_json
     assert ":wafv2:us-east-1:111111111111:regional/webacl/*/*" in template_json
     assert "budget/nova-transfer-dev" in template_json

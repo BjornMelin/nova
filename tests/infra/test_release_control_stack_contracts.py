@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from aws_cdk import App, Environment
 from aws_cdk.assertions import Template
 
@@ -45,13 +46,19 @@ def _context() -> dict[str, str]:
 
 
 def _template(context: dict[str, str] | None = None) -> Template:
-    app = App(context=context or _context())
+    app = App(context=_context() if context is None else context)
     stack = NovaReleaseControlPlaneStack(
         app,
         "ReleaseControlContractStack",
         env=Environment(account="111111111111", region="us-east-1"),
     )
     return Template.from_stack(stack)
+
+
+def test_release_control_stack_preserves_empty_context() -> None:
+    """An explicit empty context must not fall back to the default fixture."""
+    with pytest.raises(ValueError):
+        _template(context={})
 
 
 def test_release_control_plane_stack_synthesizes_required_resources() -> None:
