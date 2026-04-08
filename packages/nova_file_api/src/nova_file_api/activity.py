@@ -54,6 +54,7 @@ class ActivityStore(Protocol):
             Daily counters for total events, active users, and event-type
             cardinality.
         """
+        ...
 
     async def healthcheck(self) -> bool:
         """Return readiness of the activity store backend.
@@ -61,6 +62,7 @@ class ActivityStore(Protocol):
         Returns:
             True when the backing store can be queried for health.
         """
+        ...
 
 
 class DynamoTable(Protocol):
@@ -68,12 +70,15 @@ class DynamoTable(Protocol):
 
     async def update_item(self, **kwargs: object) -> Mapping[str, object]:
         """Update a DynamoDB item."""
+        ...
 
     async def put_item(self, **kwargs: object) -> Mapping[str, object]:
         """Put a DynamoDB item."""
+        ...
 
     async def get_item(self, **kwargs: object) -> Mapping[str, object]:
         """Get a DynamoDB item."""
+        ...
 
 
 class DynamoResource(Protocol):
@@ -81,6 +86,7 @@ class DynamoResource(Protocol):
 
     def Table(self, table_name: str) -> DynamoTable | Awaitable[DynamoTable]:
         """Return one table object or an awaitable table object."""
+        ...
 
 
 def _as_dynamo_table(table: object) -> DynamoTable:

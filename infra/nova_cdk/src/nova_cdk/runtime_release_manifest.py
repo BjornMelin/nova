@@ -52,7 +52,22 @@ FILE_TRANSFER_CHECKSUM_MODE: Final[str] = "none"
 
 @dataclass(frozen=True)
 class RuntimeEnvContractSpec:
-    """Single runtime environment contract item."""
+    """Describes one environment variable in the authoritative runtime contract.
+
+    Immutable value object used by contract enumeration and validation helpers
+    to record how each variable is populated and when it applies.
+
+    Args:
+        name (str): Lambda environment variable name (for example
+            ``FILE_TRANSFER_BUCKET``).
+        source (str): Provenance label, such as ``literal``, ``stack resource``,
+            ``CDK deploy input``, or ``derived from workflow reserved
+            concurrency``.
+        condition (str): When the binding is required (for example ``always``).
+        value (str | None): Static literal when the contract fixes the value at
+            build time; ``None`` when the value comes from the stack or deploy
+            inputs.
+    """
 
     name: str
     source: str
@@ -62,7 +77,21 @@ class RuntimeEnvContractSpec:
 
 @dataclass(frozen=True)
 class RuntimeFunctionAuthority:
-    """Canonical metadata for one deployable Lambda runtime surface."""
+    """Canonical identity for one Nova Lambda in CDK and the runtime package.
+
+    Immutable metadata shared by synthesis, release tooling, and environment
+    builders so logical IDs, CloudFormation names, and handlers stay aligned.
+
+    Args:
+        logical_id (str): CDK construct ID and stable key for lookups (for
+            example ``NovaApiFunction``).
+        function_name (str): CloudFormation logical name used for the deployed
+            Lambda (matches ``logical_id`` for Nova functions).
+        handler (str): ``package.module.function`` import path for the Lambda
+            runtime entrypoint.
+        function_group (FUNCTION_GROUP): Whether this surface is ``api`` or
+            ``workflow`` for reserved concurrency and contract grouping.
+    """
 
     logical_id: str
     function_name: str
@@ -72,7 +101,24 @@ class RuntimeFunctionAuthority:
 
 @dataclass(frozen=True)
 class WorkflowRuntimeBindings:
-    """Resolved CloudFormation values required by workflow task Lambdas."""
+    """Resource identifiers for workflow task Lambda environments.
+
+    Values are resolved at synthesis time (bucket names, table names, queue URL)
+    and passed into ``build_workflow_task_environment``.
+
+    Args:
+        file_transfer_bucket (str): S3 bucket name for transfer and export
+            object storage.
+        upload_sessions_table (str): DynamoDB table name for multipart upload
+            session state.
+        transfer_usage_table (str): DynamoDB table name for transfer quota
+            counters.
+        exports_dynamodb_table (str): DynamoDB table name for export workflow
+            records.
+        export_copy_parts_table (str): DynamoDB table name for large export
+            copy part state.
+        export_copy_queue_url (str): SQS queue URL for queued export copy work.
+    """
 
     file_transfer_bucket: str
     upload_sessions_table: str
@@ -84,7 +130,43 @@ class WorkflowRuntimeBindings:
 
 @dataclass(frozen=True)
 class ApiRuntimeBindings(WorkflowRuntimeBindings):
-    """Resolved CloudFormation and deploy values required by the API Lambda."""
+    """Workflow bindings plus API-only resources and deploy-time configuration.
+
+    Extends :class:`WorkflowRuntimeBindings` with auth, AppConfig, idempotency,
+    and export workflow ARN values required to build the public API Lambda
+    environment.
+
+    Args:
+        file_transfer_bucket (str): S3 bucket name for transfer and export
+            object storage.
+        upload_sessions_table (str): DynamoDB table name for multipart upload
+            session state.
+        transfer_usage_table (str): DynamoDB table name for transfer quota
+            counters.
+        exports_dynamodb_table (str): DynamoDB table name for export workflow
+            records.
+        export_copy_parts_table (str): DynamoDB table name for large export
+            copy part state.
+        export_copy_queue_url (str): SQS queue URL for queued export copy work.
+        allowed_origins_json (str): JSON-encoded list of allowed CORS origins.
+        activity_rollups_table (str): DynamoDB table name for activity
+            rollups.
+        oidc_issuer (str): JWT issuer URL for bearer validation.
+        oidc_audience (str): Expected JWT audience (resource identifier).
+        oidc_jwks_url (str): JWKS document URL for signing key resolution.
+        transfer_policy_appconfig_application (str): AppConfig application ID or
+            reference for the transfer policy document.
+        transfer_policy_appconfig_environment (str): AppConfig environment
+            reference for the transfer policy.
+        transfer_policy_appconfig_profile (str): AppConfig configuration
+            profile reference for the transfer policy.
+        idempotency_dynamodb_table (str): DynamoDB table name for API
+            idempotency records.
+        export_workflow_state_machine_arn (str): Step Functions state machine
+            ARN for export workflows.
+        api_release_artifact_sha256 (str): Hex-encoded SHA-256 of the deployed
+            API Lambda artifact for release provenance.
+    """
 
     allowed_origins_json: str
     activity_rollups_table: str

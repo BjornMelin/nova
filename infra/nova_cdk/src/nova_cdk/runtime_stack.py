@@ -62,6 +62,7 @@ from .runtime_release_manifest import (
     FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS,
     FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS,
     FILE_TRANSFER_EXPORT_PREFIX,
+    FILE_TRANSFER_UPLOAD_PREFIX,
     ApiRuntimeBindings,
     WorkflowRuntimeBindings,
     build_api_lambda_environment,
@@ -1082,35 +1083,35 @@ class NovaRuntimeStack(Stack):
             export_table=export_table,
             file_bucket=file_bucket,
             export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
-            upload_prefix="uploads/",
+            upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
         )
         grant_copy_export_permissions(
             function=prepare_copy_fn,
             export_table=export_table,
             file_bucket=file_bucket,
-            export_prefix="exports/",
-            upload_prefix="uploads/",
+            export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
+            upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
         )
         grant_copy_export_permissions(
             function=start_queued_copy_fn,
             export_table=export_table,
             file_bucket=file_bucket,
-            export_prefix="exports/",
-            upload_prefix="uploads/",
+            export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
+            upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
         )
         grant_copy_export_permissions(
             function=poll_queued_copy_fn,
             export_table=export_table,
             file_bucket=file_bucket,
-            export_prefix="exports/",
-            upload_prefix="uploads/",
+            export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
+            upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
         )
         grant_copy_export_permissions(
             function=export_copy_worker_fn,
             export_table=export_table,
             file_bucket=file_bucket,
-            export_prefix="exports/",
-            upload_prefix="uploads/",
+            export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
+            upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
         )
         export_copy_parts_table.grant_read_write_data(start_queued_copy_fn)
         export_copy_parts_table.grant_read_write_data(poll_queued_copy_fn)

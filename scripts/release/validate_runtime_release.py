@@ -17,7 +17,13 @@ from urllib.request import Request, urlopen
 if __package__ in {None, ""}:
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    _repo_root = Path(__file__).resolve().parents[2]
+    _bootstrap_paths: list[str] = [str(_repo_root)]
+    for _rel in ("infra/nova_cdk/src", "packages/nova_runtime_support/src"):
+        _p = _repo_root / _rel
+        if _p.is_dir():
+            _bootstrap_paths.append(str(_p))
+    sys.path[:0] = _bootstrap_paths
 
 from nova_cdk.runtime_release_manifest import (
     expected_runtime_reserved_concurrency,
