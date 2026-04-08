@@ -57,6 +57,9 @@ class _FakeTransferService:
 
 
 class _FakeLargeCopyService:
+    def __init__(self) -> None:
+        self.abort_calls: list[tuple[str, str]] = []
+
     async def prepare(self, *, export: ExportRecord) -> PreparedExportCopy:
         assert export.export_id == "export-1"
         return PreparedExportCopy(
@@ -82,6 +85,14 @@ class _FakeLargeCopyService:
             copy_part_count=prepared.copy_part_count,
             copy_part_size_bytes=prepared.copy_part_size_bytes,
         )
+
+    async def abort_upload(
+        self,
+        *,
+        upload_id: str,
+        export_key: str,
+    ) -> None:
+        self.abort_calls.append((upload_id, export_key))
 
     async def poll(
         self,
@@ -337,3 +348,101 @@ async def test_prepare_and_queue_worker_export_copy_tasks() -> None:
 
     assert polled.copy_progress_state == "ready"
     assert polled.copy_completed_parts == 30
+
+
+@pytest.mark.anyio
+async def test_start_queued_export_copy_aborts_on_copying_cancel_race() -> None:
+    _repository, export_service = await _service_with_record()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+    prepared = await prepare_export_copy(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    class _CancellingLargeCopyService(_FakeLargeCopyService):
+        async def start(
+            self,
+            *,
+            export: ExportRecord,
+            prepared: PreparedExportCopy,
+        ) -> QueuedExportCopyState:
+            queued = await super().start(export=export, prepared=prepared)
+            current = await export_service.repository.get(export.export_id)
+            assert current is not None
+            await export_service.repository.update(
+                current.model_copy(update={"status": ExportStatus.CANCELLED})
+            )
+            return queued
+
+    large_copy_service = _CancellingLargeCopyService()
+
+    queued = await start_queued_export_copy(
+        workflow_input=prepared,
+        export_service=export_service,
+        large_copy_service=large_copy_service,
+    )
+
+    stored = await export_service.repository.get("export-1")
+    assert queued.copy_progress_state == "cancelled"
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+    assert large_copy_service.abort_calls == [
+        ("worker-upload-id", "exports/scope-1/export-1/source.csv")
+    ]
+
+
+@pytest.mark.anyio
+async def test_start_queued_export_copy_aborts_on_queued_cancel_race() -> None:
+    repository, export_service = await _service_with_record()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+    prepared = await prepare_export_copy(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    current = await repository.get("export-1")
+    assert current is not None
+
+    class _CancellingExportRepository(MemoryExportRepository):
+        async def update_if_status(  # type: ignore[override]
+            self,
+            *,
+            record: ExportRecord,
+            expected_status: ExportStatus,
+        ) -> bool:
+            del expected_status
+            current_record = await self.get(record.export_id)
+            assert current_record is not None
+            await self.update(
+                current_record.model_copy(
+                    update={"status": ExportStatus.CANCELLED}
+                )
+            )
+            return False
+
+    cancelling_repository = _CancellingExportRepository()
+    await cancelling_repository.create(current)
+    export_service.repository = cancelling_repository
+    large_copy_service = _FakeLargeCopyService()
+
+    queued = await start_queued_export_copy(
+        workflow_input=prepared,
+        export_service=export_service,
+        large_copy_service=large_copy_service,
+    )
+
+    stored = await export_service.repository.get("export-1")
+    assert queued.copy_progress_state == "cancelled"
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+    assert large_copy_service.abort_calls == [
+        ("worker-upload-id", "exports/scope-1/export-1/source.csv")
+    ]

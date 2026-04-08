@@ -49,6 +49,15 @@ class ExportCopyCoordinator(Protocol):
         """Poll queued copy progress and finalize the destination MPU."""
         ...
 
+    async def abort_upload(
+        self,
+        *,
+        upload_id: str,
+        export_key: str,
+    ) -> None:
+        """Abort one queued copy MPU during rollback."""
+        ...
+
 
 async def validate_export(
     *,
@@ -194,6 +203,10 @@ async def start_queued_export_copy(
             error=None,
         )
     except ExportStatusTransitionError:
+        await large_copy_service.abort_upload(
+            upload_id=queued.upload_id,
+            export_key=queued.export_key,
+        )
         latest = await export_service.repository.get(workflow_input.export_id)
         if latest is not None and latest.status == ExportStatus.CANCELLED:
             return _cancelled_workflow_input(workflow_input=workflow_input)
@@ -215,6 +228,10 @@ async def start_queued_export_copy(
     if not updated_ok:
         latest = await export_service.repository.get(workflow_input.export_id)
         if latest is not None and latest.status == ExportStatus.CANCELLED:
+            await large_copy_service.abort_upload(
+                upload_id=queued.upload_id,
+                export_key=queued.export_key,
+            )
             return _cancelled_workflow_input(workflow_input=workflow_input)
         if latest is None or latest.status != ExportStatus.CANCELLED:
             raise RuntimeError(

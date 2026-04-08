@@ -411,10 +411,14 @@ async def test_terminalize_poison_message_marks_part_failed_permanently() -> (
         export_id=export.export_id,
         part_number=1,
     )
+    updated_export = await export_repository.get(export.export_id)
     assert stored is not None
     assert stored.status.value == "failed"
     assert stored.error == "invalid_export_copy_message"
     assert stored.attempts == coordinator.max_attempts
+    assert updated_export is not None
+    assert updated_export.status == ExportStatus.FAILED
+    assert len(_s3_client.abort_calls) == 1
     assert (
         metrics.counters_snapshot()["exports_worker_poison_terminalized_total"]
         == 1

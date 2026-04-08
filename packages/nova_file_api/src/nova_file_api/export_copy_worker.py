@@ -476,6 +476,18 @@ class LargeExportCopyCoordinator:
             download_filename=download_filename,
         )
 
+    async def abort_upload(
+        self,
+        *,
+        upload_id: str,
+        export_key: str,
+    ) -> None:
+        """Abort one queued multipart upload for export-copy rollback."""
+        await self._abort_multipart_upload(
+            upload_id=upload_id,
+            export_key=export_key,
+        )
+
     def observe_message_lag(self, *, sent_timestamp_ms: int | None) -> None:
         """Record worker delivery lag from the SQS sent timestamp."""
         if sent_timestamp_ms is None:
@@ -551,6 +563,22 @@ class LargeExportCopyCoordinator:
         ):
             self._emit_worker_count("exports_worker_poison_stale_total")
             return
+        if export.copy_export_key is not None:
+            await self._abort_multipart_upload(
+                upload_id=poison.upload_id,
+                export_key=export.copy_export_key,
+            )
+        with suppress(
+            ExportStatusLookupError,
+            ExportStatusTransitionError,
+        ):
+            await update_export_status_shared(
+                repository=self._exports,
+                metrics=self._metrics,
+                export_id=poison.export_id,
+                status=ExportStatus.FAILED,
+                error=_POISON_EXPORT_ERROR,
+            )
         self._emit_worker_count("exports_worker_poison_terminalized_total")
 
     async def process_message_batch(
