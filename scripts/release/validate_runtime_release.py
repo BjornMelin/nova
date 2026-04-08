@@ -419,6 +419,9 @@ def _validate_transfer_capabilities(
     checksum_mode = payload.get("checksum_mode")
     active_multipart_upload_limit = payload.get("active_multipart_upload_limit")
     daily_ingress_budget_bytes = payload.get("daily_ingress_budget_bytes")
+    sign_requests_per_upload_limit = payload.get(
+        "sign_requests_per_upload_limit"
+    )
     large_export_worker_threshold_bytes = payload.get(
         "large_export_worker_threshold_bytes"
     )
@@ -441,6 +444,8 @@ def _validate_transfer_capabilities(
             and active_multipart_upload_limit > 0,
             isinstance(daily_ingress_budget_bytes, int)
             and daily_ingress_budget_bytes > 0,
+            isinstance(sign_requests_per_upload_limit, int)
+            and sign_requests_per_upload_limit > 0,
             isinstance(large_export_worker_threshold_bytes, int)
             and large_export_worker_threshold_bytes > 0,
         )
@@ -463,6 +468,7 @@ def _validate_transfer_capabilities(
     checksum_mode = cast(str, checksum_mode)
     active_multipart_upload_limit = cast(int, active_multipart_upload_limit)
     daily_ingress_budget_bytes = cast(int, daily_ingress_budget_bytes)
+    sign_requests_per_upload_limit = cast(int, sign_requests_per_upload_limit)
     large_export_worker_threshold_bytes = cast(
         int, large_export_worker_threshold_bytes
     )
@@ -565,6 +571,14 @@ def _validate_transfer_capabilities(
         expected="<= 64",
         actual=estimated_sign_requests,
         ok=estimated_sign_requests <= 64,
+    )
+    _record_assertion(
+        checks=capability_checks,
+        failures=failures,
+        name="sign_requests_per_upload_limit_covers_representative_upload",
+        expected=f">= {estimated_sign_requests}",
+        actual=sign_requests_per_upload_limit,
+        ok=sign_requests_per_upload_limit >= estimated_sign_requests,
     )
 
 

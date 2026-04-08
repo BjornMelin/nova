@@ -217,12 +217,6 @@ _API_LITERAL_ENV: Final[dict[str, str]] = {
     "FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS": str(
         FILE_TRANSFER_POLICY_APPCONFIG_POLL_INTERVAL_SECONDS
     ),
-    "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS": str(
-        FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS
-    ),
-    "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT": str(
-        FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT
-    ),
     "IDEMPOTENCY_ENABLED": IDEMPOTENCY_ENABLED_API,
 }
 
@@ -368,6 +362,24 @@ _API_ONLY_CONTRACT: Final[tuple[RuntimeEnvContractSpec, ...]] = (
         "literal",
         "always",
         DEFAULT_POLICY_VERSION,
+    ),
+    RuntimeEnvContractSpec(
+        "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+        "literal",
+        "always",
+        str(DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT),
+    ),
+    RuntimeEnvContractSpec(
+        "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+        "literal",
+        "always",
+        str(DEFAULT_DAILY_INGRESS_BUDGET_BYTES),
+    ),
+    RuntimeEnvContractSpec(
+        "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+        "literal",
+        "always",
+        str(DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT),
     ),
     RuntimeEnvContractSpec(
         "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
