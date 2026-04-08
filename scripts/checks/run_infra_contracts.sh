@@ -66,6 +66,7 @@ if not template.get("Resources"):
 PY
 
 uv run --with pytest pytest -q \
+  tests/infra/test_cdk_module_boundaries.py \
   tests/infra/test_ci_scope_detector.py \
   tests/infra/test_deploy_output_contracts.py \
   tests/infra/test_ingress_contracts.py \
