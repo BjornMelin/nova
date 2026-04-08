@@ -82,6 +82,15 @@ def test_runtime_contract_literal_env_matches_synthesized_stack() -> None:
         if resource["Properties"]["Handler"]
         == "nova_workflows.handlers.copy_export_handler"
     )
+    api_contract_names = {
+        entry["name"] for entry in payload["api_lambda_environment"]["env"]
+    }
+    workflow_contract_names = {
+        entry["name"] for entry in payload["workflow_task_environment"]["env"]
+    }
+
+    assert set(api_env) == api_contract_names
+    assert set(workflow_env) == workflow_contract_names
 
     for entry in payload["api_lambda_environment"]["env"]:
         if entry["value"] is None:

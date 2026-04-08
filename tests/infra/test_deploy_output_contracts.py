@@ -783,6 +783,7 @@ def test_validate_runtime_release_binds_report_to_deploy_output(
         "large_export_worker_threshold_above_single_copy_limit",
         "estimated_part_count_for_representative_upload",
         "estimated_sign_requests_for_representative_upload",
+        "sign_requests_per_upload_limit_covers_representative_upload",
     }
     assert {check["name"] for check in report["aws_runtime_checks"]} == {
         "runtime_alarm_inventory_present",
