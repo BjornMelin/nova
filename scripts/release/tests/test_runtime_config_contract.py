@@ -93,6 +93,11 @@ def test_runtime_contract_tracks_api_release_digest_and_stepfunctions_env() -> (
     assert "EXPORT_WORKFLOW_STATE_MACHINE_ARN" in api_env
     assert "OIDC_ISSUER" in api_env
     assert "ALLOWED_ORIGINS" in api_env
+    assert "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT" in api_env
+    assert "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES" in api_env
+    assert "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT" in api_env
+    assert "FILE_TRANSFER_STALE_MULTIPART_CLEANUP_AGE_SECONDS" not in api_env
+    assert "FILE_TRANSFER_RECONCILIATION_SCAN_LIMIT" not in api_env
     assert "EXPORTS_ENABLED" in workflow_env
     assert "EXPORTS_DYNAMODB_TABLE" in workflow_env
     assert "EXPORT_WORKFLOW_STATE_MACHINE_ARN" not in workflow_env

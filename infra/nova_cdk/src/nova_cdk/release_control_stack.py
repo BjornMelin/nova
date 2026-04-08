@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """CDK stack for the Nova AWS-native post-merge release control plane."""
 
 from __future__ import annotations
@@ -25,9 +23,9 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from .runtime_stack import (
-    _optional_context_or_env_value,
-    _required_context_or_env_value,
+from .context_inputs import (
+    optional_context_or_env_value,
+    required_context_or_env_value,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -35,11 +33,11 @@ _PIPELINE_NAME = "nova-release-control-plane"
 
 
 def _required_value(scope: Construct, *, key: str, env_var: str) -> str:
-    return _required_context_or_env_value(scope, key=key, env_var=env_var)
+    return required_context_or_env_value(scope, key=key, env_var=env_var)
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
-    raw = _optional_context_or_env_value(scope, key=key, env_var=env_var)
+    raw = optional_context_or_env_value(scope, key=key, env_var=env_var)
     if raw is None:
         return None
     value = str(raw).strip()

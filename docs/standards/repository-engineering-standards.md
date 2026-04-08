@@ -256,9 +256,11 @@ governance:
 - Keep `AGENTS.md` concise and durable; move deeper explanatory material here or
   into the relevant authority docs.
 - Runtime env/override guidance must not fork into handwritten copies; use
-  `packages/nova_file_api/src/nova_file_api/config.py` plus
-  `scripts/release/runtime_config_contract.py` as authority and keep
-  `docs/contracts/runtime-config-contract.generated.md` fresh.
+  `packages/nova_file_api/src/nova_file_api/config.py` for supported runtime
+  settings plus `infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py` for
+  deployed API/workflow Lambda env authority. Keep
+  `scripts/release/runtime_config_contract.py` derived from those sources and
+  keep `docs/contracts/runtime-config-contract.generated.md` fresh.
 - Runtime settings must declare explicit string `Field(validation_alias=…)`
   env mappings. Contract tooling reads `field.validation_alias` only; do not
   rely on `alias=` or implicit uppercase fallback.

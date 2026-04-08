@@ -43,6 +43,12 @@ and the transfer-policy envelope assertions. When a reusable workflow caller
 provides a read-only AWS role, the same report also captures live AWS runtime
 checks for concurrency, alarms, AppConfig rollout state, dashboard presence,
 and transfer-budget notification wiring.
+The generated runtime-config artifact in
+`docs/contracts/runtime-config-contract.generated.md` is derived from
+`packages/nova_file_api/src/nova_file_api/config.py` for supported runtime
+settings and `infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py` for the
+deployed API/workflow Lambda env surface and validator-facing handler
+inventory.
 
 ## Authority / canonical references
 

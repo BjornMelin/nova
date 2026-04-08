@@ -216,6 +216,12 @@ uv run --package nova-cdk python app.py
   Lambda uses `5` outside prod and `25` in prod, and each workflow task Lambda
   uses `2` outside prod and `10` in prod unless the corresponding context/env
   override is set explicitly.
+- The canonical deployed Lambda env surface, workflow handler inventory, and
+  validator-facing function-group authority live in
+  `infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py`. Keep
+  `runtime_stack.py`, `scripts/release/runtime_config_contract.py`, and
+  `scripts/release/validate_runtime_release.py` derived from that module rather
+  than re-stating literals in multiple places.
 - `enable_reserved_concurrency` / `ENABLE_RESERVED_CONCURRENCY` defaults to
   `true`. Production deploys fail closed if it is set to `false`.
 - Manual low-quota non-prod deploys should set

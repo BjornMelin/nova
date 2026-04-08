@@ -160,11 +160,35 @@ async def test_v1_health_and_capabilities() -> None:
         entry for entry in cap_payload if entry["key"] == "transfers.policy"
     )
     assert policy_capability["details"]["policy_id"] == "default"
+    assert policy_capability["details"]["active_multipart_upload_limit"] == 200
+    assert policy_capability["details"]["daily_ingress_budget_bytes"] == (
+        1024 * 1024 * 1024 * 1024
+    )
+    assert policy_capability["details"]["sign_requests_per_upload_limit"] == (
+        512
+    )
     assert transfer_caps.status_code == 200
     transfer_policy = transfer_caps.json()
     assert transfer_policy["policy_id"] == "default"
     assert transfer_policy["sign_batch_size_hint"] >= 64
     assert transfer_policy["checksum_mode"] == "none"
+    assert transfer_policy["active_multipart_upload_limit"] == 200
+    assert transfer_policy["daily_ingress_budget_bytes"] == (
+        1024 * 1024 * 1024 * 1024
+    )
+    assert transfer_policy["sign_requests_per_upload_limit"] == 512
+    assert (
+        transfer_policy["active_multipart_upload_limit"]
+        == (policy_capability["details"]["active_multipart_upload_limit"])
+    )
+    assert (
+        transfer_policy["daily_ingress_budget_bytes"]
+        == (policy_capability["details"]["daily_ingress_budget_bytes"])
+    )
+    assert (
+        transfer_policy["sign_requests_per_upload_limit"]
+        == (policy_capability["details"]["sign_requests_per_upload_limit"])
+    )
     assert transfer_policy["large_export_worker_threshold_bytes"] > 0
 
 

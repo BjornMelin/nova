@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Security and observability contract tests for the runtime stack."""
 
 from __future__ import annotations

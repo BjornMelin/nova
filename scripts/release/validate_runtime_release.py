@@ -17,8 +17,29 @@ from urllib.request import Request, urlopen
 if __package__ in {None, ""}:
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    _repo_root = Path(__file__).resolve().parents[2]
+    _bootstrap_paths: list[str] = [str(_repo_root)]
+    for _rel in ("infra/nova_cdk/src", "packages/nova_runtime_support/src"):
+        _p = _repo_root / _rel
+        if _p.is_dir():
+            _bootstrap_paths.append(str(_p))
+    sys.path[:0] = _bootstrap_paths
 
+try:
+    from nova_cdk.runtime_release_manifest import (
+        expected_runtime_reserved_concurrency,
+        function_logical_id_prefixes,
+    )
+except ModuleNotFoundError as exc:
+    if exc.name in {"nova_cdk", "nova_runtime_support"}:
+        raise RuntimeError(
+            "validate_runtime_release.py requires workspace packages "
+            "`nova_cdk` and `nova_runtime_support` to be importable. Run "
+            "this script via `uv run python scripts/release/"
+            "validate_runtime_release.py` or from an environment where the "
+            "workspace packages are installed."
+        ) from exc
+    raise
 from scripts.release import common
 from scripts.release.resolve_deploy_output import load_deploy_output
 
@@ -61,25 +82,8 @@ _CORS_ALLOWED_HEADERS = {
     "content-type",
     "idempotency-key",
 }
-_STANDARD_LAMBDA_ACCOUNT_CONCURRENCY = 1000
 _AWS_CLI_TIMEOUT_SECONDS = 30
-_PRODUCTION_ENVIRONMENTS = {"prod", "production"}
-_API_RESERVED_CONCURRENCY_DEFAULTS = {True: 25, False: 5}
-_WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS = {True: 10, False: 2}
-_FUNCTION_LOGICAL_ID_PREFIXES = {
-    "api": ("NovaApiFunction",),
-    "workflow": (
-        "ValidateExportFunction",
-        "PrepareExportCopyFunction",
-        "CopyExportFunction",
-        "StartQueuedExportCopyFunction",
-        "PollQueuedExportCopyFunction",
-        "FinalizeExportFunction",
-        "ExportCopyWorkerFunction",
-        "FailExportFunction",
-        "ReconcileTransferStateFunction",
-    ),
-}
+_FUNCTION_LOGICAL_ID_PREFIXES = function_logical_id_prefixes()
 _APP_CONFIG_COMPLETE_STATES = {"COMPLETE"}
 
 
@@ -164,11 +168,6 @@ def _aws_cli_json(*args: str) -> Any:
         ) from exc
 
 
-def _is_production_environment(environment_name: str) -> bool:
-    """Return whether one environment name maps to production."""
-    return environment_name.strip().casefold() in _PRODUCTION_ENVIRONMENTS
-
-
 def _account_concurrency_limit(*, region: str) -> int:
     """Return the Lambda regional account concurrency limit."""
     payload = _aws_cli_json(
@@ -193,14 +192,9 @@ def _expected_reserved_concurrency(
     account_concurrency_limit: int,
 ) -> tuple[int | None, int | None]:
     """Return expected API and workflow reservations for one deploy."""
-    is_production = _is_production_environment(environment_name)
-    if not is_production and (
-        account_concurrency_limit < _STANDARD_LAMBDA_ACCOUNT_CONCURRENCY
-    ):
-        return None, None
-    return (
-        _API_RESERVED_CONCURRENCY_DEFAULTS[is_production],
-        _WORKFLOW_RESERVED_CONCURRENCY_DEFAULTS[is_production],
+    return expected_runtime_reserved_concurrency(
+        environment_name=environment_name,
+        account_concurrency_limit=account_concurrency_limit,
     )
 
 
@@ -442,6 +436,9 @@ def _validate_transfer_capabilities(
     checksum_mode = payload.get("checksum_mode")
     active_multipart_upload_limit = payload.get("active_multipart_upload_limit")
     daily_ingress_budget_bytes = payload.get("daily_ingress_budget_bytes")
+    sign_requests_per_upload_limit = payload.get(
+        "sign_requests_per_upload_limit"
+    )
     large_export_worker_threshold_bytes = payload.get(
         "large_export_worker_threshold_bytes"
     )
@@ -464,6 +461,8 @@ def _validate_transfer_capabilities(
             and active_multipart_upload_limit > 0,
             isinstance(daily_ingress_budget_bytes, int)
             and daily_ingress_budget_bytes > 0,
+            isinstance(sign_requests_per_upload_limit, int)
+            and sign_requests_per_upload_limit > 0,
             isinstance(large_export_worker_threshold_bytes, int)
             and large_export_worker_threshold_bytes > 0,
         )
@@ -486,6 +485,7 @@ def _validate_transfer_capabilities(
     checksum_mode = cast(str, checksum_mode)
     active_multipart_upload_limit = cast(int, active_multipart_upload_limit)
     daily_ingress_budget_bytes = cast(int, daily_ingress_budget_bytes)
+    sign_requests_per_upload_limit = cast(int, sign_requests_per_upload_limit)
     large_export_worker_threshold_bytes = cast(
         int, large_export_worker_threshold_bytes
     )
@@ -588,6 +588,14 @@ def _validate_transfer_capabilities(
         expected="<= 64",
         actual=estimated_sign_requests,
         ok=estimated_sign_requests <= 64,
+    )
+    _record_assertion(
+        checks=capability_checks,
+        failures=failures,
+        name="sign_requests_per_upload_limit_covers_representative_upload",
+        expected=f">= {estimated_sign_requests}",
+        actual=sign_requests_per_upload_limit,
+        ok=sign_requests_per_upload_limit >= estimated_sign_requests,
     )
 
 

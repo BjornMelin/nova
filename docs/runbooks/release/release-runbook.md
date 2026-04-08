@@ -21,6 +21,7 @@ provenance-bound runtime validation.
 7. `docs/contracts/release-execution-manifest-v1.schema.json`
 8. `docs/contracts/workflow-post-deploy-validate.schema.json`
 9. `infra/nova_cdk/README.md`
+10. `infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py`
 
 ## 2. Preconditions
 
@@ -139,6 +140,11 @@ executor workflows as the canonical Nova verification shape.
    404 drift against the canonical public base URL. The literal
    `browser CORS preflight` assertion remains part of the release-validation
    contract.
+7. Treat `infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py` as the
+   deploy-time authority for API/workflow Lambda env, handler inventory, and
+   reserved-concurrency grouping. `scripts/release/validate_runtime_release.py`
+   and `docs/contracts/runtime-config-contract.generated.md` must keep reading
+   from that module rather than maintaining copied runtime literals.
 
 ## 4. Evidence capture
 

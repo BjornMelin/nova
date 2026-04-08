@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """Observability helpers for the canonical Nova runtime stack."""
 
 from __future__ import annotations
@@ -20,6 +18,8 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from .context_inputs import parse_string_list
+
 _SECURITY_LOG_RETENTION = logs.RetentionDays.THREE_MONTHS
 
 
@@ -33,35 +33,7 @@ class NamedLogGroup:
 
 def _parse_alarm_notification_emails(raw: object | None) -> list[str]:
     """Normalize optional alarm notification email configuration."""
-    if raw is None:
-        return []
-    if isinstance(raw, str):
-        value = raw.strip()
-        if not value:
-            return []
-        if value.startswith("["):
-            try:
-                parsed = json.loads(value)
-            except json.JSONDecodeError as exc:
-                raise TypeError(
-                    "alarm_notification_emails JSON input is malformed."
-                ) from exc
-            if not isinstance(parsed, list):
-                raise TypeError(
-                    "alarm_notification_emails JSON input must decode "
-                    "to a list."
-                )
-            return _parse_alarm_notification_emails(parsed)
-        return [
-            item
-            for item in (entry.strip() for entry in value.split(","))
-            if item
-        ]
-    if isinstance(raw, (list, tuple)):
-        return [str(item).strip() for item in raw if str(item).strip()]
-    raise TypeError(
-        "alarm_notification_emails must be a string or a list of strings."
-    )
+    return parse_string_list(raw, key="alarm_notification_emails")
 
 
 def _alarm_notification_emails(scope: Construct) -> list[str]:

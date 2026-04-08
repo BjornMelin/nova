@@ -4,11 +4,20 @@ from __future__ import annotations
 
 import json
 
-from .helpers import load_repo_module, read_repo_file as _read
+from .helpers import (
+    load_repo_module,
+    load_repo_package_module,
+    read_repo_file as _read,
+)
+from .test_runtime_stack_contracts import _build_bundle, _resources_of_type
 
 _VALIDATOR = load_repo_module(
     "validate_runtime_release",
     "scripts/release/validate_runtime_release.py",
+)
+_MANIFEST = load_repo_package_module(
+    "nova_cdk.runtime_release_manifest",
+    "infra/nova_cdk/src",
 )
 
 
@@ -57,3 +66,101 @@ def test_runtime_config_contract_artifacts_drop_deleted_template_surfaces() -> (
     assert "FILE_TRANSFER_RESUMABLE_WINDOW_SECONDS" in markdown
     assert "BLOCKING_IO_THREAD_TOKENS" not in json.dumps(payload)
     assert "BLOCKING_IO_THREAD_TOKENS" not in markdown
+
+
+def test_runtime_contract_literal_env_matches_synthesized_stack() -> None:
+    """Generated runtime contracts must match the synthesized stack surface."""
+    payload = json.loads(
+        _read("packages/contracts/fixtures/runtime_config_contract.json")
+    )
+    bundle = _build_bundle()
+    api_env = bundle.api_function_env
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    workflow_envs = [
+        resource["Properties"]["Environment"]["Variables"]
+        for resource in functions.values()
+        if resource["Properties"]["Handler"].startswith(
+            "nova_workflows.handlers."
+        )
+    ]
+    api_contract_names = {
+        entry["name"] for entry in payload["api_lambda_environment"]["env"]
+    }
+    workflow_contract_names = {
+        entry["name"] for entry in payload["workflow_task_environment"]["env"]
+    }
+
+    assert set(api_env) == api_contract_names
+    assert workflow_envs
+    for workflow_env in workflow_envs:
+        assert set(workflow_env) == workflow_contract_names
+
+    for entry in payload["api_lambda_environment"]["env"]:
+        if entry["value"] is None:
+            continue
+        assert api_env[entry["name"]] == entry["value"]
+
+    expected_copy_concurrency = _MANIFEST.default_export_copy_max_concurrency(2)
+    assert api_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == str(
+        expected_copy_concurrency
+    )
+    for workflow_env in workflow_envs:
+        for entry in payload["workflow_task_environment"]["env"]:
+            if entry["value"] is None:
+                continue
+            assert workflow_env[entry["name"]] == entry["value"]
+        assert workflow_env["FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY"] == str(
+            expected_copy_concurrency
+        )
+
+
+def test_runtime_contract_handlers_match_authority_and_validator() -> None:
+    """Contract handlers and validator prefixes must share authority."""
+    payload = json.loads(
+        _read("packages/contracts/fixtures/runtime_config_contract.json")
+    )
+    bundle = _build_bundle()
+    functions = _resources_of_type(bundle.resources, "AWS::Lambda::Function")
+    expected_handlers = set(_MANIFEST.workflow_handler_names())
+    actual_handlers = {
+        resource["Properties"]["Handler"]
+        for resource in functions.values()
+        if resource["Properties"]["Handler"].startswith(
+            "nova_workflows.handlers."
+        )
+    }
+
+    assert tuple(payload["workflow_task_environment"]["handlers"]) == (
+        _MANIFEST.workflow_handler_names()
+    )
+    assert (
+        _MANIFEST.function_logical_id_prefixes()
+    ) == _VALIDATOR._FUNCTION_LOGICAL_ID_PREFIXES
+    assert expected_handlers == actual_handlers
+
+
+def test_runtime_validation_reserved_concurrency_defaults_share_authority() -> (
+    None
+):
+    """Validator concurrency expectations must come from shared authority."""
+    assert _VALIDATOR._expected_reserved_concurrency(
+        environment_name="dev",
+        account_concurrency_limit=1000,
+    ) == _MANIFEST.expected_runtime_reserved_concurrency(
+        environment_name="dev",
+        account_concurrency_limit=1000,
+    )
+    assert _VALIDATOR._expected_reserved_concurrency(
+        environment_name="dev",
+        account_concurrency_limit=999,
+    ) == _MANIFEST.expected_runtime_reserved_concurrency(
+        environment_name="dev",
+        account_concurrency_limit=999,
+    )
+    assert _VALIDATOR._expected_reserved_concurrency(
+        environment_name="prod",
+        account_concurrency_limit=999,
+    ) == _MANIFEST.expected_runtime_reserved_concurrency(
+        environment_name="prod",
+        account_concurrency_limit=999,
+    )

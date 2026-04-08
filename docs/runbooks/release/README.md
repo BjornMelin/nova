@@ -26,6 +26,12 @@ Committed release artifacts:
 - [`../../../release/RELEASE-VERSION-MANIFEST.md`](../../../release/RELEASE-VERSION-MANIFEST.md)
 - [`../../contracts/runtime-config-contract.generated.md`](../../contracts/runtime-config-contract.generated.md)
 
+The generated runtime-config contract is not a free-standing authority file.
+Its deployed API/workflow env sections now derive from
+`infra/nova_cdk/src/nova_cdk/runtime_release_manifest.py`, while the broader
+runtime setting table still derives from
+`packages/nova_file_api/src/nova_file_api/config.py`.
+
 The public API Lambda zip is not a committed repo artifact. The AWS-native
 release control plane builds it from the merged release PR commit, uploads it
 to the release artifact bucket, and records the handoff in the S3-backed

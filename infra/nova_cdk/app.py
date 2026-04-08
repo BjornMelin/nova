@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """CDK application entrypoint for the canonical Nova serverless stack."""
 
 import json
