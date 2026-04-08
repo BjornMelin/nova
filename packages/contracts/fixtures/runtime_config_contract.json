@@ -177,6 +177,24 @@
       },
       {
         "condition": "always",
+        "name": "FILE_TRANSFER_ACTIVE_MULTIPART_UPLOAD_LIMIT",
+        "source": "literal",
+        "value": "200"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_DAILY_INGRESS_BUDGET_BYTES",
+        "source": "literal",
+        "value": "1099511627776"
+      },
+      {
+        "condition": "always",
+        "name": "FILE_TRANSFER_SIGN_REQUESTS_PER_UPLOAD_LIMIT",
+        "source": "literal",
+        "value": "512"
+      },
+      {
+        "condition": "always",
         "name": "FILE_TRANSFER_POLICY_APPCONFIG_APPLICATION",
         "source": "stack resource",
         "value": null
