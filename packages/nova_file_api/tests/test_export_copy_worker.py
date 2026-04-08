@@ -399,7 +399,7 @@ async def test_terminalize_poison_message_marks_part_failed_permanently() -> (
     prepared = await coordinator.prepare(export=export)
     queued = await coordinator.start(export=export, prepared=prepared)
 
-    result = await coordinator.terminalize_poison_message(
+    await coordinator.terminalize_poison_message(
         poison=ExportCopyPoisonMessage(
             export_id=export.export_id,
             part_number=1,
@@ -411,7 +411,6 @@ async def test_terminalize_poison_message_marks_part_failed_permanently() -> (
         export_id=export.export_id,
         part_number=1,
     )
-    assert result is True
     assert stored is not None
     assert stored.status.value == "failed"
     assert stored.error == "invalid_export_copy_message"

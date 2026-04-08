@@ -29,7 +29,7 @@ class _FakeLargeCopyService:
         messages: list[tuple[str, ExportCopyTaskMessage]],
     ) -> list[str]:
         self.messages = messages
-        return ["good-message"]
+        return ["good-message"] if messages else []
 
     def observe_message_lag(self, *, sent_timestamp_ms: int | None) -> None:
         self.observed_lag.append(sent_timestamp_ms)
@@ -41,9 +41,8 @@ class _FakeLargeCopyService:
         self,
         *,
         poison: ExportCopyPoisonMessage,
-    ) -> bool:
+    ) -> None:
         self.poison_messages.append(poison)
-        return True
 
 
 @pytest.mark.anyio
@@ -115,6 +114,38 @@ async def test_export_copy_worker_terminalizes_invalid_messages_with_metadata(
         )
     ]
     assert result == {"batchItemFailures": [{"itemIdentifier": "good-message"}]}
+
+
+@pytest.mark.anyio
+async def test_export_copy_worker_counts_unresolved_invalid_messages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _FakeLargeCopyService()
+
+    @asynccontextmanager
+    async def fake_workflow_services(*, settings: object):
+        del settings
+        yield SimpleNamespace(large_copy_service=service)
+
+    monkeypatch.setattr(handlers, "WorkflowSettings", lambda: object())
+    monkeypatch.setattr(handlers, "workflow_services", fake_workflow_services)
+    result = await handlers._export_copy_worker(
+        event={
+            "Records": [
+                {
+                    "messageId": "bad-message",
+                    "body": "{not-json}",
+                    "attributes": {"SentTimestamp": "300"},
+                }
+            ]
+        }
+    )
+
+    assert service.messages == []
+    assert service.invalid_terminalizable == [False]
+    assert service.observed_lag == [300]
+    assert service.poison_messages == []
+    assert result == {"batchItemFailures": [{"itemIdentifier": "bad-message"}]}
 
 
 @pytest.mark.anyio

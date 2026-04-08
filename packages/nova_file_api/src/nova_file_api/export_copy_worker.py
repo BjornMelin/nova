@@ -500,21 +500,21 @@ class LargeExportCopyCoordinator:
         self,
         *,
         poison: ExportCopyPoisonMessage,
-    ) -> bool:
+    ) -> None:
         """Turn one malformed but attributable message terminal."""
         export = await self._exports.get(poison.export_id)
         if export is None:
             self._emit_worker_count("exports_worker_poison_orphaned_total")
-            return True
+            return
         if export.status in {
             ExportStatus.CANCELLED,
             ExportStatus.FAILED,
             ExportStatus.SUCCEEDED,
         }:
-            return True
+            return
         if export.copy_upload_id != poison.upload_id:
             self._emit_worker_count("exports_worker_poison_stale_total")
-            return True
+            return
         part = await self._parts.mark_terminal_failure(
             export_id=poison.export_id,
             part_number=poison.part_number,
@@ -540,15 +540,14 @@ class LargeExportCopyCoordinator:
                     error=_POISON_EXPORT_ERROR,
                 )
             self._emit_worker_count("exports_worker_poison_terminalized_total")
-            return True
+            return
         if (
             part.upload_id != poison.upload_id
             or part.status == ExportCopyPartStatus.COPIED
         ):
             self._emit_worker_count("exports_worker_poison_stale_total")
-            return True
+            return
         self._emit_worker_count("exports_worker_poison_terminalized_total")
-        return True
 
     async def process_message_batch(
         self,

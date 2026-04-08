@@ -289,6 +289,7 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
     messages: list[tuple[str, ExportCopyTaskMessage]] = []
     poison_messages: list[tuple[ExportCopyPoisonMessage, int | None]] = []
     message_lag_ms: list[int | None] = []
+    unresolved_invalid_lag_ms: list[int | None] = []
     for record in cast(list[dict[str, Any]], event.get("Records", [])):
         message_id = str(record.get("messageId", ""))
         sent_timestamp_ms = _worker_sent_timestamp_ms(record)
@@ -312,12 +313,13 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
             )
             if poison is None:
                 failures.append(message_id)
+                unresolved_invalid_lag_ms.append(sent_timestamp_ms)
             else:
                 poison_messages.append((poison, sent_timestamp_ms))
             continue
         messages.append((message_id, payload))
         message_lag_ms.append(sent_timestamp_ms)
-    if not messages and not poison_messages:
+    if not messages and not poison_messages and not unresolved_invalid_lag_ms:
         return {
             "batchItemFailures": [
                 {"itemIdentifier": message_id} for message_id in failures
@@ -327,6 +329,13 @@ async def _export_copy_worker(*, event: dict[str, Any]) -> dict[str, Any]:
         for lag_ms in message_lag_ms:
             services.large_copy_service.observe_message_lag(
                 sent_timestamp_ms=lag_ms
+            )
+        for lag_ms in unresolved_invalid_lag_ms:
+            services.large_copy_service.observe_message_lag(
+                sent_timestamp_ms=lag_ms
+            )
+            services.large_copy_service.record_invalid_message(
+                terminalizable=False
             )
         for poison, lag_ms in poison_messages:
             services.large_copy_service.observe_message_lag(
