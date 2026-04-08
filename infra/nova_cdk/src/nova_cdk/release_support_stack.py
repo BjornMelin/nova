@@ -1,5 +1,3 @@
-# mypy: disable-error-code=import-not-found
-
 """IAM support stack for the AWS-native Nova release control plane."""
 
 from __future__ import annotations
@@ -10,21 +8,21 @@ from typing import Any, cast
 from aws_cdk import CfnOutput, DefaultStackSynthesizer, Stack, aws_iam as iam
 from constructs import Construct
 
-from .runtime_stack import (
-    _APPCONFIG_ENVIRONMENT_TAG_KEY,
-    _APPCONFIG_MANAGED_BY_TAG_KEY,
-    _APPCONFIG_MANAGED_BY_TAG_VALUE,
-    _export_copy_worker_dlq_name,
-    _export_copy_worker_queue_name,
-    _observability_dashboard_name,
-    _optional_context_or_env_value,
-    _runtime_alarm_names,
-    _transfer_spend_budget_name,
+from .context_inputs import optional_context_or_env_value
+from .runtime_naming import (
+    APPCONFIG_ENVIRONMENT_TAG_KEY,
+    APPCONFIG_MANAGED_BY_TAG_KEY,
+    APPCONFIG_MANAGED_BY_TAG_VALUE,
+    export_copy_worker_dlq_name,
+    export_copy_worker_queue_name,
+    observability_dashboard_name,
+    runtime_alarm_names,
+    transfer_spend_budget_name,
 )
 
 
 def _optional_value(scope: Construct, *, key: str, env_var: str) -> str | None:
-    raw = _optional_context_or_env_value(scope, key=key, env_var=env_var)
+    raw = optional_context_or_env_value(scope, key=key, env_var=env_var)
     if raw is None:
         return None
     value = str(raw).strip()
@@ -125,14 +123,14 @@ class NovaReleaseSupportStack(Stack):
         hosted_zone_id: str | None,
         role_name: str,
     ) -> iam.Role:
-        alarm_names = _runtime_alarm_names(deployment_environment)
+        alarm_names = runtime_alarm_names(deployment_environment)
         bootstrap_qualifier = (
             self.node.try_get_context("bootstrap_qualifier")
             or DefaultStackSynthesizer.DEFAULT_QUALIFIER
         )
         alarm_topic_name = f"nova-runtime-alarms-{deployment_environment}"
-        dashboard_name = _observability_dashboard_name(deployment_environment)
-        transfer_budget_name = _transfer_spend_budget_name(
+        dashboard_name = observability_dashboard_name(deployment_environment)
+        transfer_budget_name = transfer_spend_budget_name(
             deployment_environment
         )
         sns_topic_arn = (
@@ -142,11 +140,11 @@ class NovaReleaseSupportStack(Stack):
         sqs_queue_arns = [
             (
                 f"arn:{self.partition}:sqs:{self.region}:{self.account}:"
-                f"{_export_copy_worker_queue_name(deployment_environment)}"
+                f"{export_copy_worker_queue_name(deployment_environment)}"
             ),
             (
                 f"arn:{self.partition}:sqs:{self.region}:{self.account}:"
-                f"{_export_copy_worker_dlq_name(deployment_environment)}"
+                f"{export_copy_worker_dlq_name(deployment_environment)}"
             ),
         ]
         cloudwatch_alarm_arns = [
@@ -271,16 +269,16 @@ class NovaReleaseSupportStack(Stack):
                 conditions={
                     "StringEquals": {
                         (
-                            f"aws:RequestTag/{_APPCONFIG_MANAGED_BY_TAG_KEY}"
-                        ): _APPCONFIG_MANAGED_BY_TAG_VALUE,
+                            f"aws:RequestTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
+                        ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
-                            f"aws:RequestTag/{_APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                            f"aws:RequestTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     },
                     "ForAllValues:StringEquals": {
                         "aws:TagKeys": [
-                            _APPCONFIG_MANAGED_BY_TAG_KEY,
-                            _APPCONFIG_ENVIRONMENT_TAG_KEY,
+                            APPCONFIG_MANAGED_BY_TAG_KEY,
+                            APPCONFIG_ENVIRONMENT_TAG_KEY,
                         ]
                     },
                 },
@@ -307,10 +305,10 @@ class NovaReleaseSupportStack(Stack):
                 conditions={
                     "StringEquals": {
                         (
-                            f"aws:ResourceTag/{_APPCONFIG_MANAGED_BY_TAG_KEY}"
-                        ): _APPCONFIG_MANAGED_BY_TAG_VALUE,
+                            f"aws:ResourceTag/{APPCONFIG_MANAGED_BY_TAG_KEY}"
+                        ): APPCONFIG_MANAGED_BY_TAG_VALUE,
                         (
-                            f"aws:ResourceTag/{_APPCONFIG_ENVIRONMENT_TAG_KEY}"
+                            f"aws:ResourceTag/{APPCONFIG_ENVIRONMENT_TAG_KEY}"
                         ): deployment_environment,
                     }
                 },

@@ -13,6 +13,9 @@ from nova_runtime_support.transfer_limits import (
     DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT,
     DEFAULT_TARGET_UPLOAD_PART_COUNT,
 )
+from nova_runtime_support.transfer_policy_document import (
+    TransferPolicyDocument,
+)
 
 from .concurrency import (
     default_api_reserved_concurrency,
@@ -554,6 +557,30 @@ def default_export_copy_max_concurrency(
     return min(
         FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY_LIMIT,
         workflow_reserved_concurrency,
+    )
+
+
+def build_default_transfer_policy_document() -> TransferPolicyDocument:
+    """Return the default AppConfig transfer-policy payload."""
+    return TransferPolicyDocument(
+        policy_id=DEFAULT_POLICY_ID,
+        policy_version=DEFAULT_POLICY_VERSION,
+        max_upload_bytes=FILE_TRANSFER_MAX_UPLOAD_BYTES,
+        multipart_threshold_bytes=FILE_TRANSFER_MULTIPART_THRESHOLD_BYTES,
+        target_upload_part_count=DEFAULT_TARGET_UPLOAD_PART_COUNT,
+        upload_part_size_bytes=FILE_TRANSFER_PART_SIZE_BYTES,
+        max_concurrency_hint=FILE_TRANSFER_MAX_CONCURRENCY,
+        sign_batch_size_hint=64,
+        accelerate_enabled=False,
+        checksum_algorithm=None,
+        checksum_mode=FILE_TRANSFER_CHECKSUM_MODE,
+        resumable_ttl_seconds=7 * 24 * 60 * 60,
+        active_multipart_upload_limit=DEFAULT_ACTIVE_MULTIPART_UPLOAD_LIMIT,
+        daily_ingress_budget_bytes=DEFAULT_DAILY_INGRESS_BUDGET_BYTES,
+        sign_requests_per_upload_limit=DEFAULT_SIGN_REQUESTS_PER_UPLOAD_LIMIT,
+        large_export_worker_threshold_bytes=(
+            FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES
+        ),
     )
 
 
