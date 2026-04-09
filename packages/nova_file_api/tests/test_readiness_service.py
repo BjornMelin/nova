@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -168,11 +168,11 @@ class _ReadyExportRepository:
 def _build_service(
     *,
     settings: Settings | None = None,
-    idempotency_store: object | None = None,
+    idempotency_store: Any | None = None,
     export_service: ExportService | None = None,
-    transfer_service: object | None = None,
+    transfer_service: Any | None = None,
     activity_store: MemoryActivityStore | None = None,
-    authenticator: object | None = None,
+    authenticator: Any | None = None,
 ) -> ReadinessService:
     resolved_settings = _build_settings() if settings is None else settings
     resolved_metrics = MetricsCollector(namespace="Tests")
