@@ -11,6 +11,8 @@ from nova_file_api import runtime as runtime_module
 from nova_file_api.activity import ActivityStore
 from nova_file_api.application import (
     ExportApplicationService,
+    PlatformApplicationService,
+    ReadinessService,
     TransferApplicationService,
 )
 from nova_file_api.auth import Authenticator
@@ -194,6 +196,42 @@ def get_export_application_service(
     )
 
 
+def get_platform_application_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+    metrics: Annotated[MetricsCollector, Depends(get_metrics)],
+    transfer_service: Annotated[TransferService, Depends(get_transfer_service)],
+    activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
+) -> PlatformApplicationService:
+    """Build the per-request platform application coordinator."""
+    return PlatformApplicationService(
+        settings=settings,
+        metrics=metrics,
+        transfer_service=transfer_service,
+        activity_store=activity_store,
+    )
+
+
+def get_readiness_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_store: Annotated[
+        IdempotencyStore, Depends(get_idempotency_store)
+    ],
+    export_service: Annotated[ExportService, Depends(get_export_service)],
+    transfer_service: Annotated[TransferService, Depends(get_transfer_service)],
+    activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
+    authenticator: Annotated[Authenticator, Depends(get_authenticator)],
+) -> ReadinessService:
+    """Build the per-request readiness coordinator."""
+    return ReadinessService(
+        settings=settings,
+        idempotency_store=idempotency_store,
+        export_service=export_service,
+        transfer_service=transfer_service,
+        activity_store=activity_store,
+        authenticator=authenticator,
+    )
+
+
 RuntimeDep = Annotated[ApiRuntime, Depends(get_runtime)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 MetricsDep = Annotated[MetricsCollector, Depends(get_metrics)]
@@ -210,6 +248,14 @@ ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]
 ExportApplicationServiceDep = Annotated[
     ExportApplicationService,
     Depends(get_export_application_service),
+]
+PlatformApplicationServiceDep = Annotated[
+    PlatformApplicationService,
+    Depends(get_platform_application_service),
+]
+ReadinessServiceDep = Annotated[
+    ReadinessService,
+    Depends(get_readiness_service),
 ]
 ActivityStoreDep = Annotated[ActivityStore, Depends(get_activity_store)]
 IdempotencyStoreDep = Annotated[
