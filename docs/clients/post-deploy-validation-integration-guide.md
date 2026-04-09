@@ -75,9 +75,11 @@ This guide is designed as a 5-minute setup flow for downstream repos.
   is the only intended public ingress.
 - `/v1/health/live` and `/v1/health/ready` return `200`.
 - `/v1/health/ready` now reflects the full live traffic readiness surface
-  below the route boundary, including transfer and auth checks plus
-  diagnostic-only export/idempotency/activity probes, not configuration
-  presence alone.
+  below the route boundary, with `ReadinessService.get_readiness()` requiring
+  `auth_dependency` and `export_runtime` on every request, adding
+  `transfer_runtime` only when `file_transfer_enabled` is true,
+  `idempotency_store` only when `idempotency_enabled` is true, and treating
+  `activity_store` as diagnostic-only.
 - At least one protected route returns `401` or `403` without a bearer token.
 - `GET /v1/capabilities/transfers` returns the effective transfer envelope and
   the representative upload sizing checks pass in the report.

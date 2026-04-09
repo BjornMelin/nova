@@ -125,6 +125,7 @@ def _build_settings() -> Settings:
             "OIDC_JWKS_URL": "https://issuer.example.com/.well-known/jwks.json",
         }
     )
+    settings.file_transfer_enabled = True
     settings.exports_enabled = True
     settings.idempotency_enabled = True
     return settings
