@@ -29,6 +29,7 @@ from nova_file_api.export_copy_worker import (
 from nova_file_api.export_runtime import (
     DynamoExportRepository,
     DynamoResource,
+    ExportStatusTransitionError,
     MemoryExportRepository,
     NoopExportMetrics,
     WorkflowExportStateService,
@@ -62,6 +63,7 @@ __all__ = [
     "ExportCopyResult",
     "ExportCopyStrategy",
     "ExportCopyTaskMessage",
+    "ExportStatusTransitionError",
     "ExportTransferConfig",
     "ExportTransferService",
     "LargeExportCopyCoordinator",

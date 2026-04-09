@@ -9,11 +9,11 @@ from nova_file_api.export_models import (
     ExportRecord,
     ExportStatus,
 )
-from nova_file_api.export_runtime import ExportStatusTransitionError
 from nova_file_api.workflow_facade import (
     ExportCopyPollResult,
     ExportCopyResult,
     ExportCopyStrategy,
+    ExportStatusTransitionError,
     ExportTransferService,
     PreparedExportCopy,
     QueuedExportCopyState,
