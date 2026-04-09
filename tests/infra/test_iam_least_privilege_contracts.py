@@ -42,6 +42,26 @@ def _all_actions(policy_document: dict[str, Any]) -> set[str]:
     return actions
 
 
+def _statement_actions(statement: dict[str, Any]) -> set[str]:
+    raw_actions = statement.get("Action")
+    if isinstance(raw_actions, list):
+        return {cast(str, action) for action in raw_actions}
+    if isinstance(raw_actions, str):
+        return {raw_actions}
+    return set()
+
+
+def _statement_resources(statement: dict[str, Any]) -> set[str]:
+    raw_resources = statement.get("Resource")
+    if isinstance(raw_resources, list):
+        return {cast(str, resource) for resource in raw_resources}
+    if isinstance(raw_resources, str):
+        return {raw_resources}
+    if isinstance(raw_resources, dict):
+        return {json.dumps(raw_resources, sort_keys=True)}
+    return set()
+
+
 def test_status_only_workflow_roles_do_not_keep_s3_or_activity_access() -> None:
     """Validate/finalize/fail roles: DynamoDB export status only."""
     resources = runtime_stack_template_json(stack_name="IamContractStack")[
@@ -70,7 +90,7 @@ def test_status_only_workflow_roles_do_not_keep_s3_or_activity_access() -> None:
 
 
 def test_copy_workflow_role_is_scoped_to_upload_and_export_prefixes() -> None:
-    """Copy role: narrow S3 prefixes only; no activity table."""
+    """Inline copy role: narrow S3 prefixes plus cancelled-copy cleanup."""
     resources = runtime_stack_template_json(stack_name="IamContractStackCopy")[
         "Resources"
     ]
@@ -78,15 +98,53 @@ def test_copy_workflow_role_is_scoped_to_upload_and_export_prefixes() -> None:
         resources,
         prefix="CopyExportFunctionServiceRoleDefaultPolicy",
     )
+    statements = cast(list[dict[str, Any]], policy_document["Statement"])
     rendered = json.dumps(policy_document, sort_keys=True)
-
     assert "ActivityTable" not in rendered
+    delete_statements = [
+        statement
+        for statement in statements
+        if any(
+            action.startswith("s3:DeleteObject")
+            for action in _statement_actions(statement)
+        )
+    ]
+    assert delete_statements
+    assert any(
+        any(
+            "exports/*" in resource
+            for resource in _statement_resources(statement)
+        )
+        for statement in delete_statements
+    )
+    assert all(
+        not any(
+            resource == "*" or "uploads/*" in resource
+            for resource in _statement_resources(statement)
+        )
+        for statement in delete_statements
+    )
     assert "uploads/*" in rendered
     assert "exports/*" in rendered
-    assert "DeleteObject" not in rendered
     assert "BatchWriteItem" not in rendered
     assert "Query" not in rendered
     assert "Scan" not in rendered
+
+
+def test_non_inline_copy_workflow_roles_do_not_gain_delete_access() -> None:
+    """Queued-copy roles should keep copy-only export-prefix access."""
+    resources = runtime_stack_template_json(
+        stack_name="IamContractStackQueuedCopy"
+    )["Resources"]
+    for prefix in (
+        "PrepareExportCopyFunctionServiceRoleDefaultPolicy",
+        "StartQueuedExportCopyFunctionServiceRoleDefaultPolicy",
+        "PollQueuedExportCopyFunctionServiceRoleDefaultPolicy",
+        "ExportCopyWorkerFunctionServiceRoleDefaultPolicy",
+    ):
+        policy_document = _policy_document_for_prefix(resources, prefix=prefix)
+        rendered = json.dumps(policy_document, sort_keys=True)
+        assert "DeleteObject" not in rendered
 
 
 def test_workflow_lambdas_drop_unused_activity_env() -> None:

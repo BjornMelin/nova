@@ -2,8 +2,8 @@
 Spec: 0002
 Title: S3 Integration
 Status: Active
-Version: 1.3
-Date: 2026-04-03
+Version: 1.4
+Date: 2026-04-08
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: v1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
@@ -80,7 +80,9 @@ envelope. When `accelerate_enabled=true` for the caller:
 - Moderate export copies MAY remain inline inside the export workflow task
   runtime.
 - Larger server-side copies MUST use the internal queued worker lane with
-  durable part state, explicit DLQ handling, and idempotent part-copy workers.
+  durable part state, canonical SQS message attributes for poison recovery,
+  normal retry/DLQ handling for unattributable malformed messages, and
+  idempotent part-copy workers.
 
 ## 7. Checksum behavior
 

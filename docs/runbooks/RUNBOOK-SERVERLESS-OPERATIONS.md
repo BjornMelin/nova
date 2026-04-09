@@ -115,7 +115,14 @@
     `FILE_TRANSFER_EXPORT_COPY_MAX_CONCURRENCY`)
   - queued worker-lane copy above
     `FILE_TRANSFER_LARGE_EXPORT_WORKER_THRESHOLD_BYTES`
-    with SQS + DLQ + durable DynamoDB part state
+    with durable DynamoDB part state, canonical SQS message attributes for
+    in-band poison recovery, and normal retry/DLQ handling for malformed
+    messages that cannot be attributed safely
+- Export cancellation remains authoritative across both lanes:
+  - queued workers re-check export state before copying parts
+  - `cancelled` wins over later fail/finalize attempts
+  - inline copy deletes the copied export object if cancellation lands after
+    copy completion but before success finalization
 - Clients can inspect the current transfer policy envelope through
   `GET /v1/capabilities/transfers`.
 - A scheduled reconciliation Lambda settles expired upload sessions, retries
@@ -152,7 +159,7 @@ and export baseline monitoring. The dashboard includes:
   `uploads_complete`, and `uploads_abort`
 - API throttles, API 5xx, and reserved-concurrency saturation
 - export queued/copying/finalizing age
-- export worker queue age and DLQ depth
+- export worker queue age, DLQ depth, and worker throttles
 - incomplete multipart upload footprint and `>7 day` MPU metrics wired to S3
   Storage Lens metric names
 - transfer and export observability dashboard coverage

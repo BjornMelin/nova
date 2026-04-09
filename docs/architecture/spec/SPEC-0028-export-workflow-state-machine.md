@@ -2,8 +2,8 @@
 SPEC: 0028
 Title: Export workflow state machine
 Status: Implemented
-Version: 1.1
-Date: 2026-04-03
+Version: 1.2
+Date: 2026-04-08
 Related:
   - "[ADR-0033: Canonical serverless platform](../adr/ADR-0033-canonical-serverless-platform.md)"
   - "[ADR-0035: Replace generic jobs with export workflows](../adr/ADR-0035-replace-generic-jobs-with-export-workflows.md)"
@@ -49,10 +49,20 @@ The workflow uses one of two internal copy lanes after validation:
 - all task retries are explicit
 - all failures are written to workflow state
 - no hidden worker-only failure channel
-- queued worker failures MUST become normal export workflow failures after
-  retries or DLQ exhaustion
-- cancellation MUST stop the Step Functions execution and queued workers MUST
+- queued worker failures MUST either persist export failure in-band or remain
+  observable on the normal SQS retry/DLQ path; the worker lane MUST NOT hide
+  malformed-message failure modes behind silent retries
+- canonical queued-worker messages MUST carry enough internal metadata in SQS
+  message attributes to mark the active part or export terminal when the JSON
+  body is malformed
+- malformed queued-worker messages without recoverable SQS attributes MUST stay
+  on the normal retry/DLQ path and MUST still emit unresolved-invalid and lag
+  observability
+- cancellation MUST stop the Step Functions execution, `cancelled` MUST remain
+  authoritative over later fail/finalize attempts, and queued workers MUST
   check the export record before copying more parts
+- inline copy MUST perform a post-copy cancellation fence and delete the copied
+  export object before any success finalization path continues
 
 ## Query rules
 

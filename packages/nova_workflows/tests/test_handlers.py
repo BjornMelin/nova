@@ -7,7 +7,10 @@ from types import SimpleNamespace
 import pytest
 from botocore.config import Config
 
-from nova_file_api.workflow_facade import ExportCopyTaskMessage
+from nova_file_api.workflow_facade import (
+    ExportCopyPoisonMessage,
+    ExportCopyTaskMessage,
+)
 from nova_workflows import handlers
 
 from .conftest import RecordingSession
@@ -16,6 +19,9 @@ from .conftest import RecordingSession
 class _FakeLargeCopyService:
     def __init__(self) -> None:
         self.messages: list[tuple[str, ExportCopyTaskMessage]] | None = None
+        self.invalid_terminalizable: list[bool] = []
+        self.observed_lag: list[int | None] = []
+        self.poison_messages: list[ExportCopyPoisonMessage] = []
 
     async def process_message_batch(
         self,
@@ -23,11 +29,24 @@ class _FakeLargeCopyService:
         messages: list[tuple[str, ExportCopyTaskMessage]],
     ) -> list[str]:
         self.messages = messages
-        return ["good-message"]
+        return ["good-message"] if messages else []
+
+    def observe_message_lag(self, *, sent_timestamp_ms: int | None) -> None:
+        self.observed_lag.append(sent_timestamp_ms)
+
+    def record_invalid_message(self, *, terminalizable: bool) -> None:
+        self.invalid_terminalizable.append(terminalizable)
+
+    async def terminalize_poison_message(
+        self,
+        *,
+        poison: ExportCopyPoisonMessage,
+    ) -> None:
+        self.poison_messages.append(poison)
 
 
 @pytest.mark.anyio
-async def test_export_copy_worker_marks_invalid_messages_as_failures(
+async def test_export_copy_worker_terminalizes_invalid_messages_with_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = _FakeLargeCopyService()
@@ -42,7 +61,16 @@ async def test_export_copy_worker_marks_invalid_messages_as_failures(
     result = await handlers._export_copy_worker(
         event={
             "Records": [
-                {"messageId": "bad-message", "body": "{not-json}"},
+                {
+                    "messageId": "bad-message",
+                    "body": "{not-json}",
+                    "attributes": {"SentTimestamp": "100"},
+                    "messageAttributes": {
+                        "export_id": {"stringValue": "export-1"},
+                        "part_number": {"stringValue": "1"},
+                        "upload_id": {"stringValue": "upload-1"},
+                    },
+                },
                 {
                     "messageId": "good-message",
                     "body": json.dumps(
@@ -56,6 +84,7 @@ async def test_export_copy_worker_marks_invalid_messages_as_failures(
                             "upload_id": "upload-1",
                         }
                     ),
+                    "attributes": {"SentTimestamp": "200"},
                 },
             ]
         }
@@ -75,12 +104,101 @@ async def test_export_copy_worker_marks_invalid_messages_as_failures(
             ),
         )
     ]
-    assert result == {
-        "batchItemFailures": [
-            {"itemIdentifier": "bad-message"},
-            {"itemIdentifier": "good-message"},
-        ]
-    }
+    assert service.invalid_terminalizable == [True]
+    assert service.observed_lag == [200, 100]
+    assert service.poison_messages == [
+        ExportCopyPoisonMessage(
+            export_id="export-1",
+            part_number=1,
+            upload_id="upload-1",
+        )
+    ]
+    assert result == {"batchItemFailures": [{"itemIdentifier": "good-message"}]}
+
+
+@pytest.mark.anyio
+async def test_export_copy_worker_counts_unresolved_invalid_messages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _FakeLargeCopyService()
+
+    @asynccontextmanager
+    async def fake_workflow_services(*, settings: object):
+        del settings
+        yield SimpleNamespace(large_copy_service=service)
+
+    monkeypatch.setattr(handlers, "WorkflowSettings", lambda: object())
+    monkeypatch.setattr(handlers, "workflow_services", fake_workflow_services)
+    result = await handlers._export_copy_worker(
+        event={
+            "Records": [
+                {
+                    "messageId": "bad-message",
+                    "body": "{not-json}",
+                    "attributes": {"SentTimestamp": "300"},
+                }
+            ]
+        }
+    )
+
+    assert service.messages == []
+    assert service.invalid_terminalizable == [False]
+    assert service.observed_lag == [300]
+    assert service.poison_messages == []
+    assert result == {"batchItemFailures": [{"itemIdentifier": "bad-message"}]}
+
+
+@pytest.mark.anyio
+async def test_export_copy_worker_treats_invalid_coordinates_as_poison(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _FakeLargeCopyService()
+
+    @asynccontextmanager
+    async def fake_workflow_services(*, settings: object):
+        del settings
+        yield SimpleNamespace(large_copy_service=service)
+
+    monkeypatch.setattr(handlers, "WorkflowSettings", lambda: object())
+    monkeypatch.setattr(handlers, "workflow_services", fake_workflow_services)
+    result = await handlers._export_copy_worker(
+        event={
+            "Records": [
+                {
+                    "messageId": "poison-message",
+                    "body": json.dumps(
+                        {
+                            "end_byte": 8,
+                            "export_id": "export-1",
+                            "export_key": "exports/scope-1/export-1/file.csv",
+                            "part_number": 0,
+                            "source_key": "uploads/scope-1/file.csv",
+                            "start_byte": 9,
+                            "upload_id": "upload-1",
+                        }
+                    ),
+                    "attributes": {"SentTimestamp": "400"},
+                    "messageAttributes": {
+                        "export_id": {"stringValue": "export-1"},
+                        "part_number": {"stringValue": "1"},
+                        "upload_id": {"stringValue": "upload-1"},
+                    },
+                }
+            ]
+        }
+    )
+
+    assert service.messages == []
+    assert service.invalid_terminalizable == [True]
+    assert service.observed_lag == [400]
+    assert service.poison_messages == [
+        ExportCopyPoisonMessage(
+            export_id="export-1",
+            part_number=1,
+            upload_id="upload-1",
+        )
+    ]
+    assert result == {"batchItemFailures": []}
 
 
 @pytest.mark.anyio

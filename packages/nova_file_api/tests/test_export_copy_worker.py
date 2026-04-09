@@ -10,6 +10,7 @@ from nova_file_api.export_copy_parts import (
     MemoryExportCopyPartRepository,
 )
 from nova_file_api.export_copy_worker import (
+    ExportCopyPoisonMessage,
     ExportCopyStrategy,
     ExportCopyTaskMessage,
     LargeExportCopyCoordinator,
@@ -19,6 +20,7 @@ from nova_file_api.export_runtime import (
     MemoryExportRepository,
     NoopExportMetrics,
 )
+from nova_runtime_support.metrics import MetricsCollector
 
 
 class _StubS3Client:
@@ -114,6 +116,7 @@ def _coordinator(
     export_repository: MemoryExportRepository,
     part_repository: MemoryExportCopyPartRepository | None = None,
     sqs_client: _StubSqsClient | None = None,
+    metrics: NoopExportMetrics | MetricsCollector | None = None,
 ) -> tuple[
     LargeExportCopyCoordinator,
     _StubS3Client,
@@ -137,7 +140,7 @@ def _coordinator(
         sqs_client=resolved_sqs_client,
         export_repository=export_repository,
         export_copy_part_repository=resolved_part_repository,
-        metrics=NoopExportMetrics(),
+        metrics=NoopExportMetrics() if metrics is None else metrics,
     )
     return coordinator, s3_client, resolved_sqs_client, resolved_part_repository
 
@@ -177,6 +180,14 @@ async def test_start_persists_part_state_and_batches_messages() -> None:
     assert queued.copy_part_count == len(records)
     assert len(sqs_client.batches) >= 1
     assert sum(len(batch) for batch in sqs_client.batches) == len(records)
+    assert sqs_client.batches[0][0]["MessageAttributes"] == {
+        "export_id": {"DataType": "String", "StringValue": "export-1"},
+        "part_number": {"DataType": "Number", "StringValue": "1"},
+        "upload_id": {
+            "DataType": "String",
+            "StringValue": "worker-upload-id",
+        },
+    }
 
 
 @pytest.mark.anyio
@@ -371,6 +382,50 @@ async def test_process_message_batch_stops_when_max_attempts_is_reached() -> (
 
 
 @pytest.mark.anyio
+async def test_terminalize_poison_message_marks_part_failed_permanently() -> (
+    None
+):
+    export_repository = MemoryExportRepository()
+    export = _export_record()
+    await export_repository.create(export)
+    part_repository = MemoryExportCopyPartRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    coordinator, _s3_client, _sqs_client, _parts = _coordinator(
+        source_size_bytes=60 * 1024 * 1024 * 1024,
+        export_repository=export_repository,
+        part_repository=part_repository,
+        metrics=metrics,
+    )
+    prepared = await coordinator.prepare(export=export)
+    queued = await coordinator.start(export=export, prepared=prepared)
+
+    await coordinator.terminalize_poison_message(
+        poison=ExportCopyPoisonMessage(
+            export_id=export.export_id,
+            part_number=1,
+            upload_id=queued.upload_id,
+        )
+    )
+
+    stored = await part_repository.get(
+        export_id=export.export_id,
+        part_number=1,
+    )
+    updated_export = await export_repository.get(export.export_id)
+    assert stored is not None
+    assert stored.status.value == "failed"
+    assert stored.error == "invalid_export_copy_message"
+    assert stored.attempts == coordinator.max_attempts
+    assert updated_export is not None
+    assert updated_export.status == ExportStatus.FAILED
+    assert len(_s3_client.abort_calls) == 1
+    assert (
+        metrics.counters_snapshot()["exports_worker_poison_terminalized_total"]
+        == 1
+    )
+
+
+@pytest.mark.anyio
 async def test_start_reuses_existing_worker_upload_id_on_retry() -> None:
     export_repository = MemoryExportRepository()
     export = _export_record()
@@ -476,10 +531,12 @@ async def test_poll_aborts_destination_upload_when_export_is_cancelled() -> (
     export = _export_record()
     await export_repository.create(export)
     part_repository = MemoryExportCopyPartRepository()
+    metrics = MetricsCollector(namespace="Tests")
     coordinator, s3_client, _sqs_client, _parts = _coordinator(
         source_size_bytes=60 * 1024 * 1024 * 1024,
         export_repository=export_repository,
         part_repository=part_repository,
+        metrics=metrics,
     )
     prepared = await coordinator.prepare(export=export)
     queued = await coordinator.start(
@@ -499,3 +556,62 @@ async def test_poll_aborts_destination_upload_when_export_is_cancelled() -> (
 
     assert result.state == ExportStatus.CANCELLED.value
     assert len(s3_client.abort_calls) == 1
+    assert metrics.counters_snapshot()["exports_worker_abort_total"] == 1
+
+
+@pytest.mark.anyio
+async def test_poll_records_retry_exhaustion_before_abort() -> None:
+    export_repository = MemoryExportRepository()
+    export = _export_record()
+    await export_repository.create(export)
+    part_repository = MemoryExportCopyPartRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    coordinator, s3_client, _sqs_client, _parts = _coordinator(
+        source_size_bytes=60 * 1024 * 1024 * 1024,
+        export_repository=export_repository,
+        part_repository=part_repository,
+        metrics=metrics,
+    )
+    prepared = await coordinator.prepare(export=export)
+    queued = await coordinator.start(export=export, prepared=prepared)
+    await part_repository.mark_terminal_failure(
+        export_id=export.export_id,
+        part_number=1,
+        upload_id=queued.upload_id,
+        error="invalid_export_copy_message",
+        attempts=coordinator.max_attempts,
+    )
+
+    with pytest.raises(RuntimeError, match="exhausted worker retries"):
+        await coordinator.poll(
+            export=export.model_copy(
+                update={
+                    "status": ExportStatus.COPYING,
+                    "copy_upload_id": queued.upload_id,
+                    "copy_export_key": queued.export_key,
+                }
+            ),
+            upload_id=queued.upload_id,
+            export_key=queued.export_key,
+            download_filename=prepared.download_filename,
+        )
+
+    assert (
+        metrics.counters_snapshot()["exports_worker_retry_exhausted_total"] == 1
+    )
+    assert metrics.counters_snapshot()["exports_worker_abort_total"] == 1
+    assert len(s3_client.abort_calls) == 1
+
+
+def test_observe_message_lag_records_metric() -> None:
+    export_repository = MemoryExportRepository()
+    metrics = MetricsCollector(namespace="Tests")
+    coordinator, _s3_client, _sqs_client, _parts = _coordinator(
+        source_size_bytes=60 * 1024 * 1024 * 1024,
+        export_repository=export_repository,
+        metrics=metrics,
+    )
+
+    coordinator.observe_message_lag(sent_timestamp_ms=1)
+
+    assert "exports_worker_message_lag_ms" in metrics.latency_snapshot()

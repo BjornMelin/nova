@@ -51,6 +51,7 @@ def grant_copy_export_permissions(
     file_bucket: s3.IBucket,
     upload_prefix: str,
     export_prefix: str,
+    allow_export_delete: bool = False,
 ) -> None:
     """Grant DynamoDB and S3 object permissions required by copy tasks.
 
@@ -60,6 +61,7 @@ def grant_copy_export_permissions(
         file_bucket: S3 bucket containing upload and export object prefixes.
         upload_prefix: Prefix from which copy tasks read source objects.
         export_prefix: Prefix to which copy tasks write exported objects.
+        allow_export_delete: Whether the task may delete a copied export object.
 
     Returns:
         None.
@@ -81,3 +83,14 @@ def grant_copy_export_permissions(
             ],
         )
     )
+    if allow_export_delete:
+        function.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["s3:DeleteObject*"],
+                resources=[
+                    file_bucket.arn_for_objects(
+                        _object_key_pattern(export_prefix)
+                    )
+                ],
+            )
+        )

@@ -733,6 +733,7 @@ class NovaRuntimeStack(Stack):
             file_bucket=file_bucket,
             export_prefix=FILE_TRANSFER_EXPORT_PREFIX,
             upload_prefix=FILE_TRANSFER_UPLOAD_PREFIX,
+            allow_export_delete=True,
         )
         grant_copy_export_permissions(
             function=prepare_copy_fn,
@@ -913,6 +914,18 @@ class NovaRuntimeStack(Stack):
             task.add_catch(workflow_failure, result_path="$.workflow_error")
 
         copy_strategy_choice = sfn.Choice(self, "SelectExportCopyLane")
+        inline_copy_progress_choice = sfn.Choice(
+            self,
+            "InlineExportCopyReady",
+        )
+        inline_finalize_copy_choice = sfn.Choice(
+            self,
+            "InlineFinalizeExportStatus",
+        )
+        queued_finalize_copy_choice = sfn.Choice(
+            self,
+            "QueuedFinalizeExportStatus",
+        )
         queued_copy_progress_choice = sfn.Choice(
             self,
             "QueuedExportCopyReady",
@@ -934,7 +947,14 @@ class NovaRuntimeStack(Stack):
                         "$.copy_progress_state",
                         "ready",
                     ),
-                    finalize_queued_task.next(export_completed),
+                    finalize_queued_task.next(
+                        queued_finalize_copy_choice.when(
+                            sfn.Condition.string_equals(
+                                "$.status", "cancelled"
+                            ),
+                            export_cancelled,
+                        ).otherwise(export_completed)
+                    ),
                 )
                 .when(
                     sfn.Condition.string_equals(
@@ -977,8 +997,23 @@ class NovaRuntimeStack(Stack):
                         queued_copy_chain,
                     )
                     .otherwise(
-                        copy_task.next(finalize_inline_task).next(
-                            export_completed
+                        copy_task.next(
+                            inline_copy_progress_choice.when(
+                                sfn.Condition.string_equals(
+                                    "$.copy_progress_state",
+                                    "cancelled",
+                                ),
+                                export_cancelled,
+                            ).otherwise(
+                                finalize_inline_task.next(
+                                    inline_finalize_copy_choice.when(
+                                        sfn.Condition.string_equals(
+                                            "$.status", "cancelled"
+                                        ),
+                                        export_cancelled,
+                                    ).otherwise(export_completed)
+                                )
+                            )
                         )
                     )
                 )

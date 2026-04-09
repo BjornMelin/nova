@@ -30,6 +30,9 @@ from nova_workflows.tasks import (
 
 
 class _FakeTransferService:
+    def __init__(self) -> None:
+        self.deleted_export_keys: list[str] = []
+
     async def copy_upload_to_export(
         self,
         *,
@@ -49,8 +52,14 @@ class _FakeTransferService:
             download_filename="source.csv",
         )
 
+    async def delete_export_object(self, *, export_key: str) -> None:
+        self.deleted_export_keys.append(export_key)
+
 
 class _FakeLargeCopyService:
+    def __init__(self) -> None:
+        self.abort_calls: list[tuple[str, str]] = []
+
     async def prepare(self, *, export: ExportRecord) -> PreparedExportCopy:
         assert export.export_id == "export-1"
         return PreparedExportCopy(
@@ -77,6 +86,14 @@ class _FakeLargeCopyService:
             copy_part_size_bytes=prepared.copy_part_size_bytes,
         )
 
+    async def abort_upload(
+        self,
+        *,
+        upload_id: str,
+        export_key: str,
+    ) -> None:
+        self.abort_calls.append((upload_id, export_key))
+
     async def poll(
         self,
         *,
@@ -98,7 +115,10 @@ class _FakeLargeCopyService:
         )
 
 
-async def _service_with_record() -> tuple[
+async def _service_with_record(
+    *,
+    status: ExportStatus = ExportStatus.QUEUED,
+) -> tuple[
     MemoryExportRepository,
     WorkflowExportStateService,
 ]:
@@ -114,7 +134,7 @@ async def _service_with_record() -> tuple[
         request_id="req-1",
         source_key="uploads/scope-1/source.csv",
         filename="source.csv",
-        status=ExportStatus.QUEUED,
+        status=status,
         output=None,
         error=None,
         created_at=now,
@@ -141,6 +161,7 @@ def _workflow_input() -> ExportWorkflowInput:
 @pytest.mark.anyio
 async def test_validate_copy_finalize_workflow_tasks() -> None:
     repository, export_service = await _service_with_record()
+    transfer_service = _FakeTransferService()
     workflow_input = await validate_export(
         workflow_input=_workflow_input(),
         export_service=export_service,
@@ -152,7 +173,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     copied = await copy_export(
         workflow_input=workflow_input,
         export_service=export_service,
-        transfer_service=cast(ExportTransferService, _FakeTransferService()),
+        transfer_service=cast(ExportTransferService, transfer_service),
         file_transfer_bucket="test-bucket",
     )
     assert copied.output == WorkflowOutput(
@@ -163,7 +184,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     assert copying is not None
     assert copying.status == ExportStatus.COPYING
 
-    await finalize_export(
+    finalized = await finalize_export(
         workflow_input=copied,
         export_service=export_service,
     )
@@ -171,6 +192,7 @@ async def test_validate_copy_finalize_workflow_tasks() -> None:
     assert finished is not None
     assert finished.status == ExportStatus.SUCCEEDED
     assert finished.output is not None
+    assert finalized.status == ExportStatus.SUCCEEDED
 
 
 @pytest.mark.anyio
@@ -180,7 +202,7 @@ async def test_fail_export_persists_error_detail() -> None:
         update={"error": "TaskFailed", "cause": "copy task timed out"}
     )
 
-    await fail_export(
+    failed = await fail_export(
         workflow_input=failed_input,
         export_service=export_service,
     )
@@ -189,6 +211,103 @@ async def test_fail_export_persists_error_detail() -> None:
     assert finished is not None
     assert finished.status == ExportStatus.FAILED
     assert finished.error == "copy task timed out"
+    assert failed.status == ExportStatus.FAILED
+
+
+@pytest.mark.anyio
+async def test_copy_export_cleans_up_when_export_is_cancelled_mid_copy() -> (
+    None
+):
+    repository, export_service = await _service_with_record()
+
+    class _CancellingTransferService(_FakeTransferService):
+        async def copy_upload_to_export(
+            self,
+            *,
+            source_bucket: str,
+            source_key: str,
+            scope_id: str,
+            export_id: str,
+            filename: str,
+        ) -> ExportCopyResult:
+            result = await super().copy_upload_to_export(
+                source_bucket=source_bucket,
+                source_key=source_key,
+                scope_id=scope_id,
+                export_id=export_id,
+                filename=filename,
+            )
+            current = await repository.get(export_id)
+            assert current is not None
+            await repository.update(
+                current.model_copy(update={"status": ExportStatus.CANCELLED})
+            )
+            return result
+
+    transfer_service = _CancellingTransferService()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+
+    copied = await copy_export(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        transfer_service=cast(ExportTransferService, transfer_service),
+        file_transfer_bucket="test-bucket",
+    )
+
+    stored = await repository.get("export-1")
+    assert copied.copy_progress_state == "cancelled"
+    assert copied.output is None
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+    assert transfer_service.deleted_export_keys == [
+        "exports/scope-1/export-1/source.csv"
+    ]
+
+
+@pytest.mark.anyio
+async def test_finalize_export_noops_when_cancelled() -> None:
+    repository, export_service = await _service_with_record(
+        status=ExportStatus.CANCELLED
+    )
+
+    result = await finalize_export(
+        workflow_input=_workflow_input().model_copy(
+            update={
+                "output": WorkflowOutput(
+                    key="exports/scope-1/export-1/source.csv",
+                    download_filename="source.csv",
+                )
+            }
+        ),
+        export_service=export_service,
+    )
+
+    stored = await repository.get("export-1")
+    assert result.status == ExportStatus.CANCELLED
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+
+
+@pytest.mark.anyio
+async def test_fail_export_noops_when_cancelled() -> None:
+    repository, export_service = await _service_with_record(
+        status=ExportStatus.CANCELLED
+    )
+
+    result = await fail_export(
+        workflow_input=_workflow_input().model_copy(
+            update={"error": "TaskFailed", "cause": "late failure"}
+        ),
+        export_service=export_service,
+    )
+
+    stored = await repository.get("export-1")
+    assert result.status == ExportStatus.CANCELLED
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
 
 
 @pytest.mark.anyio
@@ -229,3 +348,101 @@ async def test_prepare_and_queue_worker_export_copy_tasks() -> None:
 
     assert polled.copy_progress_state == "ready"
     assert polled.copy_completed_parts == 30
+
+
+@pytest.mark.anyio
+async def test_start_queued_export_copy_aborts_on_copying_cancel_race() -> None:
+    _repository, export_service = await _service_with_record()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+    prepared = await prepare_export_copy(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    class _CancellingLargeCopyService(_FakeLargeCopyService):
+        async def start(
+            self,
+            *,
+            export: ExportRecord,
+            prepared: PreparedExportCopy,
+        ) -> QueuedExportCopyState:
+            queued = await super().start(export=export, prepared=prepared)
+            current = await export_service.repository.get(export.export_id)
+            assert current is not None
+            await export_service.repository.update(
+                current.model_copy(update={"status": ExportStatus.CANCELLED})
+            )
+            return queued
+
+    large_copy_service = _CancellingLargeCopyService()
+
+    queued = await start_queued_export_copy(
+        workflow_input=prepared,
+        export_service=export_service,
+        large_copy_service=large_copy_service,
+    )
+
+    stored = await export_service.repository.get("export-1")
+    assert queued.copy_progress_state == "cancelled"
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+    assert large_copy_service.abort_calls == [
+        ("worker-upload-id", "exports/scope-1/export-1/source.csv")
+    ]
+
+
+@pytest.mark.anyio
+async def test_start_queued_export_copy_aborts_on_queued_cancel_race() -> None:
+    repository, export_service = await _service_with_record()
+    workflow_input = await validate_export(
+        workflow_input=_workflow_input(),
+        export_service=export_service,
+    )
+    prepared = await prepare_export_copy(
+        workflow_input=workflow_input,
+        export_service=export_service,
+        large_copy_service=_FakeLargeCopyService(),
+    )
+
+    current = await repository.get("export-1")
+    assert current is not None
+
+    class _CancellingExportRepository(MemoryExportRepository):
+        async def update_if_status(  # type: ignore[override]
+            self,
+            *,
+            record: ExportRecord,
+            expected_status: ExportStatus,
+        ) -> bool:
+            del expected_status
+            current_record = await self.get(record.export_id)
+            assert current_record is not None
+            await self.update(
+                current_record.model_copy(
+                    update={"status": ExportStatus.CANCELLED}
+                )
+            )
+            return False
+
+    cancelling_repository = _CancellingExportRepository()
+    await cancelling_repository.create(current)
+    export_service.repository = cancelling_repository
+    large_copy_service = _FakeLargeCopyService()
+
+    queued = await start_queued_export_copy(
+        workflow_input=prepared,
+        export_service=export_service,
+        large_copy_service=large_copy_service,
+    )
+
+    stored = await export_service.repository.get("export-1")
+    assert queued.copy_progress_state == "cancelled"
+    assert stored is not None
+    assert stored.status == ExportStatus.CANCELLED
+    assert large_copy_service.abort_calls == [
+        ("worker-upload-id", "exports/scope-1/export-1/source.csv")
+    ]

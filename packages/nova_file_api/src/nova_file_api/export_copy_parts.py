@@ -96,6 +96,18 @@ class ExportCopyPartRepository(Protocol):
         """Mark one copy part as failed and increment the attempt count."""
         ...
 
+    async def mark_terminal_failure(
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        error: str,
+        attempts: int,
+    ) -> ExportCopyPartRecord | None:
+        """Mark one copy part as permanently failed for the active upload."""
+        ...
+
     async def healthcheck(self) -> bool:
         """Return whether the repository is ready."""
         ...
@@ -285,6 +297,37 @@ class MemoryExportCopyPartRepository:
             updated = current.model_copy(
                 update={
                     "status": ExportCopyPartStatus.FAILED,
+                    "error": error,
+                    "updated_at": _now_like(current.updated_at),
+                    "lease_expires_at_epoch": None,
+                }
+            )
+            self._records[(export_id, part_number)] = updated
+            return updated
+
+    async def mark_terminal_failure(
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        error: str,
+        attempts: int,
+    ) -> ExportCopyPartRecord | None:
+        """Mark one queued copy-part record as permanently failed in memory."""
+        async with self._lock:
+            current = self._records.get((export_id, part_number))
+            if current is None:
+                return None
+            if (
+                current.upload_id != upload_id
+                or current.status == ExportCopyPartStatus.COPIED
+            ):
+                return current
+            updated = current.model_copy(
+                update={
+                    "status": ExportCopyPartStatus.FAILED,
+                    "attempts": max(current.attempts, attempts),
                     "error": error,
                     "updated_at": _now_like(current.updated_at),
                     "lease_expires_at_epoch": None,
@@ -505,6 +548,62 @@ class DynamoExportCopyPartRepository:
                     ":error": error,
                     ":failed": ExportCopyPartStatus.FAILED.value,
                     ":updated_at": now.isoformat(),
+                },
+                ReturnValues="ALL_NEW",
+            )
+        except ClientError as exc:
+            if _is_conditional_check_failed(exc):
+                return await self.get(
+                    export_id=export_id,
+                    part_number=part_number,
+                )
+            raise
+        attributes = cast(dict[str, Any], response.get("Attributes"))
+        return _item_to_record(attributes)
+
+    async def mark_terminal_failure(
+        self,
+        *,
+        export_id: str,
+        part_number: int,
+        upload_id: str,
+        error: str,
+        attempts: int,
+    ) -> ExportCopyPartRecord | None:
+        """Mark one queued copy-part record as permanently failed.
+
+        This path is used for poison-message recovery on the active upload.
+        """
+        table = await self._resolve_table()
+        current = await self.get(export_id=export_id, part_number=part_number)
+        if current is None:
+            return None
+        now = datetime.now(tz=UTC)
+        try:
+            response = await table.update_item(
+                Key={"export_id": export_id, "part_number": part_number},
+                UpdateExpression=(
+                    "SET #status = :failed, "
+                    "attempts = :attempts, "
+                    "#error = :error, "
+                    "updated_at = :updated_at "
+                    "REMOVE lease_expires_at_epoch"
+                ),
+                ConditionExpression=(
+                    "#upload_id = :upload_id AND #status <> :copied"
+                ),
+                ExpressionAttributeNames={
+                    "#error": "error",
+                    "#status": "status",
+                    "#upload_id": "upload_id",
+                },
+                ExpressionAttributeValues={
+                    ":attempts": max(current.attempts, attempts),
+                    ":copied": ExportCopyPartStatus.COPIED.value,
+                    ":error": error,
+                    ":failed": ExportCopyPartStatus.FAILED.value,
+                    ":updated_at": now.isoformat(),
+                    ":upload_id": upload_id,
                 },
                 ReturnValues="ALL_NEW",
             )

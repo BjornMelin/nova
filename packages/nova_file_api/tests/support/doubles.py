@@ -112,6 +112,10 @@ class StubTransferService:
         del source_bucket, source_key, scope_id, export_id, filename
         raise AssertionError("copy_upload_to_export should be stubbed per test")
 
+    async def delete_export_object(self, *, export_key: str) -> None:
+        del export_key
+        raise AssertionError("delete_export_object should be stubbed per test")
+
     async def resolve_policy(
         self,
         *,

@@ -19,7 +19,13 @@ from nova_file_api.export_copy_parts import (
     ExportCopyPartStatus,
 )
 from nova_file_api.export_models import ExportRecord, ExportStatus
-from nova_file_api.export_runtime import ExportMetrics, ExportRepository
+from nova_file_api.export_runtime import (
+    ExportMetrics,
+    ExportRepository,
+    ExportStatusLookupError,
+    ExportStatusTransitionError,
+    update_export_status_shared,
+)
 from nova_file_api.export_utils import (
     build_export_object_key,
     multipart_copy_create_upload_kwargs,
@@ -33,6 +39,7 @@ from nova_file_api.s3_coercion import (
 
 _SQS_BATCH_SIZE = 10
 _COPY_PART_RECORD_TTL_SECONDS = 14 * 24 * 60 * 60
+_POISON_EXPORT_ERROR = "invalid_export_copy_message"
 
 
 class ExportCopyStrategy(StrEnum):
@@ -99,6 +106,23 @@ class ExportCopyTaskMessage:
             "end_byte": self.end_byte,
         }
 
+    def sqs_message_attributes(self) -> dict[str, dict[str, str]]:
+        """Return SQS message attributes needed for poison recovery."""
+        return {
+            "export_id": {
+                "DataType": "String",
+                "StringValue": self.export_id,
+            },
+            "part_number": {
+                "DataType": "Number",
+                "StringValue": str(self.part_number),
+            },
+            "upload_id": {
+                "DataType": "String",
+                "StringValue": self.upload_id,
+            },
+        }
+
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> ExportCopyTaskMessage:
         """Build one worker message from a decoded JSON payload."""
@@ -119,6 +143,15 @@ class ExportCopyTaskMessage:
             start_byte=_coerce_int(payload["start_byte"]),
             end_byte=_coerce_int(payload["end_byte"]),
         )
+
+
+@dataclass(slots=True, frozen=True)
+class ExportCopyPoisonMessage:
+    """Minimal worker metadata used to terminalize malformed messages."""
+
+    export_id: str
+    part_number: int
+    upload_id: str
 
 
 class SqsClient(Protocol):
@@ -359,6 +392,12 @@ class LargeExportCopyCoordinator:
                 completed_parts=0,
                 total_parts=0,
             )
+        if export.status == ExportStatus.FAILED:
+            await self._abort_multipart_upload(
+                upload_id=upload_id,
+                export_key=export_key,
+            )
+            raise RuntimeError("queued export copy already failed")
         part_records = await self._parts.list_for_export(
             export_id=export.export_id
         )
@@ -376,6 +415,7 @@ class LargeExportCopyCoordinator:
             and record.attempts >= self.max_attempts
         ]
         if failed_parts:
+            self._emit_worker_count("exports_worker_retry_exhausted_total")
             await self._abort_multipart_upload(
                 upload_id=upload_id,
                 export_key=export_key,
@@ -436,6 +476,111 @@ class LargeExportCopyCoordinator:
             download_filename=download_filename,
         )
 
+    async def abort_upload(
+        self,
+        *,
+        upload_id: str,
+        export_key: str,
+    ) -> None:
+        """Abort one queued multipart upload for export-copy rollback."""
+        await self._abort_multipart_upload(
+            upload_id=upload_id,
+            export_key=export_key,
+        )
+
+    def observe_message_lag(self, *, sent_timestamp_ms: int | None) -> None:
+        """Record worker delivery lag from the SQS sent timestamp."""
+        if sent_timestamp_ms is None:
+            return
+        lag_ms = max(
+            0.0,
+            (_utc_now().timestamp() * 1000.0) - float(sent_timestamp_ms),
+        )
+        self._metrics.observe_ms("exports_worker_message_lag_ms", lag_ms)
+        self._metrics.emit_emf(
+            metric_name="exports_worker_message_lag_ms",
+            value=lag_ms,
+            unit="Milliseconds",
+            dimensions={"source": "export_copy_worker"},
+        )
+
+    def record_invalid_message(self, *, terminalizable: bool) -> None:
+        """Record one malformed worker message outcome."""
+        self._emit_worker_count("exports_worker_messages_invalid_total")
+        if not terminalizable:
+            self._emit_worker_count(
+                "exports_worker_messages_invalid_unresolved_total"
+            )
+
+    async def terminalize_poison_message(
+        self,
+        *,
+        poison: ExportCopyPoisonMessage,
+    ) -> None:
+        """Turn one malformed but attributable message terminal."""
+        export = await self._exports.get(poison.export_id)
+        if export is None:
+            self._emit_worker_count("exports_worker_poison_orphaned_total")
+            return
+        if export.status in {
+            ExportStatus.CANCELLED,
+            ExportStatus.FAILED,
+            ExportStatus.SUCCEEDED,
+        }:
+            return
+        if export.copy_upload_id != poison.upload_id:
+            self._emit_worker_count("exports_worker_poison_stale_total")
+            return
+        part = await self._parts.mark_terminal_failure(
+            export_id=poison.export_id,
+            part_number=poison.part_number,
+            upload_id=poison.upload_id,
+            error=_POISON_EXPORT_ERROR,
+            attempts=self.max_attempts,
+        )
+        if part is None:
+            if export.copy_export_key is not None:
+                await self._abort_multipart_upload(
+                    upload_id=poison.upload_id,
+                    export_key=export.copy_export_key,
+                )
+            with suppress(
+                ExportStatusLookupError,
+                ExportStatusTransitionError,
+            ):
+                await update_export_status_shared(
+                    repository=self._exports,
+                    metrics=self._metrics,
+                    export_id=poison.export_id,
+                    status=ExportStatus.FAILED,
+                    error=_POISON_EXPORT_ERROR,
+                )
+            self._emit_worker_count("exports_worker_poison_terminalized_total")
+            return
+        if (
+            part.upload_id != poison.upload_id
+            or part.status == ExportCopyPartStatus.COPIED
+        ):
+            self._emit_worker_count("exports_worker_poison_stale_total")
+            return
+        if export.copy_export_key is not None:
+            await self._abort_multipart_upload(
+                upload_id=poison.upload_id,
+                export_key=export.copy_export_key,
+            )
+        with suppress(
+            ExportStatusLookupError,
+            ExportStatusTransitionError,
+        ):
+            await update_export_status_shared(
+                repository=self._exports,
+                metrics=self._metrics,
+                export_id=poison.export_id,
+                status=ExportStatus.FAILED,
+                error=_POISON_EXPORT_ERROR,
+            )
+        self._emit_worker_count("exports_worker_poison_terminalized_total")
+
     async def process_message_batch(
         self,
         *,
@@ -455,6 +600,7 @@ class LargeExportCopyCoordinator:
             try:
                 await self._process_message(payload=payload)
             except Exception:
+                self._emit_worker_count("exports_worker_message_failures_total")
                 with suppress(Exception):
                     await self._parts.mark_failed(
                         export_id=payload.export_id,
@@ -547,6 +693,7 @@ class LargeExportCopyCoordinator:
                             separators=(",", ":"),
                             sort_keys=True,
                         ),
+                        "MessageAttributes": item.sqs_message_attributes(),
                     }
                     for item in batch
                 ],
@@ -647,6 +794,7 @@ class LargeExportCopyCoordinator:
         upload_id: str,
         export_key: str,
     ) -> None:
+        self._emit_worker_count("exports_worker_abort_total")
         try:
             await self._s3.abort_multipart_upload(
                 Bucket=self.bucket,
@@ -684,6 +832,15 @@ class LargeExportCopyCoordinator:
         expected_prefix = f"{self.upload_prefix}{scope_id}/"
         if not key.startswith(expected_prefix):
             raise ValueError("key is outside caller upload scope")
+
+    def _emit_worker_count(self, metric_name: str, value: int = 1) -> None:
+        self._metrics.incr(metric_name, value)
+        self._metrics.emit_emf(
+            metric_name=metric_name,
+            value=float(value),
+            unit="Count",
+            dimensions={"source": "export_copy_worker"},
+        )
 
 
 def _optional_str(value: object) -> str | None:
@@ -731,6 +888,7 @@ def _queued_state_from_export(
 
 
 __all__ = [
+    "ExportCopyPoisonMessage",
     "ExportCopyPollResult",
     "ExportCopyStrategy",
     "ExportCopyTaskMessage",
