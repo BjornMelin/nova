@@ -304,6 +304,11 @@ async def finalize_export(
     if workflow_input.output is None:
         raise ValueError("workflow output is required before finalization")
     output = workflow_input.output.to_export_output()
+    # Keep one shared ExportStatusTransitionError handler for the FINALIZING
+    # and SUCCEEDED updates. The only acceptable rejection is a concurrent
+    # cancellation, which we detect by re-reading the record and returning
+    # _cancelled_workflow_input; splitting this into separate try/except
+    # blocks was considered but rejected to avoid duplicating that logic.
     try:
         await export_service.update_status(
             export_id=workflow_input.export_id,
