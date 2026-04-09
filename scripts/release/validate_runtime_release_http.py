@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
+from nova_runtime_support.transfer_limits import COPY_OBJECT_MAX_BYTES
 from scripts.release.validate_runtime_release_shared import record_assertion
 from scripts.release.validate_runtime_release_types import (
     AssertionCheck,
@@ -297,9 +298,9 @@ def validate_transfer_capabilities(
         checks=capability_checks,
         failures=failures,
         name="large_export_worker_threshold_above_single_copy_limit",
-        expected=f"> {5 * 1024 * 1024 * 1024}",
+        expected=f"> {COPY_OBJECT_MAX_BYTES}",
         actual=large_export_worker_threshold_bytes,
-        ok=large_export_worker_threshold_bytes > 5 * 1024 * 1024 * 1024,
+        ok=large_export_worker_threshold_bytes > COPY_OBJECT_MAX_BYTES,
     )
     record_assertion(
         checks=capability_checks,
