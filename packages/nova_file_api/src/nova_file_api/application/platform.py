@@ -34,6 +34,7 @@ from nova_file_api.transfer_policy import TransferPolicy
 from nova_runtime_support.metrics import MetricsCollector
 
 _READINESS_ROUTE = "/v1/health/ready"
+_READINESS_PROBE_TIMEOUT_SECONDS = 1.0
 _SUPPORTED_RESOURCE_KEYS = frozenset(
     {"exports", "transfers", "downloads", "uploads"}
 )
@@ -199,8 +200,9 @@ class ReadinessService:
         required_checks: tuple[str, ...] = (
             "auth_dependency",
             "export_runtime",
-            "transfer_runtime",
         )
+        if self.settings.file_transfer_enabled:
+            required_checks = (*required_checks, "transfer_runtime")
         if self.settings.idempotency_enabled:
             required_checks = (*required_checks, "idempotency_store")
         is_ready = all(getattr(checks, name) for name in required_checks)
@@ -272,11 +274,21 @@ class ReadinessService:
         failure_event: str,
     ) -> bool:
         try:
-            return await healthcheck()
+            async with asyncio.timeout(_READINESS_PROBE_TIMEOUT_SECONDS):
+                return await healthcheck()
+        except TimeoutError:
+            self.logger.exception(
+                failure_event,
+                route=_READINESS_ROUTE,
+                timeout_seconds=_READINESS_PROBE_TIMEOUT_SECONDS,
+                error_kind="timeout",
+            )
+            return False
         except Exception:
             self.logger.exception(
                 failure_event,
                 route=_READINESS_ROUTE,
+                error_kind="exception",
             )
             return False
 

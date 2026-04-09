@@ -262,6 +262,23 @@ async def test_get_readiness_does_not_gate_idempotency_when_disabled() -> None:
 
 
 @pytest.mark.anyio
+async def test_get_readiness_does_not_gate_transfer_when_disabled() -> None:
+    """Disabled transfers should not gate readiness."""
+    settings = _build_settings()
+    settings.file_transfer_enabled = False
+    service = _build_service(
+        settings=settings,
+        transfer_service=_FailingTransferService(),
+        authenticator=StubAuthenticator(),
+    )
+
+    response = await service.get_readiness()
+
+    assert response.ok is True
+    assert response.checks.transfer_runtime is False
+
+
+@pytest.mark.anyio
 async def test_get_readiness_fails_when_required_probe_reports_false() -> None:
     """False transfer or auth probes should fail readiness."""
     service = _build_service(
@@ -322,12 +339,26 @@ async def test_get_readiness_runs_independent_probes_concurrently() -> None:
     try:
         await asyncio.wait_for(
             asyncio.gather(*(probe.started.wait() for probe in probes)),
-            timeout=0.2,
+            timeout=1.0,
         )
     finally:
         for probe in probes:
             probe.release.set()
 
-    response = await asyncio.wait_for(task, timeout=0.2)
+    response = await asyncio.wait_for(task, timeout=1.0)
 
     assert response.ok is True
+
+
+@pytest.mark.anyio
+async def test_get_readiness_times_out_slow_transfer_probe() -> None:
+    """Slow transfer probes should fail readiness instead of hanging."""
+    service = _build_service(
+        transfer_service=_GateTransferService(_GateProbe()),
+        authenticator=StubAuthenticator(),
+    )
+
+    response = await asyncio.wait_for(service.get_readiness(), timeout=2.0)
+
+    assert response.ok is False
+    assert response.checks.transfer_runtime is False

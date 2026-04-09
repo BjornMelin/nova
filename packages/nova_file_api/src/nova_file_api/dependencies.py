@@ -202,7 +202,20 @@ def get_platform_application_service(
     transfer_service: Annotated[TransferService, Depends(get_transfer_service)],
     activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
 ) -> PlatformApplicationService:
-    """Build the per-request platform application coordinator."""
+    """Build the per-request platform application coordinator.
+
+    Args:
+        settings: Runtime settings for feature flags and policy toggles.
+        metrics: Metrics collector used for request timers and counters.
+        transfer_service: Domain transfer service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+
+    Returns:
+        PlatformApplicationService: Per-request platform application service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
     return PlatformApplicationService(
         settings=settings,
         metrics=metrics,
@@ -221,7 +234,22 @@ def get_readiness_service(
     activity_store: Annotated[ActivityStore, Depends(get_activity_store)],
     authenticator: Annotated[Authenticator, Depends(get_authenticator)],
 ) -> ReadinessService:
-    """Build the per-request readiness coordinator."""
+    """Build the per-request readiness coordinator.
+
+    Args:
+        settings: Runtime settings for feature flags and policy toggles.
+        idempotency_store: Store used to deduplicate create-upload requests.
+        export_service: Domain export service bound to the runtime.
+        transfer_service: Domain transfer service bound to the runtime.
+        activity_store: Activity backend used to record caller-visible events.
+        authenticator: JWT authenticator used for readiness dependency checks.
+
+    Returns:
+        ReadinessService: Per-request readiness service.
+
+    Raises:
+        Exception: Propagates dependency-resolution or construction failures.
+    """
     return ReadinessService(
         settings=settings,
         idempotency_store=idempotency_store,
