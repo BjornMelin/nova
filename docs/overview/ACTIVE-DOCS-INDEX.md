@@ -32,6 +32,7 @@
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`

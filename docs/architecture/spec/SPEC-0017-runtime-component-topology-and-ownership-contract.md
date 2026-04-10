@@ -2,12 +2,14 @@
 Spec: 0017
 Title: Runtime component topology and ownership contract
 Status: Active
-Version: 2.7
-Date: 2026-04-07
+Version: 2.8
+Date: 2026-04-10
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0016: V1 route namespace and literal guardrails](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md)"
   - "[SPEC-0027: Public API v2](./SPEC-0027-public-api-v2.md)"
+  - "[SPEC-0030: SDK generation and package layout](./SPEC-0030-sdk-generation-and-package-layout.md)"
+  - "[SPEC-0012: SDK conformance, versioning, and compatibility governance](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md)"
   - "[requirements.md](../requirements.md)"
 ---
 
@@ -26,7 +28,7 @@ cross-package boundaries for the Nova monorepo.
 | `packages/nova_workflows/` | Workflow settings, task-handler runtime assembly, and export orchestration over pure `nova_file_api` domain/runtime surfaces and the shared `nova_file_api.workflow_facade` bridge for workflow-safe imports such as AWS client-config helpers |
 | `packages/nova_runtime_support/` | Internal shared helpers for outer-ASGI request context, request-id propagation, canonical FastAPI exception registration, canonical error-envelope shaping, log redaction, shared auth claim normalization, shared metrics/logging setup, and shared transfer config contracts |
 | `packages/nova_dash_bridge/` | Browser/Dash uploader assets and component helpers over canonical Nova HTTP routes |
-| `packages/contracts/` | OpenAPI artifacts, fixtures, and generated-client contract inputs |
+| `packages/contracts/` | Full/runtime and reduced-public OpenAPI artifacts, fixtures, and generated-client contract inputs |
 
 ## 3. Ownership boundaries
 
@@ -79,10 +81,12 @@ cross-package boundaries for the Nova monorepo.
 3. TypeScript is an active release-grade SDK surface. R remains an internal
    first-class package surface with generated-contract governance, but it is
    not a separate runtime authority.
-4. Canonical OpenAPI remains the sole SDK authority for generated contract
-   surfaces.
-5. Internal-only operations remain documented in canonical OpenAPI and are
-   excluded from client SDK generation.
+4. Canonical OpenAPI artifact ownership remains the sole SDK authority for
+   generated contract surfaces: the full runtime export remains the runtime/API
+   machine contract, while the committed reduced public artifact is the SDK
+   generation source of truth.
+5. Internal-only operations remain documented in the full runtime OpenAPI
+   artifact and are excluded from public client SDK generation.
 
 ## 6. Acceptance criteria
 

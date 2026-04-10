@@ -19,7 +19,6 @@ if __package__ in {None, ""}:  # pragma: no cover - direct script execution
 from scripts.release.sdk_common import (
     REPO_ROOT,
     GenerationTarget,
-    _build_public_openapi_spec,
 )
 
 OPENAPI_TS_CLI = REPO_ROOT / "node_modules" / ".bin" / "openapi-ts"
@@ -67,6 +66,10 @@ _SDK_OPTIONS_PARAM_DOC = (
     "@param options - request options including client, security, and request "
     "overrides."
 )
+_CLIENT_FETCH_TODO_COMMENT = (
+    "    // TODO: we probably want to return error and improve types\n"
+)
+_GENERATED_TODO_PATTERN = re.compile(r"\b(?:TODO|FIXME|XXX)\b")
 
 
 def _strip_ts_docblock_line(line: str) -> str:
@@ -688,6 +691,17 @@ def _apply_typescript_upstream_compatibility_fixes(root: Path) -> None:
             if updated != text:
                 utils_path.write_text(updated, encoding="utf-8")
 
+    for client_path in (
+        root / "client.gen.ts",
+        root / "client" / "client.gen.ts",
+    ):
+        if not client_path.exists():
+            continue
+        client_text = client_path.read_text(encoding="utf-8")
+        if _CLIENT_FETCH_TODO_COMMENT in client_text:
+            client_text = client_text.replace(_CLIENT_FETCH_TODO_COMMENT, "", 1)
+            client_path.write_text(client_text, encoding="utf-8")
+
     sdk_path = root / "sdk.gen.ts"
     if sdk_path.exists():
         sdk_text = sdk_path.read_text(encoding="utf-8")
@@ -746,7 +760,8 @@ def _run_openapi_ts(
     """Run the @hey-api/openapi-ts generator for the provided OpenAPI spec.
 
     Args:
-        input_spec_path: Path to the generated public OpenAPI JSON file.
+        input_spec_path: Path to the OpenAPI JSON file used for generation;
+            its contents should match the committed reduced public spec.
         output_path: Path where the TypeScript SDK output directory should be
             written.
 
@@ -831,6 +846,29 @@ def _typescript_generated_files(root: Path) -> dict[str, str]:
     }
 
 
+def _assert_no_generated_todo_markers(root: Path) -> None:
+    """Fail when generated TS output still contains unresolved TODO markers.
+
+    Raises:
+        RuntimeError: Raised when any generated TypeScript file contains an
+            unresolved TODO marker; the error message includes joined
+            ``file:line`` findings for each match.
+    """
+    findings: list[str] = []
+    for relative_path, content in _typescript_generated_files(root).items():
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            if _GENERATED_TODO_PATTERN.search(line):
+                findings.append(
+                    f"{relative_path}:{line_number}: {line.strip()}"
+                )
+    if findings:
+        joined = "\n".join(findings)
+        raise RuntimeError(
+            "generated TypeScript SDK output contains unresolved TODO "
+            f"markers:\n{joined}"
+        )
+
+
 def _check_typescript_generated_output(
     package_root: Path,
     *,
@@ -913,13 +951,12 @@ def generate_or_check_typescript_sdk(
         OSError: Raised by ``shutil`` operations when copying/removing
             artifacts.
     """
-    public_spec = _build_public_openapi_spec(spec)
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_root = Path(tmp_dir)
         input_spec_path = tmp_root / "nova-file-api.public.openapi.json"
         output_path = tmp_root / "client"
         input_spec_path.write_text(
-            json.dumps(public_spec, indent=2, sort_keys=True) + "\n",
+            json.dumps(spec, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         _run_openapi_ts(
@@ -928,8 +965,9 @@ def generate_or_check_typescript_sdk(
         _apply_typescript_upstream_compatibility_fixes(output_path)
         _apply_typescript_reference_doc_repairs(
             output_path,
-            spec=public_spec,
+            spec=spec,
         )
+        _assert_no_generated_todo_markers(output_path)
 
         if check:
             return _check_typescript_generated_output(

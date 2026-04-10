@@ -2,8 +2,8 @@
 Spec: 0012
 Title: SDK governance for Python public, release-grade TypeScript, and first-class internal R packages
 Status: Active
-Version: 3.1
-Date: 2026-04-07
+Version: 3.2
+Date: 2026-04-10
 Related:
   - "[ADR-0023: Hard-cut v1 canonical route surface](../adr/ADR-0023-hard-cut-v1-canonical-route-surface.md)"
   - "[SPEC-0000: HTTP API contract](./superseded/SPEC-0000-http-api-contract.md)"
@@ -65,9 +65,20 @@ Required CI posture:
 Nova repository lanes:
 
 - `.github/workflows/ci.yml`
+- required check context `typescript-packages-and-conformance`
 - `packages/contracts/typescript/src/conformance.ts`
+- `packages/contracts/openapi/nova-file-api.public.openapi.json`
 - `scripts/release/generate_clients.py --check`
 - `scripts/release/generate_python_clients.py --check`
+
+The reduced public OpenAPI artifact at
+`packages/contracts/openapi/nova-file-api.public.openapi.json` is the shared
+SDK contract authority for TS, Python, and R generation. The full runtime
+export remains in `packages/contracts/openapi/nova-file-api.openapi.json`.
+TypeScript package build and conformance now run through the merged
+`typescript-packages-and-conformance` lane, and generated TypeScript/Python
+artifacts must fail when unresolved TODO/FIXME/XXX markers remain in committed
+output.
 
 ### 2.3 Golden-path scenarios
 

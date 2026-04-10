@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import json
 import re
 import shutil
@@ -15,9 +14,8 @@ from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
 from scripts.release.sdk_common import (
+    PUBLIC_OPENAPI_SPEC_PATH,
     REPO_ROOT,
-    SDK_VISIBILITY_EXTENSION,
-    SDK_VISIBILITY_INTERNAL,
 )
 
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
@@ -34,9 +32,7 @@ _IGNORED_PARTS = {"__pycache__"}
 _IGNORED_PREFIXES = (".",)
 _GENERATOR_TIMEOUT_SECONDS = 60
 _FORMATTER_TIMEOUT_SECONDS = 60
-_HTTP_METHODS = frozenset(
-    {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
-)
+_TODO_MARKER_PATTERN = re.compile(r"\b(?:TODO|FIXME|XXX)\b")
 
 
 @dataclass(frozen=True)
@@ -58,7 +54,7 @@ class AdditionalPropertiesRepair:
 
 PYTHON_TARGETS = (
     PythonGenerationTarget(
-        spec_path=OPENAPI_ROOT / "nova-file-api.openapi.json",
+        spec_path=PUBLIC_OPENAPI_SPEC_PATH,
         output_path=(
             REPO_ROOT / "packages" / "nova_sdk_py" / "src" / "nova_sdk_py"
         ),
@@ -449,131 +445,6 @@ def _normalize_single_line_docstrings(root: Path) -> None:
         )
         if updated != content:
             path.write_text(updated, encoding="utf-8")
-
-
-def _filter_internal_operations_for_public_sdk(
-    spec: dict[str, Any],
-) -> dict[str, Any]:
-    filtered = copy.deepcopy(spec)
-    paths = filtered.get("paths")
-    if not isinstance(paths, dict):
-        raise TypeError("OpenAPI spec missing paths object")
-
-    for path, path_item in list(paths.items()):
-        if not isinstance(path_item, dict):
-            continue
-        path_item_mapping = cast("dict[str, object]", path_item)
-        for method, operation in list(path_item_mapping.items()):
-            if method not in _HTTP_METHODS or not isinstance(operation, dict):
-                continue
-            operation_mapping = cast("dict[str, object]", operation)
-            if (
-                operation_mapping.get(SDK_VISIBILITY_EXTENSION)
-                == SDK_VISIBILITY_INTERNAL
-            ):
-                del path_item_mapping[method]
-        if not any(method in _HTTP_METHODS for method in path_item_mapping):
-            del paths[path]
-    return filtered
-
-
-def _collect_component_refs(node: object) -> set[tuple[str, str]]:
-    refs: set[tuple[str, str]] = set()
-    if isinstance(node, dict):
-        node_mapping = cast("dict[str, object]", node)
-        ref = node_mapping.get("$ref")
-        if isinstance(ref, str) and ref.startswith("#/components/"):
-            _, _, section, name = ref.split("/", 3)
-            refs.add((section, name))
-        for value in node_mapping.values():
-            refs.update(_collect_component_refs(value))
-    elif isinstance(node, list):
-        for item in node:
-            refs.update(_collect_component_refs(item))
-    return refs
-
-
-def _collect_security_scheme_refs(spec: dict[str, Any]) -> set[tuple[str, str]]:
-    refs: set[tuple[str, str]] = set()
-
-    def _collect_from_security(value: object) -> None:
-        if not isinstance(value, list):
-            return
-        for requirement in value:
-            if not isinstance(requirement, dict):
-                continue
-            for scheme_name in requirement:
-                if isinstance(scheme_name, str):
-                    refs.add(("securitySchemes", scheme_name))
-
-    _collect_from_security(spec.get("security"))
-    for path_item in (spec.get("paths") or {}).values():
-        if not isinstance(path_item, dict):
-            continue
-        _collect_from_security(path_item.get("security"))
-        for method, operation in path_item.items():
-            if method not in _HTTP_METHODS or not isinstance(operation, dict):
-                continue
-            _collect_from_security(operation.get("security"))
-    return refs
-
-
-def _prune_unreferenced_components(spec: dict[str, Any]) -> dict[str, Any]:
-    components = spec.get("components")
-    if not isinstance(components, dict):
-        return spec
-
-    without_components = copy.deepcopy(spec)
-    without_components.pop("components", None)
-    pending = list(_collect_component_refs(without_components))
-    pending.extend(_collect_security_scheme_refs(spec))
-    referenced: set[tuple[str, str]] = set()
-
-    while pending:
-        section, name = pending.pop()
-        ref = (section, name)
-        if ref in referenced:
-            continue
-        referenced.add(ref)
-        section_values = components.get(section)
-        if not isinstance(section_values, dict):
-            continue
-        component_value = section_values.get(name)
-        if component_value is None:
-            continue
-        pending.extend(_collect_component_refs(component_value))
-
-    pruned = copy.deepcopy(spec)
-    pruned_components = pruned.get("components")
-    if not isinstance(pruned_components, dict):
-        return pruned
-
-    for section, section_values in list(pruned_components.items()):
-        if not isinstance(section_values, dict):
-            continue
-        if section == "securitySchemes":
-            continue
-        kept = {
-            name: value
-            for name, value in section_values.items()
-            if (section, name) in referenced
-        }
-        if kept:
-            pruned_components[section] = kept
-        else:
-            del pruned_components[section]
-
-    if not pruned_components:
-        pruned.pop("components", None)
-    return pruned
-
-
-def _write_temp_spec(*, spec: dict[str, Any], destination: Path) -> Path:
-    destination.write_text(
-        json.dumps(spec, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    return destination
 
 
 def _rewrite_file(
@@ -1060,6 +931,28 @@ def _run_generated_ruff(root: Path) -> None:
     )
 
 
+def _assert_no_generated_todo_markers(root: Path) -> None:
+    """Fail when generated package output still contains unresolved TODOs."""
+    findings: list[str] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel_path = path.relative_to(root)
+        if _should_ignore(rel_path):
+            continue
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if _TODO_MARKER_PATTERN.search(line):
+                findings.append(f"{rel_path}:{line_number}: {line.strip()}")
+    if findings:
+        joined = "\n".join(findings)
+        raise RuntimeError(
+            "generated Python SDK output contains unresolved TODO markers:\n"
+            f"{joined}"
+        )
+
+
 def _validate_generator_assets() -> None:
     if not GENERATOR_CONFIG_PATH.exists():
         raise FileNotFoundError(
@@ -1086,22 +979,14 @@ def _generate_target_tree(
 ) -> Path:
     _validate_generator_assets()
     destination = temp_root / target.package_name
-    filtered_spec = _prune_unreferenced_components(
-        _filter_internal_operations_for_public_sdk(
-            _load_spec_json(target.spec_path)
-        )
-    )
-    spec_path = _write_temp_spec(
-        spec=filtered_spec,
-        destination=temp_root / f"{target.package_name}.openapi.json",
-    )
+    public_spec = _load_spec_json(target.spec_path)
     command = [
         sys.executable,
         "-m",
         "openapi_python_client",
         "generate",
         "--path",
-        str(spec_path),
+        str(target.spec_path),
         "--config",
         str(GENERATOR_CONFIG_PATH),
         "--custom-template-path",
@@ -1122,9 +1007,10 @@ def _generate_target_tree(
     _apply_python_sdk_repairs(
         destination,
         target.package_name,
-        spec=filtered_spec,
+        spec=public_spec,
     )
     _run_generated_ruff(destination)
+    _assert_no_generated_todo_markers(destination)
     return destination
 
 

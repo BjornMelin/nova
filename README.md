@@ -40,7 +40,9 @@ Clients upload and download data directly against AWS storage primitives using N
   cancellation
 - Two export copy lanes: inline server-side copy for moderate objects and
   queue-backed multipart copy workers for larger objects
-- Typed OpenAPI contract with generated TypeScript and Python SDKs, plus a thin R client
+- Typed OpenAPI contract with a full runtime export and a committed reduced
+  public SDK artifact feeding generated TypeScript and Python SDKs plus a thin
+  R client
 - Repo-owned release, deploy, and post-deploy validation workflows
 - Published deploy-output provenance for runtime URL authority and release identity
 
@@ -140,7 +142,7 @@ Nova is not responsible for:
 | `packages/nova_sdk_ts` | Generated TypeScript SDK | Published as `@nova/sdk` with subpath exports |
 | `packages/nova_sdk_py` | Generated Python SDK | Published as `nova-sdk-py` |
 | `packages/nova_sdk_r` | Thin R SDK | `httr2`-style client package |
-| `packages/contracts` | Contract artifacts and conformance fixtures | OpenAPI, runtime contract fixtures, TS conformance package |
+| `packages/contracts` | Contract artifacts and conformance fixtures | Full/runtime and reduced-public OpenAPI artifacts, runtime contract fixtures, TS conformance package |
 | `infra/nova_cdk` | Canonical AWS CDK app | Runtime deployment surface |
 | `scripts/release` | Release and generation automation | Versions, SDK generation, deploy artifact handling |
 | `scripts/contracts` | Contract export helpers | OpenAPI export and related checks |
@@ -163,6 +165,11 @@ Downstream guidance and examples live in:
 - `docs/clients/README.md`
 - `docs/clients/post-deploy-validation-integration-guide.md`
 - `docs/clients/examples/workflows/`
+
+TypeScript, Python, and R generation all consume the committed reduced public
+artifact at `packages/contracts/openapi/nova-file-api.public.openapi.json`.
+The full runtime export remains
+`packages/contracts/openapi/nova-file-api.openapi.json`.
 
 ## Start here
 
@@ -224,6 +231,9 @@ uv run python scripts/release/generate_python_clients.py --check
 ```
 
 ### TypeScript SDK and conformance verification
+
+The required CI lane for these checks is
+`typescript-packages-and-conformance`.
 
 ```bash
 npm run build:typescript:sdk-graph

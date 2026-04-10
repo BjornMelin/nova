@@ -1,6 +1,7 @@
 # nova-sdk-py
 
-Generated Python SDK for the Nova public API OpenAPI contract.
+Generated Python SDK for the Nova public API contract from the committed
+reduced public OpenAPI artifact.
 
 ## Build
 
@@ -35,7 +36,7 @@ with client as api_client:
 ## Generation contract
 
 - Source OpenAPI artifact:
-  `packages/contracts/openapi/nova-file-api.openapi.json`
+  `packages/contracts/openapi/nova-file-api.public.openapi.json`
 - Thin CLI entrypoint:
   `scripts/release/generate_python_clients.py`
 - Python lane implementation:
@@ -53,3 +54,5 @@ with client as api_client:
 
 The generated module tree under `src/nova_sdk_py/` is deterministic and
 rechecked in CI with `uv run python scripts/release/generate_python_clients.py --check`.
+The full runtime export remains
+`packages/contracts/openapi/nova-file-api.openapi.json`.

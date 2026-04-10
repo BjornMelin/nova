@@ -11,6 +11,10 @@ from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENAPI_ROOT = REPO_ROOT / "packages" / "contracts" / "openapi"
+FULL_OPENAPI_ARTIFACT_NAME = "nova-file-api.openapi.json"
+PUBLIC_OPENAPI_ARTIFACT_NAME = "nova-file-api.public.openapi.json"
+FULL_OPENAPI_SPEC_PATH = OPENAPI_ROOT / FULL_OPENAPI_ARTIFACT_NAME
+PUBLIC_OPENAPI_SPEC_PATH = OPENAPI_ROOT / PUBLIC_OPENAPI_ARTIFACT_NAME
 HTTP_METHODS = ("get", "post", "put", "patch", "delete", "options", "head")
 _PARAM_SEGMENT = re.compile(r"^{([^{}]+)}$")
 _NON_IDENTIFIER = re.compile(r"[^a-z0-9]+")
@@ -71,7 +75,7 @@ class GenerationTarget:
 
 TARGETS = (
     GenerationTarget(
-        spec_path=OPENAPI_ROOT / "nova-file-api.openapi.json",
+        spec_path=PUBLIC_OPENAPI_SPEC_PATH,
         ts_package_root=REPO_ROOT / "packages" / "nova_sdk_ts",
         r_package_name="nova",
         r_package_title="Nova R client",

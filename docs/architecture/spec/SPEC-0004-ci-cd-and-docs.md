@@ -2,8 +2,8 @@
 Spec: 0004
 Title: CI/CD and Documentation Automation
 Status: Active
-Version: 2.0
-Date: 2026-04-02
+Version: 2.1
+Date: 2026-04-10
 Related:
   - "[ADR-0002: OpenAPI as contract and SDK generation](../adr/ADR-0002-openapi-as-contract-and-sdk-generation.md)"
   - "[ADR-0011: Hybrid CI/CD with GitHub and AWS promotion](../adr/ADR-0011-cicd-hybrid-github-aws-promotion.md)"
@@ -59,8 +59,9 @@ Canonical baseline:
   - `generated-clients`
   - `dash-conformance`
   - `shiny-conformance`
-  - `typescript-conformance` (release-grade TypeScript SDK client + fixture
-    smoke; required check name remains stable)
+  - `typescript-packages-and-conformance` (release-grade TypeScript SDK
+    package build plus conformance verification; required check name remains
+    stable)
 - separate `CFN Contract Validate` workflow gate
 
 Release workflows also carry the first-class internal R release line via

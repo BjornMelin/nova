@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical serverless baseline with AWS-native release control plane**
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -61,6 +61,7 @@ path.
 - `./architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `./architecture/adr/ADR-0042-large-file-transfer-observability-and-benchmark-baseline.md`
 - `./architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `./architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `./architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 - `./architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `./architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`

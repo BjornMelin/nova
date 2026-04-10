@@ -1,6 +1,18 @@
 # contracts
 
-OpenAPI artifacts, canonical fixtures, and schema utilities for Nova runtime services.
+OpenAPI artifacts, canonical fixtures, and schema utilities for Nova runtime
+services.
+
+## OpenAPI artifacts
+
+- Full runtime export:
+  `packages/contracts/openapi/nova-file-api.openapi.json`
+- Reduced public SDK artifact:
+  `packages/contracts/openapi/nova-file-api.public.openapi.json`
+
+The reduced public artifact is the committed SDK-generation source of truth for
+TypeScript, Python, and R. The full runtime export remains the runtime/API
+contract authority.
 
 ## Canonical contract fixtures
 

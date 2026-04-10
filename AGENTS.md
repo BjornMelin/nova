@@ -64,7 +64,10 @@ the bulk data plane. Product and API detail: `README.md`.
 - Browser/Dash upload helpers: `packages/nova_dash_bridge` is browser-only; the
   consumer app owns token acquisition and renders the bearer header DOM node
   that the uploader reads.
-- IaC: `infra/nova_cdk` only. SDKs: one package per language (TS, Py, R).
+- IaC: `infra/nova_cdk` only. SDKs: one package per language (TS, Py, R),
+  generated from the committed reduced public OpenAPI artifact at
+  `packages/contracts/openapi/nova-file-api.public.openapi.json`; the full
+  runtime export remains `packages/contracts/openapi/nova-file-api.openapi.json`.
 - Deployed base URL and release provenance: `deploy-output.json` (not manual
   or free-text config when that artifact exists).
 
@@ -98,7 +101,7 @@ the bulk data plane. Product and API detail: `README.md`.
 | `packages/nova_workflows` | Step Functions tasks, workflow logic |
 | `packages/nova_runtime_support` | Shared runtime helpers |
 | `packages/nova_dash_bridge` | Browser-only Dash uploader assets and bearer-header helpers |
-| `packages/contracts` | OpenAPI artifacts, fixtures, TS conformance assets |
+| `packages/contracts` | Runtime/public OpenAPI artifacts, fixtures, TS conformance assets |
 | `packages/nova_sdk_{ts,py,r}` | Generated public clients |
 | `infra/nova_cdk` | Canonical CDK app |
 | `apps/nova_workflows_tasks` | Workflow task Lambda image build context |
@@ -242,15 +245,18 @@ Task Router keeps the routing map only so command changes have one authority.
 | Architecture / current truth | `docs/architecture/README.md`, `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`, `docs/overview/ACTIVE-DOCS-INDEX.md` |
 | Public API / runtime | `packages/nova_file_api`, `packages/nova_runtime_support`, `packages/contracts/openapi/nova-file-api.openapi.json`, SPEC-0027, SPEC-0029 |
 | Workflows | `packages/nova_workflows`, SPEC-0028, `infra/nova_cdk/src/nova_cdk/runtime_stack.py` |
-| SDKs / clients | `packages/contracts`, `packages/nova_sdk_ts`, `packages/nova_sdk_py`, `packages/nova_sdk_r`, `scripts/release/generate_clients.py`, `scripts/release/generate_python_clients.py`, `docs/clients/README.md` |
+| SDKs / clients | `packages/contracts/openapi/nova-file-api.public.openapi.json`, `packages/nova_sdk_ts`, `packages/nova_sdk_py`, `packages/nova_sdk_r`, `scripts/release/generate_clients.py`, `scripts/release/generate_python_clients.py`, `docs/clients/README.md` |
 | Release / deploy automation | `.github/workflows/`, `docs/runbooks/release/`, `docs/runbooks/release/release-runbook.md`, `docs/contracts/deploy-output-authority-v2.schema.json`, `docs/contracts/workflow-post-deploy-validate.schema.json`, `infra/nova_cdk/README.md` |
 
 Specs live under `docs/architecture/spec/` (e.g. `SPEC-0027-public-api-v2.md`).
 
-**Public SDK surface:** OpenAPI is authority. Do not add internal-only
-operations, bespoke transport layers, or bundled validation helpers to the
-generated TS SDK. `generate_clients.py --check` and
-`generate_python_clients.py --check` are deterministic gates.
+**Public SDK surface:** OpenAPI is authority. Generated TS/Python/R SDKs consume
+the committed reduced public artifact at
+`packages/contracts/openapi/nova-file-api.public.openapi.json`; the full
+runtime export remains separate. Do not add internal-only operations, bespoke
+transport layers, or bundled validation helpers to the generated TS SDK.
+`generate_clients.py --check` and `generate_python_clients.py --check` are
+deterministic gates.
 
 ## Review and done
 

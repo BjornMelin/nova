@@ -143,6 +143,11 @@ Rules for narrative provisioning, release, and validation markdown under
   - `scripts/release/generate_clients.py`
   - conformance fixtures/tests
   before touching generated SDK output by hand.
+- `scripts/contracts/export_openapi.py` owns two committed OpenAPI artifacts:
+  `packages/contracts/openapi/nova-file-api.openapi.json` for the full runtime
+  contract and `packages/contracts/openapi/nova-file-api.public.openapi.json`
+  for the reduced public SDK contract. TS, Python, and R SDK generators must
+  all consume the reduced public artifact.
 - Keep `scripts/release/generate_clients.py --check` as the deterministic gate
   for generated TypeScript SDK artifacts.
 - Run `npm ci` before `scripts/release/generate_clients.py --check` so the

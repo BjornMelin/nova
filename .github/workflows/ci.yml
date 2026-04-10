@@ -469,14 +469,14 @@ jobs:
       - name: Verify generated Python SDK artifacts
         run: uv run python scripts/release/generate_python_clients.py --check
 
-  typescript-core-packages:
+  typescript-packages-and-conformance:
     needs: classify-changes
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'merge_group' ||
       needs.classify-changes.outputs.run_typescript_conformance == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -493,10 +493,19 @@ jobs:
       - name: Build TypeScript SDK dependency graph
         run: npm run build:typescript:sdk-graph
       - name: Typecheck packages
-        run: |
-          npm run -w @nova/sdk typecheck
+        run: npm run -w @nova/sdk typecheck
       - name: Build TypeScript SDK package
         run: npm run -w @nova/sdk build
+      - name: Typecheck TypeScript conformance and generated catalogs
+        run: npm run -w @nova/contracts-ts-conformance typecheck
+      - name: Verify TypeScript fixture conformance
+        run: npm run -w @nova/contracts-ts-conformance verify
+      - uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+          save-cache: "false"
+      - name: Validate TypeScript lane fixtures
+        run: uv run python scripts/conformance/validate_lane.py --lane typescript
       - name: Pack TypeScript SDK tarballs
         run: |
           set -euo pipefail
@@ -511,7 +520,7 @@ jobs:
   typescript-sdk-smoke:
     needs:
       - classify-changes
-      - typescript-core-packages
+      - typescript-packages-and-conformance
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'merge_group' ||
@@ -603,37 +612,3 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/checks/verify_r_cmd_check.sh packages/nova_sdk_r
-
-  typescript-conformance:
-    needs: classify-changes
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'merge_group' ||
-      needs.classify-changes.outputs.run_typescript_conformance == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install TypeScript conformance dependencies
-        run: npm ci
-      - name: Typecheck TypeScript conformance and generated catalogs
-        run: npm run -w @nova/contracts-ts-conformance typecheck
-      - name: Build TypeScript SDK dependency graph
-        run: npm run build:typescript:sdk-graph
-      - name: Verify TypeScript fixture conformance
-        run: npm run -w @nova/contracts-ts-conformance verify
-      - uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: "3.13"
-          save-cache: "false"
-      - name: Validate TypeScript lane fixtures
-        run: uv run python scripts/conformance/validate_lane.py --lane typescript

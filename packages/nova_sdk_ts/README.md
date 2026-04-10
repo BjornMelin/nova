@@ -1,7 +1,8 @@
 # `@nova/sdk`
 
-Generated public TypeScript SDK derived from the committed Nova file API
-OpenAPI contract.
+Generated public TypeScript SDK derived from the committed reduced public Nova
+file API OpenAPI artifact at
+`packages/contracts/openapi/nova-file-api.public.openapi.json`.
 
 Subpath exports (no package-root barrel):
 
@@ -16,3 +17,12 @@ types.
 
 The package does not ship Zod or bundled runtime validation helpers, and it
 does not retain a bespoke Nova transport/runtime package.
+
+## Generation contract
+
+- Source OpenAPI artifact:
+  `packages/contracts/openapi/nova-file-api.public.openapi.json`
+- Thin CLI entrypoint:
+  `scripts/release/generate_clients.py`
+- TypeScript lane implementation:
+  `scripts/release/typescript_sdk.py`
