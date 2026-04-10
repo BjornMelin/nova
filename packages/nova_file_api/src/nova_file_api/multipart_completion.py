@@ -34,9 +34,22 @@ def build_multipart_completion_payload(
         )
 
     parts: list[dict[str, Any]] = []
+    expected_size_bytes = 0
     for part in sorted(requested_parts, key=lambda item: item.part_number):
+        uploaded = uploaded_parts_by_number.get(part.part_number)
+        if uploaded is None:
+            raise invalid_request(
+                "multipart upload part is missing",
+                details={"part_number": part.part_number},
+            )
+        uploaded_etag, size_bytes = uploaded
+        if _normalize_etag(uploaded_etag) != _normalize_etag(part.etag):
+            raise invalid_request(
+                "multipart upload part etag mismatch",
+                details={"part_number": part.part_number},
+            )
         part_payload: dict[str, Any] = {
-            "ETag": part.etag,
+            "ETag": uploaded_etag,
             "PartNumber": part.part_number,
         }
         if session is not None and session.checksum_mode == "required":
@@ -53,21 +66,6 @@ def build_multipart_completion_payload(
         elif part.checksum_sha256 is not None:
             part_payload["ChecksumSHA256"] = part.checksum_sha256
         parts.append(part_payload)
-
-    expected_size_bytes = 0
-    for part in requested_parts:
-        uploaded = uploaded_parts_by_number.get(part.part_number)
-        if uploaded is None:
-            raise invalid_request(
-                "multipart upload part is missing",
-                details={"part_number": part.part_number},
-            )
-        uploaded_etag, size_bytes = uploaded
-        if _normalize_etag(uploaded_etag) != _normalize_etag(part.etag):
-            raise invalid_request(
-                "multipart upload part etag mismatch",
-                details={"part_number": part.part_number},
-            )
         expected_size_bytes += size_bytes
     return parts, expected_size_bytes
 

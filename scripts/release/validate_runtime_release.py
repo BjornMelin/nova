@@ -21,7 +21,7 @@ if __package__ in {None, ""}:
             _bootstrap_paths.append(str(_p))
     sys.path[:0] = _bootstrap_paths
 
-from scripts.release import common, validate_runtime_release_http as http_checks
+from scripts.release import common
 from scripts.release.resolve_deploy_output import load_deploy_output
 from scripts.release.validate_runtime_release_types import (
     AssertionCheck,
@@ -31,7 +31,10 @@ from scripts.release.validate_runtime_release_types import (
 )
 
 try:
-    from scripts.release import validate_runtime_release_aws as aws_checks
+    from scripts.release import (
+        validate_runtime_release_aws as aws_checks,
+        validate_runtime_release_http as http_checks,
+    )
 except ModuleNotFoundError as exc:
     if exc.name in {"nova_cdk", "nova_runtime_support"}:
         raise RuntimeError(

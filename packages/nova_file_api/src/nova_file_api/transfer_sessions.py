@@ -33,7 +33,16 @@ class UploadSessionLifecycle:
     async def store(self, record: UploadSessionRecord) -> None:
         """Persist one upload-session record or raise canonical API error."""
         try:
-            await self._repository.create(record)
+            if record.upload_id is None:
+                await self._repository.create(record)
+            else:
+                existing = await self._repository.get_for_upload_id(
+                    upload_id=record.upload_id,
+                )
+                if existing is None:
+                    await self._repository.create(record)
+                else:
+                    await self._repository.update(record)
         except Exception as exc:
             _LOGGER.exception(
                 "upload_session_store_failed",

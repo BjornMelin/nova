@@ -82,13 +82,14 @@ class TransferQuotaManager:
         *,
         scope_id: str,
         sign_requested_at: datetime,
+        hourly_sign_request_limit: int | None,
     ) -> None:
         """Record a multipart part-signing request for quota enforcement."""
         try:
             await self._repository.record_sign_request(
                 scope_id=scope_id,
                 window_started_at=sign_requested_at,
-                hourly_sign_request_limit=None,
+                hourly_sign_request_limit=hourly_sign_request_limit,
             )
         except TransferQuotaExceeded as exc:
             raise too_many_requests(

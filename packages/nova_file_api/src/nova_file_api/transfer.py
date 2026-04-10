@@ -274,6 +274,7 @@ class TransferService:
         await self._quota.record_sign_request(
             scope_id=principal.scope_id,
             sign_requested_at=now,
+            hourly_sign_request_limit=sign_limit,
         )
         await self._session_lifecycle.store(
             replace(
