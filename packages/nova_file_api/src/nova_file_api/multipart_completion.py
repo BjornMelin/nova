@@ -89,4 +89,10 @@ def build_multipart_completion_payload(
 
 
 def _normalize_etag(value: str) -> str:
+    """Normalize an ETag string for equality comparisons.
+
+    Strips leading/trailing whitespace and surrounding ASCII double quotes.
+    S3 often returns quoted ETags (``"abc"``); caller and listed-part values may
+    differ in quoting, so compare using normalized forms.
+    """
     return value.strip().strip('"')

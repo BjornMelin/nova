@@ -271,11 +271,16 @@ class TransferService:
                 details={"limit": sign_limit},
             )
         now = datetime.now(tz=UTC)
-        # Per-upload sign quota is enforced above via ``sign_limit``. The usage
-        # repository's hourly window tracks scope-level sign volume; there is no
-        # distinct hourly cap in ``TransferPolicy`` today, so do not pass the
-        # per-upload limit here (that would apply it incorrectly as an hourly
-        # ceiling).
+        # Per-upload sign quota is enforced above via ``sign_limit``. Do not
+        # pass that value as ``hourly_sign_request_limit`` (wrong semantics).
+        # TODO(transfer-policy-hourly-sign): ``TransferPolicy`` has no hourly
+        # scope sign cap yet, so ``hourly_sign_request_limit=None``
+        # intentionally disables hourly enforcement in ``record_sign_request``
+        # for
+        # ``scope_id=principal.scope_id`` and ``sign_requested_at=now``. When a
+        # policy field exists, pass the resolved hourly limit here. Tracker:
+        # replace with a real issue URL/ID once filed (hourly sign quota +
+        # policy).
         await self._quota.record_sign_request(
             scope_id=principal.scope_id,
             sign_requested_at=now,
