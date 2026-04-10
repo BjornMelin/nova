@@ -183,6 +183,50 @@ def test_contracts_readme_tracks_current_schemas() -> None:
         assert forbidden not in text
 
 
+def test_package_local_docs_route_to_active_authority() -> None:
+    """Package-local READMEs should defer to the active docs authority set."""
+    contracts_readme = _read("packages/contracts/README.md")
+    python_sdk_readme = _read("packages/nova_sdk_py/README.md")
+
+    for required in [
+        "docs/contracts/README.md",
+        "docs/overview/ACTIVE-DOCS-INDEX.md",
+        (
+            "uv run pytest -q "
+            "packages/nova_file_api/tests/test_generated_client_smoke.py"
+        ),
+    ]:
+        assert required in contracts_readme
+
+    for required in [
+        "docs/clients/README.md",
+        "docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md",
+        "uv build packages/nova_sdk_py",
+    ]:
+        assert required in python_sdk_readme
+
+    for forbidden in [
+        "source .venv/bin/activate",
+    ]:
+        assert forbidden not in contracts_readme
+        assert forbidden not in python_sdk_readme
+
+
+def test_local_scan_backstop_excludes_generated_artifact_trees() -> None:
+    """Repo-local scan defaults should exclude generated artifact trees."""
+    ignore_text = _read(".ignore")
+
+    for required in [
+        "cdk.out/",
+        "infra/nova_cdk/cdk.out/",
+        ".artifacts/",
+        ".tmp/",
+        "dist/",
+        "node_modules/",
+    ]:
+        assert required in ignore_text
+
+
 def test_active_docs_do_not_reference_removed_root_final_plan() -> None:
     """Active docs must not point back to the removed root FINAL-PLAN.md."""
     violations: list[str] = []

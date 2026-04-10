@@ -3,10 +3,15 @@
 Generated Python SDK for the Nova public API contract from the committed
 reduced public OpenAPI artifact.
 
+Start with `docs/clients/README.md` and
+`docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` for the active client guidance
+and package-authority map. This README stays package-local and should not
+restate the broader downstream integration path.
+
 ## Build
 
 ```bash
-source .venv/bin/activate && uv build packages/nova_sdk_py
+uv build packages/nova_sdk_py
 ```
 
 ## Usage

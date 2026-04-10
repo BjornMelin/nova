@@ -1,0 +1,8 @@
+# Local scan backstop for generated artifact trees that should not participate
+# in repo-source audits.
+cdk.out/
+infra/nova_cdk/cdk.out/
+.artifacts/
+.tmp/
+dist/
+node_modules/
