@@ -17,6 +17,8 @@ from scripts.release.r_sdk import (
     _render_r_package_manual,
 )
 from scripts.release.sdk_common import (
+    FULL_OPENAPI_SPEC_PATH,
+    PUBLIC_OPENAPI_SPEC_PATH,
     TARGETS,
     GenerationTarget,
     Operation,
@@ -25,11 +27,13 @@ from scripts.release.sdk_common import (
     _build_public_openapi_spec,
     _default_operation_id,
     _load_operations,
+    _load_spec,
 )
 from scripts.release.typescript_sdk import (
     _COMPAT_GET_PARSE_AS_SIGNATURE,
     _UPSTREAM_GET_PARSE_AS_SIGNATURE,
     _apply_typescript_upstream_compatibility_fixes,
+    _assert_no_generated_todo_markers,
     _assert_sdk_docblock_body_sanitized,
     _check_typescript_generated_output,
     _run_openapi_ts,
@@ -92,14 +96,7 @@ def test_assert_unique_operation_ids_fails_on_collision() -> None:
 
 def test_repo_spec_public_operations_follow_exports_first_contract() -> None:
     """The committed public spec must stay aligned to the exports-first API."""
-    spec_path = (
-        Path(__file__).resolve().parents[3]
-        / "packages"
-        / "contracts"
-        / "openapi"
-        / "nova-file-api.openapi.json"
-    )
-    _, operations = _load_operations(spec_path)
+    _, operations = _load_operations(PUBLIC_OPENAPI_SPEC_PATH)
     operation_ids = {operation.operation_id for operation in operations}
     public_paths = {operation.path for operation in operations}
     assert {
@@ -110,6 +107,21 @@ def test_repo_spec_public_operations_follow_exports_first_contract() -> None:
     } <= operation_ids
     assert all("/v1/jobs" not in path for path in public_paths)
     assert all("job" not in operation_id for operation_id in operation_ids)
+
+
+def test_committed_public_spec_matches_runtime_reduction() -> None:
+    """The committed reduced public spec must match the reducer output."""
+    full_spec = _load_spec(FULL_OPENAPI_SPEC_PATH)
+    public_spec = _load_spec(PUBLIC_OPENAPI_SPEC_PATH)
+
+    assert public_spec == _build_public_openapi_spec(full_spec)
+
+
+def test_ts_and_r_targets_consume_committed_public_spec() -> None:
+    """All TS/R generator targets should share the committed public spec."""
+    assert {target.spec_path for target in TARGETS} == {
+        PUBLIC_OPENAPI_SPEC_PATH
+    }
 
 
 def test_request_body_ref_requiredness_is_preserved_for_r_generation(
@@ -614,6 +626,44 @@ def test_run_openapi_ts_requires_repo_installed_cli(
             input_spec_path=Path("spec.openapi.json"),
             output_path=Path("generated"),
         )
+
+
+def test_apply_typescript_upstream_compatibility_fixes_strips_todo_marker(
+    tmp_path: Path,
+) -> None:
+    """Generator-owned TS cleanup should remove the known upstream TODO."""
+    generated_root = tmp_path / "client"
+    utils_path = generated_root / "client" / "utils.gen.ts"
+    utils_path.parent.mkdir(parents=True)
+    utils_path.write_text(
+        f"{_UPSTREAM_GET_PARSE_AS_SIGNATURE}\n  return 'json';\n}}\n",
+        encoding="utf-8",
+    )
+    client_path = generated_root / "client.gen.ts"
+    client_path.write_text(
+        "export const request = async () => {\n"
+        "    // TODO: we probably want to return error and improve types\n"
+        "    return undefined;\n"
+        "};\n",
+        encoding="utf-8",
+    )
+
+    _apply_typescript_upstream_compatibility_fixes(generated_root)
+
+    assert "TODO" not in client_path.read_text(encoding="utf-8")
+
+
+def test_assert_no_generated_todo_markers_fails_on_remaining_markers(
+    tmp_path: Path,
+) -> None:
+    """Generated TS trees must fail loudly on lingering TODO markers."""
+    (tmp_path / "client.gen.ts").write_text(
+        "// FIXME: unresolved generator cleanup\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="unresolved TODO markers"):
+        _assert_no_generated_todo_markers(tmp_path)
 
 
 @pytest.mark.parametrize("target", TARGETS)

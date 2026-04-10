@@ -9,13 +9,21 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:  # pragma: no cover - direct script execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from nova_file_api.app import create_managed_app as create_file_app
 from nova_file_api.config import Settings
+from scripts.release.sdk_common import (
+    FULL_OPENAPI_ARTIFACT_NAME,
+    PUBLIC_OPENAPI_ARTIFACT_NAME,
+    _build_public_openapi_spec,
+)
 
 OpenApiFactory = Callable[..., Any]
 
 OPENAPI_OUTPUTS: dict[str, OpenApiFactory] = {
-    "nova-file-api.openapi.json": create_file_app,
+    FULL_OPENAPI_ARTIFACT_NAME: create_file_app,
 }
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "packages" / "contracts" / "openapi"
@@ -33,6 +41,14 @@ def _render_openapi() -> dict[str, str]:
             settings=Settings.model_validate({"IDEMPOTENCY_ENABLED": False})
         ).openapi()
         rendered[name] = json.dumps(schema, indent=2, sort_keys=True) + "\n"
+        rendered[PUBLIC_OPENAPI_ARTIFACT_NAME] = (
+            json.dumps(
+                _build_public_openapi_spec(schema),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
     return rendered
 
 

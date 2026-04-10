@@ -66,8 +66,14 @@ Nova repository lanes:
 
 - `.github/workflows/ci.yml`
 - `packages/contracts/typescript/src/conformance.ts`
+- `packages/contracts/openapi/nova-file-api.public.openapi.json`
 - `scripts/release/generate_clients.py --check`
 - `scripts/release/generate_python_clients.py --check`
+
+The reduced public OpenAPI artifact at
+`packages/contracts/openapi/nova-file-api.public.openapi.json` is the shared
+SDK contract authority for TS, Python, and R generation. The full runtime
+export remains in `packages/contracts/openapi/nova-file-api.openapi.json`.
 
 ### 2.3 Golden-path scenarios
 

@@ -16,52 +16,19 @@ from scripts.release.python_sdk import (
     RETAINED_TEMPLATE_FILES,
     _apply_python_model_reference_docs,
     _apply_python_sdk_repairs,
-    _filter_internal_operations_for_public_sdk,
+    _assert_no_generated_todo_markers,
     _generate_target_tree,
     _repair_export_resource_output_parser,
     _run_command,
 )
+from scripts.release.sdk_common import PUBLIC_OPENAPI_SPEC_PATH
 
 
-def test_filter_internal_operations_prunes_internal_only_paths() -> None:
-    """Internal-only operations should be removed before generation."""
-    spec = {
-        "openapi": "3.1.0",
-        "paths": {
-            "/v1/public": {
-                "get": {
-                    "operationId": "get_public",
-                    "responses": {"200": {"description": "ok"}},
-                }
-            },
-            "/v1/internal": {
-                "post": {
-                    "operationId": "post_internal",
-                    "x-nova-sdk-visibility": "internal",
-                    "responses": {"202": {"description": "accepted"}},
-                }
-            },
-            "/v1/mixed": {
-                "get": {
-                    "operationId": "get_mixed",
-                    "responses": {"200": {"description": "ok"}},
-                },
-                "post": {
-                    "operationId": "post_mixed_internal",
-                    "x-nova-sdk-visibility": "internal",
-                    "responses": {"202": {"description": "accepted"}},
-                },
-            },
-        },
+def test_python_targets_consume_committed_public_spec() -> None:
+    """Python SDK generation should share the reduced public artifact."""
+    assert {target.spec_path for target in PYTHON_TARGETS} == {
+        PUBLIC_OPENAPI_SPEC_PATH
     }
-
-    filtered = _filter_internal_operations_for_public_sdk(spec)
-
-    assert "/v1/public" in filtered["paths"]
-    assert filtered["paths"]["/v1/public"]["get"]["operationId"] == "get_public"
-    assert "/v1/internal" not in filtered["paths"]
-    assert "get" in filtered["paths"]["/v1/mixed"]
-    assert "post" not in filtered["paths"]["/v1/mixed"]
 
 
 def test_generate_target_invokes_generator_with_config_and_templates(
@@ -72,17 +39,8 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     commands: list[tuple[list[str], int, str]] = []
 
     def fake_load_spec_json(path: Path) -> dict[str, object]:
-        assert path.name == "nova-file-api.openapi.json"
+        assert path.name == "nova-file-api.public.openapi.json"
         return {"openapi": "3.1.0", "paths": {}}
-
-    def fake_write_temp_spec(
-        *,
-        spec: dict[str, object],
-        destination: Path,
-    ) -> Path:
-        destination.write_text("{}", encoding="utf-8")
-        assert spec == {"openapi": "3.1.0", "paths": {}}
-        return destination
 
     def fake_run_command(
         *,
@@ -97,10 +55,6 @@ def test_generate_target_invokes_generator_with_config_and_templates(
     monkeypatch.setattr(
         "scripts.release.python_sdk._load_spec_json",
         fake_load_spec_json,
-    )
-    monkeypatch.setattr(
-        "scripts.release.python_sdk._write_temp_spec",
-        fake_write_temp_spec,
     )
     monkeypatch.setattr(
         "scripts.release.python_sdk._run_command",
@@ -141,6 +95,10 @@ def test_generate_target_invokes_generator_with_config_and_templates(
         "openapi_python_client",
         "generate",
     ]
+    assert "--path" in command
+    assert command[command.index("--path") + 1].endswith(
+        "nova-file-api.public.openapi.json"
+    )
     assert "--config" in command
     assert command[command.index("--config") + 1] == str(GENERATOR_CONFIG_PATH)
     assert "--custom-template-path" in command
@@ -331,6 +289,20 @@ def test_apply_python_sdk_repairs_preserves_typed_maps_and_redacted_repr(
         ")\n"
     )
     assert first_pass == second_pass
+
+
+def test_assert_no_generated_todo_markers_fails_on_remaining_markers(
+    tmp_path: Path,
+) -> None:
+    """Generated Python SDK trees must fail loudly on lingering TODO markers."""
+    (tmp_path / "models").mkdir()
+    (tmp_path / "models" / "example.py").write_text(
+        "# TODO: remove this repair\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="unresolved TODO markers"):
+        _assert_no_generated_todo_markers(tmp_path)
 
 
 def test_apply_python_sdk_repairs_preserves_canonical_readiness_exports(
