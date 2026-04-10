@@ -19,7 +19,14 @@ class TransferQuotaManager:
     """Own transfer usage-window reservation and release behavior."""
 
     def __init__(self, repository: TransferUsageWindowRepository) -> None:
-        """Initialize quota coordination with its usage repository."""
+        """Create a quota manager backed by the given usage repository.
+
+        Args:
+            repository: Persistent or in-memory usage counters.
+
+        Returns:
+            None
+        """
         self._repository = repository
 
     async def reserve_upload(
@@ -31,7 +38,22 @@ class TransferQuotaManager:
         multipart: bool,
         policy: TransferPolicy,
     ) -> None:
-        """Reserve quota for one upload initiation."""
+        """Reserve quota for one upload initiation.
+
+        Args:
+            scope_id: Caller scope owning the upload.
+            created_at: Timestamp used for daily window accounting.
+            size_bytes: Declared upload size for ingress budgeting.
+            multipart: Whether this reservation counts as an active multipart.
+            policy: Resolved limits (active multipart cap, daily budget).
+
+        Returns:
+            None
+
+        Raises:
+            too_many_requests: When ``TransferQuotaExceeded`` is raised by the
+                repository (active multipart or daily ingress limits).
+        """
         try:
             await self._repository.reserve_upload(
                 scope_id=scope_id,
@@ -56,7 +78,22 @@ class TransferQuotaManager:
         multipart: bool,
         completed: bool,
     ) -> None:
-        """Release quota, logging failures without masking caller outcomes."""
+        """Release quota after rollback or terminal upload, swallowing errors.
+
+        Args:
+            scope_id: Caller scope that held the reservation.
+            created_at: Timestamp aligned with the original reservation window.
+            size_bytes: Size passed to the matching ``reserve_upload`` call.
+            multipart: Whether the upload was multipart.
+            completed: Whether the upload finished successfully (affects byte
+                accounting).
+
+        Returns:
+            None
+
+        Raises:
+            None: Failures are logged and not propagated.
+        """
         try:
             await self._repository.release_upload(
                 scope_id=scope_id,
@@ -84,7 +121,21 @@ class TransferQuotaManager:
         sign_requested_at: datetime,
         hourly_sign_request_limit: int | None,
     ) -> None:
-        """Record a multipart part-signing request for quota enforcement."""
+        """Record one sign-parts call against the scope hourly usage window.
+
+        Args:
+            scope_id: Caller scope performing the sign request.
+            sign_requested_at: Time used to select the hourly counter window.
+            hourly_sign_request_limit: Optional **scope hourly** cap enforced by
+                the repository (not the per-upload sign limit). ``None``
+                disables hourly enforcement while still incrementing counters.
+
+        Returns:
+            None
+
+        Raises:
+            too_many_requests: When the hourly sign budget is exhausted.
+        """
         try:
             await self._repository.record_sign_request(
                 scope_id=scope_id,

@@ -15,7 +15,25 @@ def build_multipart_completion_payload(
     uploaded_parts: list[tuple[int, str, int]],
     session: UploadSessionRecord | None,
 ) -> tuple[list[dict[str, Any]], int]:
-    """Return S3 completion payload and expected completed object size."""
+    """Build the S3 ``CompleteMultipartUpload`` Parts list and total size.
+
+    Args:
+        requested_parts: Caller-declared parts (number, etag, optional
+            checksum).
+        uploaded_parts: Authoritative parts from S3 ``ListParts``, as tuples
+            of part number, ETag string, and part size in bytes.
+        session: Upload session when checksum policy applies; otherwise
+            ``None``.
+
+    Returns:
+        A tuple of (parts payload for ``complete_multipart_upload``, sum of part
+        sizes in bytes) matching the completed object size.
+
+    Raises:
+        invalid_request: Duplicate part numbers, a requested part missing
+            from uploads, ETag mismatch vs listed parts, or required checksum
+            missing.
+    """
     uploaded_parts_by_number = {
         part_number: (etag, size_bytes)
         for part_number, etag, size_bytes in uploaded_parts

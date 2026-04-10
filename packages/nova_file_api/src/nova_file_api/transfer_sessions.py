@@ -24,14 +24,39 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class UploadSessionLifecycle:
-    """Own durable upload-session reads, writes, and state transitions."""
+    """Own durable upload-session reads, writes, and state transitions.
+
+    Persistence failures from ``store`` / ``get`` are mapped to
+    ``session_store_unavailable`` unless documented otherwise on a specific
+    method.
+    """
 
     def __init__(self, repository: UploadSessionRepository) -> None:
-        """Initialize session lifecycle with its persistence repository."""
+        """Create a lifecycle helper bound to one repository.
+
+        Args:
+            repository: Upload session persistence backend.
+
+        Returns:
+            None
+        """
         self._repository = repository
 
     async def store(self, record: UploadSessionRecord) -> None:
-        """Persist one upload-session record or raise canonical API error."""
+        """Persist one upload session, using create or update as appropriate.
+
+        Args:
+            record: Session row to write. New rows without an upload id use
+                ``create``; otherwise the implementation loads by upload id and
+                chooses ``create`` vs ``update``.
+
+        Returns:
+            None
+
+        Raises:
+            FileTransferError: ``session_store_unavailable`` when persistence
+                fails unexpectedly.
+        """
         try:
             if record.upload_id is None:
                 await self._repository.create(record)
@@ -57,7 +82,17 @@ class UploadSessionLifecycle:
             ) from exc
 
     async def get(self, *, upload_id: str) -> UploadSessionRecord | None:
-        """Return one upload session by S3 upload id."""
+        """Return one upload session by S3 multipart upload id.
+
+        Args:
+            upload_id: S3 ``UploadId`` for the session.
+
+        Returns:
+            The session when present, otherwise ``None``.
+
+        Raises:
+            FileTransferError: ``session_store_unavailable`` on storage errors.
+        """
         try:
             return await self._repository.get_for_upload_id(upload_id=upload_id)
         except Exception as exc:
@@ -70,7 +105,17 @@ class UploadSessionLifecycle:
             ) from exc
 
     async def store_best_effort(self, record: UploadSessionRecord) -> None:
-        """Persist one session transition without changing caller outcome."""
+        """Persist one session transition; log ``FileTransferError`` only.
+
+        Args:
+            record: Session row to write.
+
+        Returns:
+            None
+
+        Raises:
+            None: Does not re-raise ``FileTransferError`` from ``store``.
+        """
         try:
             await self.store(record)
         except FileTransferError:
@@ -92,7 +137,20 @@ class UploadSessionLifecycle:
         scope_id: str,
         key: str,
     ) -> UploadSessionRecord:
-        """Return a caller-owned upload session or fail closed."""
+        """Return a caller-owned upload session or fail closed.
+
+        Args:
+            upload_id: S3 multipart upload id.
+            scope_id: Expected caller scope id.
+            key: Expected object key.
+
+        Returns:
+            The verified session record.
+
+        Raises:
+            invalid_request: Missing session or scope/key mismatch.
+            FileTransferError: Storage errors from ``get``.
+        """
         session = await self.get(upload_id=upload_id)
         if session is None:
             raise invalid_request("upload session was not found")
@@ -107,7 +165,20 @@ class UploadSessionLifecycle:
         scope_id: str,
         key: str,
     ) -> UploadSessionRecord | None:
-        """Return a caller-owned upload session when it exists."""
+        """Return a caller-owned upload session when it exists.
+
+        Args:
+            upload_id: S3 multipart upload id.
+            scope_id: Expected caller scope id.
+            key: Expected object key.
+
+        Returns:
+            The session, or ``None`` if missing.
+
+        Raises:
+            invalid_request: Scope/key mismatch for an existing session.
+            FileTransferError: Storage errors from ``get``.
+        """
         session = await self.get(upload_id=upload_id)
         if session is None:
             return None
@@ -124,7 +195,23 @@ class UploadSessionLifecycle:
         scope_id: str,
         key: str,
     ) -> None:
-        """Persist a required upload-session activity transition."""
+        """Persist a required upload-session activity transition.
+
+        Args:
+            upload_id: Session to update.
+            last_activity_at: New activity timestamp.
+            status: New session status.
+            scope_id: Caller scope id.
+            key: Object key.
+
+        Returns:
+            None
+
+        Raises:
+            invalid_request: Session missing or scope/key mismatch.
+            FileTransferError: Storage errors from ``require_for_caller`` or
+                ``store``.
+        """
         session = await self.require_for_caller(
             upload_id=upload_id,
             scope_id=scope_id,
@@ -147,7 +234,23 @@ class UploadSessionLifecycle:
         scope_id: str,
         key: str,
     ) -> None:
-        """Best-effort activity transition for optional session state."""
+        """Best-effort activity transition when the session may be absent.
+
+        Args:
+            upload_id: Session to update when found.
+            last_activity_at: New activity timestamp.
+            status: New session status.
+            scope_id: Caller scope id.
+            key: Object key.
+
+        Returns:
+            None
+
+        Raises:
+            invalid_request: Scope/key mismatch when a session exists.
+
+        ``FileTransferError`` from ``store`` is logged and not propagated.
+        """
         session = await self.get_for_caller(
             upload_id=upload_id,
             scope_id=scope_id,
@@ -189,7 +292,24 @@ class UploadSessionLifecycle:
         policy: TransferPolicy,
         resumable_until: datetime,
     ) -> UploadSessionRecord:
-        """Build the canonical durable upload-session record."""
+        """Build the canonical durable upload-session record for initiate.
+
+        Args:
+            session_id: New session identifier.
+            upload_id: S3 upload id when known; ``None`` before multipart
+                create.
+            key: Object key for the upload.
+            strategy: Simple vs multipart strategy.
+            part_size_bytes: Declared part size for multipart sessions.
+            created_at: Creation timestamp.
+            principal: Caller identity and scope.
+            request: Initiate request payload (size, name, content type, ...).
+            policy: Resolved transfer policy for limits and checksum mode.
+            resumable_until: Expiry for resumable session metadata.
+
+        Returns:
+            ``UploadSessionRecord`` ready for ``store`` (initially initiated).
+        """
         return UploadSessionRecord(
             session_id=session_id,
             upload_id=upload_id,
