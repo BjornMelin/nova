@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -17,7 +17,8 @@ The active architecture baseline is:
 - explicit export workflow resources
 - DynamoDB-backed idempotency/state
 - Regional REST API + direct Regional WAF + one canonical custom domain
-- unified SDK package layout
+- unified SDK package layout plus one committed reduced public OpenAPI artifact
+  for SDK generation
 - `infra/nova_cdk` as the only active infrastructure implementation path
 
 Use these documents for active architecture decisions and implementation:
@@ -53,6 +54,7 @@ small canonical wave-2 authority core:
 - `adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `adr/ADR-0042-large-file-transfer-observability-and-benchmark-baseline.md`
 - `spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `spec/SPEC-0004-ci-cd-and-docs.md`
 - `spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`

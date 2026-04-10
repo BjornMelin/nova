@@ -16,6 +16,18 @@
 - `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `docs/architecture/adr/ADR-0033` through `ADR-0039`
 - `docs/architecture/spec/SPEC-0027` through `SPEC-0031`
+- `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
+- `docs/architecture/adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
+- `docs/architecture/adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
+- `docs/architecture/adr/ADR-0036-dynamodb-idempotency-no-redis.md`
+- `docs/architecture/adr/ADR-0037-sdk-generation-consolidation.md`
+- `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
+- `docs/architecture/adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
+- `docs/architecture/spec/SPEC-0027-public-api-v2.md`
+- `docs/architecture/spec/SPEC-0028-export-workflow-state-machine.md`
+- `docs/architecture/spec/SPEC-0029-platform-serverless.md`
+- `docs/architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
+- `docs/architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `docs/contracts/deploy-output-authority-v2.schema.json`
 - `docs/contracts/workflow-post-deploy-validate.schema.json`
 - `docs/runbooks/release/release-runbook.md`
@@ -32,6 +44,7 @@
 - `docs/architecture/adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
 - `docs/architecture/adr/ADR-0032-oidc-and-iam-role-partitioning-for-deploy-automation.md`
 - `docs/architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `docs/architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md`
 - `docs/architecture/spec/SPEC-0025-reusable-workflow-integration-contract.md`
 - `docs/architecture/spec/SPEC-0026-ci-cd-iam-least-privilege-matrix.md`

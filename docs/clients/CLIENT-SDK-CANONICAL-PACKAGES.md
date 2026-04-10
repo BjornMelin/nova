@@ -31,6 +31,8 @@
 ## Shared principles
 
 - one client package per language
+- one committed reduced public OpenAPI artifact for TS/Python/R generation:
+  `packages/contracts/openapi/nova-file-api.public.openapi.json`
 - one auth model across all clients
 - typed models generated where it materially reduces maintenance
 - handwritten code only where generators are weaker than the language-native ecosystem

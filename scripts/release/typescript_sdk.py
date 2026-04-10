@@ -760,7 +760,8 @@ def _run_openapi_ts(
     """Run the @hey-api/openapi-ts generator for the provided OpenAPI spec.
 
     Args:
-        input_spec_path: Path to the generated public OpenAPI JSON file.
+        input_spec_path: Path to the committed reduced public OpenAPI JSON
+            artifact.
         output_path: Path where the TypeScript SDK output directory should be
             written.
 

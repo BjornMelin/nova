@@ -1,7 +1,7 @@
 # Architecture specifications
 
 Status: Active index
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## Canonical architecture authority chain
 
@@ -16,7 +16,7 @@ Last reviewed: 2026-04-07
 | [SPEC-0027](./SPEC-0027-public-api-v2.md) | Public API v2 | Accepted | Active baseline | 2026-03-25 |
 | [SPEC-0028](./SPEC-0028-export-workflow-state-machine.md) | Export workflow state machine | Accepted | Active baseline | 2026-03-25 |
 | [SPEC-0029](./SPEC-0029-platform-serverless.md) | Canonical serverless platform | Accepted | Active baseline | 2026-03-25 |
-| [SPEC-0030](./SPEC-0030-sdk-generation-and-package-layout.md) | SDK generation and package layout | Accepted | Active baseline | 2026-03-25 |
+| [SPEC-0030](./SPEC-0030-sdk-generation-and-package-layout.md) | SDK generation and package layout | Accepted | Active baseline | 2026-04-10 |
 | [SPEC-0031](./SPEC-0031-docs-and-tests-authority-reset.md) | Docs and tests authority reset | Accepted | Active baseline | 2026-03-25 |
 
 ## Active supporting specs
@@ -31,7 +31,7 @@ Last reviewed: 2026-04-07
 | [SPEC-0006](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md) | JWT/OIDC Verification and Principal Mapping | Active | Active supporting current-state doc | 2026-02-12 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | Active supporting current-state doc | 2026-03-16 |
 | [SPEC-0010](./SPEC-0010-observability-analytics-and-activity-rollups.md) | Observability Analytics and Activity Rollups | Active | Active supporting current-state doc | 2026-02-13 |
-| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK Conformance, Versioning, and Compatibility Governance | Active | Active supporting current-state doc | 2026-03-18 |
+| [SPEC-0012](./SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md) | SDK Conformance, Versioning, and Compatibility Governance | Active | Active supporting current-state doc | 2026-04-10 |
 | [SPEC-0016](./SPEC-0016-v1-route-namespace-and-literal-guardrails.md) | V1 route namespace and literal guardrails | Active | Active supporting current-state doc | 2026-03-19 |
 | [SPEC-0017](./SPEC-0017-runtime-component-topology-and-ownership-contract.md) | Runtime component topology and ownership contract | Active | Active supporting current-state doc | 2026-03-22 |
 | [SPEC-0018](./SPEC-0018-runtime-configuration-and-startup-validation-contract.md) | Runtime configuration and startup validation contract | Active | Active supporting current-state doc | 2026-03-20 |

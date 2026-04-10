@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 Status: Active index
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## Active canonical ADRs
 
@@ -11,7 +11,7 @@ Last reviewed: 2026-04-07
 | [ADR-0034](./ADR-0034-eliminate-auth-service-and-session-auth.md) | Eliminate auth service and session auth | Accepted | Active baseline | 2026-03-25 |
 | [ADR-0035](./ADR-0035-replace-generic-jobs-with-export-workflows.md) | Replace generic jobs with export workflows | Accepted | Active baseline | 2026-03-25 |
 | [ADR-0036](./ADR-0036-dynamodb-idempotency-no-redis.md) | DynamoDB idempotency and transient state, no Redis | Accepted | Active baseline | 2026-03-25 |
-| [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Active baseline | 2026-03-25 |
+| [ADR-0037](./ADR-0037-sdk-generation-consolidation.md) | Consolidate SDK generation and package layout | Accepted | Active baseline | 2026-04-10 |
 | [ADR-0038](./ADR-0038-docs-authority-reset.md) | Reset docs authority | Accepted | Active baseline | 2026-03-25 |
 | [ADR-0039](./ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md) | Explicit Lambda runtime bootstrap and typed runtime container | Accepted | Active baseline | 2026-04-06 |
 

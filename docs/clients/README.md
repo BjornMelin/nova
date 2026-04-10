@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## Start here
 
@@ -39,6 +39,7 @@ Last reviewed: 2026-04-07
 - `../architecture/adr/ADR-0038-docs-authority-reset.md`
 - `../architecture/adr/ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
+- `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `../architecture/spec/SPEC-0029-platform-serverless.md`
@@ -53,6 +54,9 @@ Last reviewed: 2026-04-07
 Downstream examples must target the unified SDK packages, the browser-only
 bridge surface, and the surviving reusable post-deploy validation workflow
 only.
+Client-facing SDK guidance should treat the committed reduced public OpenAPI
+artifact at `packages/contracts/openapi/nova-file-api.public.openapi.json` as
+the shared generation source of truth for TS, Python, and R clients.
 Downstream post-deploy validation should pass authoritative `deploy-output`
 content directly through `deploy_output_json` or `deploy_output_path`; do not
 assume a Nova GitHub deploy workflow run id exists.

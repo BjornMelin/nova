@@ -1,12 +1,13 @@
 # Nova repository overview
 
 Status: Active orientation doc
-Last reviewed: 2026-04-07
+Last reviewed: 2026-04-10
 
 ## One-sentence summary
 
 Nova is a serverless transfer and export-workflow control-plane monorepo with
-bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
+bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, one
+committed reduced public OpenAPI artifact for SDK generation, and
 `infra/nova_cdk` as the active infrastructure surface.
 
 ## Core components
@@ -42,5 +43,6 @@ bearer-only auth, DynamoDB-backed idempotency, unified SDK packages, and
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/spec/SPEC-0028-export-workflow-state-machine.md`
 - `../architecture/spec/SPEC-0029-platform-serverless.md`
+- `../architecture/spec/SPEC-0012-sdk-conformance-versioning-and-compatibility-governance.md`
 - `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
