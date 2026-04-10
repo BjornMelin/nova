@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-24
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -42,7 +42,7 @@ From workflow `Nova CI` (`.github/workflows/ci.yml`):
 - `generated-clients`
 - `dash-conformance`
 - `shiny-conformance`
-- `typescript-conformance`
+- `typescript-packages-and-conformance`
 
 From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.yml`):
 
@@ -51,7 +51,6 @@ From workflow `CFN Contract Validate` (`.github/workflows/cfn-contract-validate.
 Do not require:
 
 - `classify-changes`
-- `typescript-core-packages`
 - `typescript-sdk-smoke`
 
 These are internal orchestration/build jobs, not the hosted branch-protection
@@ -160,7 +159,7 @@ gh api \
           { "context": "generated-clients" },
           { "context": "dash-conformance" },
           { "context": "shiny-conformance" },
-          { "context": "typescript-conformance" },
+          { "context": "typescript-packages-and-conformance" },
           { "context": "cfn-and-contracts" }
         ]
       }
