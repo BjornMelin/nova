@@ -26,7 +26,7 @@ Last reviewed: 2026-04-10
 | [SPEC-0001](./SPEC-0001-security-model.md) | Security Model | Active | Active supporting current-state doc | 2026-03-03 |
 | [SPEC-0002](./SPEC-0002-s3-integration.md) | S3 Integration | Active | Active supporting current-state doc | 2026-02-11 |
 | [SPEC-0003](./SPEC-0003-observability.md) | Observability | Active | Active supporting current-state doc | 2026-03-03 |
-| [SPEC-0004](./SPEC-0004-ci-cd-and-docs.md) | CI/CD and Documentation Automation | Active | Active supporting current-state doc | 2026-03-24 |
+| [SPEC-0004](./SPEC-0004-ci-cd-and-docs.md) | CI/CD and Documentation Automation | Active | Active supporting current-state doc | 2026-04-10 |
 | [SPEC-0005](./SPEC-0005-abuse-prevention-and-quotas.md) | Abuse Prevention and Quotas | Active | Active supporting current-state doc | 2026-03-11 |
 | [SPEC-0006](./SPEC-0006-jwt-oidc-verification-and-principal-mapping.md) | JWT/OIDC Verification and Principal Mapping | Active | Active supporting current-state doc | 2026-02-12 |
 | [SPEC-0009](./SPEC-0009-caching-and-idempotency.md) | Caching and Idempotency | Active | Active supporting current-state doc | 2026-03-16 |
