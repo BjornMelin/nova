@@ -14,10 +14,8 @@ from aws_cdk import (
     RemovalPolicy,
     Stack,
     Tags,
-    aws_appconfig as appconfig,
     aws_budgets as budgets,
     aws_cloudwatch as cloudwatch,
-    aws_dynamodb as dynamodb,
     aws_events as events,
     aws_events_targets as targets,
     aws_iam as iam,
@@ -26,15 +24,10 @@ from aws_cdk import (
     aws_logs as logs,
     aws_route53 as route53,
     aws_s3 as s3,
-    aws_sqs as sqs,
     aws_stepfunctions as sfn,
     aws_stepfunctions_tasks as tasks,
 )
 from constructs import Construct
-
-from nova_runtime_support.transfer_policy_document import (
-    TransferPolicyDocument,
-)
 
 from .concurrency import (
     default_api_reserved_concurrency,
@@ -59,9 +52,6 @@ from .runtime_naming import (
     RESOURCE_ENVIRONMENT_TAG_KEY,
     RESOURCE_OWNER_TAG_KEY,
     RESOURCE_OWNER_TAG_VALUE,
-    appconfig_resource_tags,
-    export_copy_worker_dlq_name,
-    export_copy_worker_queue_name,
     export_name_prefix,
     export_workflow_log_group_name,
     observability_dashboard_name,
@@ -71,17 +61,19 @@ from .runtime_naming import (
 )
 from .runtime_release_manifest import (
     API_FUNCTION,
-    FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS,
-    FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS,
     FILE_TRANSFER_EXPORT_PREFIX,
     FILE_TRANSFER_UPLOAD_PREFIX,
     WORKFLOW_FUNCTIONS,
     ApiRuntimeBindings,
     WorkflowRuntimeBindings,
     build_api_lambda_environment,
-    build_default_transfer_policy_document,
     build_workflow_task_environment,
     default_export_copy_max_concurrency,
+)
+from .runtime_stack_queues import create_export_copy_queues
+from .runtime_stack_storage import (
+    create_runtime_state_resources,
+    create_transfer_policy_resources,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -164,13 +156,6 @@ def _reserved_concurrency_override_present(
         key=key,
     )
     return not (raw is None or (isinstance(raw, str) and not raw.strip()))
-
-
-def _point_in_time_recovery() -> dynamodb.PointInTimeRecoverySpecification:
-    """Return the canonical PITR setting for runtime DynamoDB tables."""
-    return dynamodb.PointInTimeRecoverySpecification(
-        point_in_time_recovery_enabled=True
-    )
 
 
 def _runtime_log_group(
@@ -405,243 +390,34 @@ class NovaRuntimeStack(Stack):
             inputs.deployment_environment,
         )
 
-        export_table = dynamodb.Table(
+        state_resources = create_runtime_state_resources(
             self,
-            "ExportsTable",
-            partition_key=dynamodb.Attribute(
-                name="export_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
+            allowed_origins=inputs.allowed_origins,
         )
-        export_table.add_global_secondary_index(
-            index_name="scope_id-created_at-index",
-            partition_key=dynamodb.Attribute(
-                name="scope_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            sort_key=dynamodb.Attribute(
-                name="created_at",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            projection_type=dynamodb.ProjectionType.ALL,
-        )
-
-        activity_table = dynamodb.Table(
+        export_table = state_resources.export_table
+        activity_table = state_resources.activity_table
+        idempotency_table = state_resources.idempotency_table
+        upload_sessions_table = state_resources.upload_sessions_table
+        transfer_usage_table = state_resources.transfer_usage_table
+        export_copy_parts_table = state_resources.export_copy_parts_table
+        file_bucket = state_resources.file_bucket
+        transfer_policy_resources = create_transfer_policy_resources(
             self,
-            "ActivityTable",
-            partition_key=dynamodb.Attribute(
-                name="pk",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            sort_key=dynamodb.Attribute(
-                name="sk",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
+            deployment_environment=inputs.deployment_environment,
         )
-
-        idempotency_table = dynamodb.Table(
-            self,
-            "IdempotencyTable",
-            partition_key=dynamodb.Attribute(
-                name="idempotency_key",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            time_to_live_attribute="expires_at",
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        upload_sessions_table = dynamodb.Table(
-            self,
-            "UploadSessionsTable",
-            partition_key=dynamodb.Attribute(
-                name="session_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            time_to_live_attribute="resumable_until_epoch",
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        transfer_usage_table = dynamodb.Table(
-            self,
-            "TransferUsageTable",
-            partition_key=dynamodb.Attribute(
-                name="scope_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            sort_key=dynamodb.Attribute(
-                name="window_key",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            time_to_live_attribute="expires_at",
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        export_copy_parts_table = dynamodb.Table(
-            self,
-            "ExportCopyPartsTable",
-            partition_key=dynamodb.Attribute(
-                name="export_id",
-                type=dynamodb.AttributeType.STRING,
-            ),
-            sort_key=dynamodb.Attribute(
-                name="part_number",
-                type=dynamodb.AttributeType.NUMBER,
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            time_to_live_attribute="expires_at_epoch",
-            point_in_time_recovery_specification=_point_in_time_recovery(),
-            removal_policy=RemovalPolicy.RETAIN,
-        )
-        export_copy_worker_attempts = FILE_TRANSFER_EXPORT_COPY_WORKER_ATTEMPTS
-        export_copy_worker_lease_seconds = (
-            FILE_TRANSFER_EXPORT_COPY_WORKER_LEASE_SECONDS
-        )
+        transfer_policy_application = transfer_policy_resources.application
+        transfer_policy_environment = transfer_policy_resources.environment
+        transfer_policy_profile = transfer_policy_resources.profile
         export_copy_max_concurrency = default_export_copy_max_concurrency(
             inputs.workflow_reserved_concurrency
         )
-        export_copy_dlq = sqs.Queue(
+        export_copy_queues = create_export_copy_queues(
             self,
-            "ExportCopyWorkerDlq",
-            queue_name=export_copy_worker_dlq_name(
-                inputs.deployment_environment
-            ),
-            retention_period=Duration.days(14),
-            encryption=sqs.QueueEncryption.SQS_MANAGED,
-            enforce_ssl=True,
+            deployment_environment=inputs.deployment_environment,
+            max_concurrency=export_copy_max_concurrency,
         )
-        export_copy_queue = sqs.Queue(
-            self,
-            "ExportCopyWorkerQueue",
-            queue_name=export_copy_worker_queue_name(
-                inputs.deployment_environment
-            ),
-            dead_letter_queue=sqs.DeadLetterQueue(
-                queue=export_copy_dlq,
-                max_receive_count=export_copy_worker_attempts,
-            ),
-            encryption=sqs.QueueEncryption.SQS_MANAGED,
-            enforce_ssl=True,
-            receive_message_wait_time=Duration.seconds(20),
-            # Visibility covers handler work; matches worker lease seconds.
-            visibility_timeout=Duration.seconds(
-                export_copy_worker_lease_seconds
-            ),
-        )
-        file_bucket = s3.Bucket(
-            self,
-            "FileTransferBucket",
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            enforce_ssl=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            transfer_acceleration=True,
-            versioned=True,
-            lifecycle_rules=[
-                s3.LifecycleRule(
-                    abort_incomplete_multipart_upload_after=Duration.days(7),
-                    enabled=True,
-                    id="abort-incomplete-multipart-uploads",
-                ),
-                s3.LifecycleRule(
-                    enabled=True,
-                    expiration=Duration.days(3),
-                    id="expire-transient-workflow-artifacts",
-                    prefix="tmp/",
-                ),
-            ],
-            removal_policy=RemovalPolicy.RETAIN,
-            cors=[
-                s3.CorsRule(
-                    allowed_headers=["*"],
-                    allowed_methods=[
-                        s3.HttpMethods.GET,
-                        s3.HttpMethods.PUT,
-                        s3.HttpMethods.POST,
-                        s3.HttpMethods.HEAD,
-                    ],
-                    allowed_origins=inputs.allowed_origins,
-                    exposed_headers=["ETag"],
-                )
-            ],
-        )
-        transfer_policy_document = build_default_transfer_policy_document()
-        transfer_policy_application = appconfig.CfnApplication(
-            self,
-            "TransferPolicyApplication",
-            name=f"nova-transfer-policy-{inputs.deployment_environment}",
-            description="Nova transfer control-plane policy",
-            tags=appconfig_resource_tags(inputs.deployment_environment),
-        )
-        transfer_policy_environment = appconfig.CfnEnvironment(
-            self,
-            "TransferPolicyEnvironment",
-            application_id=transfer_policy_application.ref,
-            name=inputs.deployment_environment,
-            description="Nova runtime environment",
-            tags=appconfig_resource_tags(inputs.deployment_environment),
-        )
-        transfer_policy_profile = appconfig.CfnConfigurationProfile(
-            self,
-            "TransferPolicyProfile",
-            application_id=transfer_policy_application.ref,
-            location_uri="hosted",
-            name="transfer-policy",
-            tags=appconfig_resource_tags(inputs.deployment_environment),
-            type="AWS.Freeform",
-            validators=[
-                appconfig.CfnConfigurationProfile.ValidatorsProperty(
-                    type="JSON_SCHEMA",
-                    content=json.dumps(
-                        TransferPolicyDocument.model_json_schema()
-                    ),
-                )
-            ],
-        )
-        transfer_policy_version = appconfig.CfnHostedConfigurationVersion(
-            self,
-            "TransferPolicyHostedVersion",
-            application_id=transfer_policy_application.ref,
-            configuration_profile_id=transfer_policy_profile.ref,
-            content=json.dumps(
-                transfer_policy_document.model_dump(exclude_none=True)
-            ),
-            content_type="application/json",
-            description="Default Nova transfer policy",
-        )
-        transfer_policy_strategy = appconfig.CfnDeploymentStrategy(
-            self,
-            "TransferPolicyDeploymentStrategy",
-            name=f"nova-transfer-policy-{inputs.deployment_environment}",
-            deployment_duration_in_minutes=15,
-            final_bake_time_in_minutes=5,
-            growth_factor=50,
-            growth_type="LINEAR",
-            replicate_to="NONE",
-            tags=appconfig_resource_tags(inputs.deployment_environment),
-        )
-        transfer_policy_deployment = appconfig.CfnDeployment(
-            self,
-            "TransferPolicyDeployment",
-            application_id=transfer_policy_application.ref,
-            configuration_profile_id=transfer_policy_profile.ref,
-            configuration_version=transfer_policy_version.ref,
-            deployment_strategy_id=transfer_policy_strategy.ref,
-            description="Deploy Nova transfer policy",
-            environment_id=transfer_policy_environment.ref,
-            tags=appconfig_resource_tags(inputs.deployment_environment),
-        )
-        transfer_policy_deployment.node.add_dependency(transfer_policy_version)
-        transfer_policy_deployment.node.add_dependency(
-            transfer_policy_environment
-        )
+        export_copy_dlq = export_copy_queues.dlq
+        export_copy_queue = export_copy_queues.queue
 
         workflow_bindings = WorkflowRuntimeBindings(
             file_transfer_bucket=file_bucket.bucket_name,

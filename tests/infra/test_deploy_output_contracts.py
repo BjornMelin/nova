@@ -32,6 +32,10 @@ _VALIDATOR = load_repo_module(
     "validate_runtime_release",
     "scripts/release/validate_runtime_release.py",
 )
+_TRANSFER_LIMITS = load_repo_package_module(
+    "nova_runtime_support.transfer_limits",
+    "packages/nova_runtime_support/src",
+)
 
 
 def _canonical_sha256(payload: dict[str, object]) -> str:
@@ -995,6 +999,248 @@ def test_validate_runtime_release_keeps_failed_report_schema_valid(
     assert report["deploy_output_sha256"] == digest
     assert report["concurrency_checks"] == []
     assert report["aws_runtime_checks_status"] == "skipped"
+
+
+def test_validate_runtime_release_accepts_minimum_large_export_threshold(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Supported minimum export worker threshold should pass validation."""
+    payload = {
+        "schema_version": "2.0",
+        "captured_at": "2026-03-29T00:00:00+00:00",
+        "repository": "3M-Cloud/nova",
+        "execution": {
+            "system": "aws-codepipeline",
+            "pipeline_name": "nova-release-control-plane",
+            "pipeline_execution_id": "execution-123",
+            "codebuild_build_ids": ["build-dev-123"],
+        },
+        "stack_name": "NovaRuntimeStack",
+        "region": "us-east-1",
+        "environment": "prod",
+        "runtime_name": "nova-file-api",
+        "runtime_version": "0.5.0",
+        "release_commit_sha": "b" * 40,
+        "public_base_url": "https://api.example.com",
+        "execute_api_endpoint": (
+            "https://example.execute-api.us-east-1.amazonaws.com/dev"
+        ),
+        "cors_allowed_origins": ["https://app.example.com"],
+        "stack_outputs": {
+            "NovaPublicBaseUrl": "https://api.example.com",
+            "NovaRestApiEndpoint": (
+                "https://example.execute-api.us-east-1.amazonaws.com/dev"
+            ),
+            "NovaApiAccessLogGroupName": (
+                "/aws/apigateway/nova-rest-api-access-dev"
+            ),
+        },
+        "api_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-file-api/abc/def/nova-file-api-lambda.zip"
+            ),
+            "artifact_sha256": "1" * 64,
+            "package_name": "nova-file-api",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+        "workflow_lambda_artifact": {
+            "artifact_bucket": "nova-artifacts",
+            "artifact_key": (
+                "runtime/nova-workflows/abc/def/nova-workflows-lambda.zip"
+            ),
+            "artifact_sha256": "2" * 64,
+            "package_name": "nova-workflows",
+            "package_version": "0.5.0",
+            "release_commit_sha": "b" * 40,
+        },
+    }
+    deploy_output_path = tmp_path / "deploy-output.json"
+    deploy_output_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    digest = _canonical_sha256(payload)
+    sha256_path = tmp_path / "deploy-output.sha256"
+    sha256_path.write_text(f"{digest}  deploy-output.json\n", encoding="utf-8")
+    report_path = tmp_path / "report.json"
+    transfer_capabilities = _transfer_capabilities_payload()
+    transfer_capabilities["large_export_worker_threshold_bytes"] = (
+        _TRANSFER_LIMITS.ENV_LARGE_EXPORT_WORKER_THRESHOLD_MIN_BYTES
+    )
+
+    def fake_request(
+        url: str,
+        *,
+        method: str = "GET",
+        headers: dict[str, str] | None = None,
+        body: bytes | None = None,
+    ) -> Any:
+        if url.startswith("https://example.execute-api.") and url.endswith(
+            "/v1/releases/info"
+        ):
+            return _VALIDATOR.RequestResult(
+                status_code=403,
+                headers={},
+                body=b'{"message":"Forbidden"}',
+                error=None,
+            )
+        path = url.removeprefix("https://api.example.com")
+        if path in {
+            "/v1/health/live",
+            "/v1/health/ready",
+            "/v1/capabilities",
+            "/v1/releases/info",
+        }:
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(
+                    {
+                        "name": "nova-file-api",
+                        "version": "0.5.0",
+                        "environment": "prod",
+                    }
+                    if path == "/v1/releases/info"
+                    else {}
+                ).encode("utf-8"),
+                error=None,
+            )
+        if path == "/v1/capabilities/transfers":
+            return _VALIDATOR.RequestResult(
+                status_code=200,
+                headers={},
+                body=json.dumps(transfer_capabilities).encode("utf-8"),
+                error=None,
+            )
+        if path == "/v1/exports":
+            if method == "POST":
+                return _VALIDATOR.RequestResult(
+                    status_code=401,
+                    headers={
+                        "access-control-allow-origin": (
+                            (headers or {}).get("Origin", "")
+                        )
+                    },
+                    body=b"",
+                    error=None,
+                )
+            if method == "OPTIONS":
+                assert headers is not None
+                assert headers.get("Origin") == "https://app.example.com"
+                return _VALIDATOR.RequestResult(
+                    status_code=200,
+                    headers={
+                        "access-control-allow-origin": "https://app.example.com",
+                        "access-control-allow-headers": (
+                            "authorization,content-type,idempotency-key"
+                        ),
+                        "access-control-allow-methods": "POST,OPTIONS",
+                    },
+                    body=b"",
+                    error=None,
+                )
+        if path == "/metrics/summary":
+            return _VALIDATOR.RequestResult(
+                status_code=401,
+                headers={
+                    "access-control-allow-origin": (
+                        (headers or {}).get("Origin", "")
+                    )
+                },
+                body=b"",
+                error=None,
+            )
+        if path in {
+            "/healthz",
+            "/readyz",
+            "/api/transfers/uploads/initiate",
+            "/api/jobs",
+            "/api/v1/transfers/uploads/initiate",
+        }:
+            return _VALIDATOR.RequestResult(
+                status_code=404,
+                headers={},
+                body=b"",
+                error=None,
+            )
+        raise AssertionError(f"Unexpected validation request: {method} {path}")
+
+    monkeypatch.setattr(_VALIDATOR, "_request", fake_request)
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_reserved_concurrency",
+        lambda *, deploy_output, failures: [],
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_runtime_alarm_states",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_dashboard",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_policy_rollout",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_validate_transfer_budget",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_caller_identity_account_id",
+        lambda: "111111111111",
+    )
+    monkeypatch.setattr(
+        _VALIDATOR,
+        "_args",
+        lambda: Namespace(
+            deploy_output_path=str(deploy_output_path),
+            deploy_output_sha256_path=str(sha256_path),
+            canonical_paths=(
+                "/v1/health/live,/v1/health/ready,"
+                "/v1/capabilities,/v1/releases/info"
+            ),
+            protected_paths="GET /metrics/summary,POST /v1/exports",
+            legacy_404_paths=(
+                "/healthz,/readyz,/api/transfers/uploads/initiate,"
+                "/api/jobs,/api/v1/transfers/uploads/initiate"
+            ),
+            cors_preflight_path="/v1/exports",
+            cors_origin="https://app.example.com",
+            representative_upload_bytes=(
+                _VALIDATOR.DEFAULT_REPRESENTATIVE_UPLOAD_BYTES
+            ),
+            aws_runtime_checks="required",
+            report_path=str(report_path),
+        ),
+    )
+
+    assert _VALIDATOR.main() == 0
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    threshold_check = next(
+        check
+        for check in report["capability_checks"]
+        if check["name"]
+        == "large_export_worker_threshold_above_single_copy_limit"
+    )
+    assert threshold_check == {
+        "name": "large_export_worker_threshold_above_single_copy_limit",
+        "expected": f"> {_TRANSFER_LIMITS.COPY_OBJECT_MAX_BYTES}",
+        "actual": str(
+            _TRANSFER_LIMITS.ENV_LARGE_EXPORT_WORKER_THRESHOLD_MIN_BYTES
+        ),
+        "ok": True,
+    }
 
 
 def test_aws_cli_json_forces_json_output_and_timeout(
