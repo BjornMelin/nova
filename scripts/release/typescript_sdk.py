@@ -847,7 +847,13 @@ def _typescript_generated_files(root: Path) -> dict[str, str]:
 
 
 def _assert_no_generated_todo_markers(root: Path) -> None:
-    """Fail when generated TS output still contains unresolved TODO markers."""
+    """Fail when generated TS output still contains unresolved TODO markers.
+
+    Raises:
+        RuntimeError: Raised when any generated TypeScript file contains an
+            unresolved TODO marker; the error message includes joined
+            ``file:line`` findings for each match.
+    """
     findings: list[str] = []
     for relative_path, content in _typescript_generated_files(root).items():
         for line_number, line in enumerate(content.splitlines(), start=1):
