@@ -47,7 +47,7 @@ small canonical authority core:
 
 - `adr/index.md`
 - `spec/index.md`
-- `../requirements.md`
+- `requirements.md`
 - `adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
 - `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
