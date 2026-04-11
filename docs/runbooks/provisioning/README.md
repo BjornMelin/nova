@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-03-28
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -27,7 +27,8 @@ canonical serverless CDK stack.
 - `../../architecture/spec/SPEC-0029-platform-serverless.md`
 - `../../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `../../architecture/requirements.md`
-- `../../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `../release/release-runbook.md`
+- `../../../infra/nova_cdk/README.md`
 
 ## Rule
 

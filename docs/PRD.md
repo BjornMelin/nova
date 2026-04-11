@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Nova Runtime
 
 Status: Active canonical PRD
-Last updated: 2026-04-02
+Last updated: 2026-04-10
 Audience: Product, Engineering, Platform Operations
 
 ## 1. Product goal
@@ -36,6 +36,12 @@ release path.
    re-architecting the repo.
 7. Operators must be able to reproduce Auth0, release, and runtime operations
    from repo-owned scripts and runbooks without manual one-off shell state.
+8. The default release-control path must derive dev/prod CloudFormation
+   execution roles from `NovaReleaseSupportStack` unless explicit equivalent
+   role ARNs are intentionally supplied.
+9. Release deploy stages must fail closed on support-stack drift before runtime
+   `aws-cdk deploy` when `NovaReleaseSupportStack` owns that execution-role
+   path.
 
 ## 4. Scope
 
@@ -78,6 +84,8 @@ Out of scope:
    scripts and matching GitHub workflows.
 5. Production browser CORS hardening is explicitly tracked when wildcard CORS
    is used for the first `api-nova` cutover.
+6. Active release docs describe the support-stack-backed execution-role
+   default and the fail-closed drift gate accurately.
 
 ## 7. Current tracked exception
 

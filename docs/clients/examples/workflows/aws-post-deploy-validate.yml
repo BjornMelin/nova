@@ -1,4 +1,4 @@
-name: React Next Post Deploy Validate
+name: AWS Backed Post Deploy Validate
 
 on:
   workflow_dispatch:
@@ -7,9 +7,14 @@ on:
         description: Nova deploy-output JSON payload to validate.
         required: true
         type: string
+      nova_validation_role_arn:
+        description: Read-only AWS role ARN used for live runtime checks.
+        required: true
+        type: string
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   validate:
@@ -18,5 +23,6 @@ jobs:
     with:
       deploy_repo: REPLACE_WITH_NOVA_REPO
       deploy_output_json: ${{ inputs.nova_deploy_output_json }}
+      aws_role_to_assume: ${{ inputs.nova_validation_role_arn }}
       validation_canonical_paths: /v1/health/live,/v1/health/ready,/v1/capabilities,/v1/releases/info
       validation_legacy_404_paths: /healthz,/readyz,/api/transfers/uploads/initiate,/api/jobs,/api/v1/transfers/uploads/initiate

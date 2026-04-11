@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-04-04
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -14,7 +14,7 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 ## Inputs
 
 - Reusable workflow reference:
-  `REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>`
+  `REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@REPLACE_WITH_IMMUTABLE_SHA`
 - Required runtime evidence from Nova:
   - `deploy-output.json`
   - `deploy-output.sha256` when you want digest verification inside the workflow
@@ -33,8 +33,12 @@ This guide is designed as a 5-minute setup flow for downstream repos.
 
 ## Step-by-step commands
 
-1. Copy one minimal workflow from `examples/workflows/` into your consumer
-   repo.
+1. Copy one workflow from `examples/workflows/` into your consumer repo.
+   - `dash-post-deploy-validate.yml`, `react-next-post-deploy-validate.yml`,
+     and `rshiny-post-deploy-validate.yml` are the minimal inline-JSON /
+     no-AWS examples.
+   - `aws-post-deploy-validate.yml` is the AWS-backed variant for live runtime
+     checks via `aws_role_to_assume`.
 2. Make the authoritative Nova `deploy-output.json` available to the consumer
    workflow as one of:
    - a checked-in file path
@@ -48,6 +52,8 @@ This guide is designed as a 5-minute setup flow for downstream repos.
    `post-deploy-validation-report` artifact.
 5. Set `aws_role_to_assume` only when you want the reusable workflow to check
    live AWS runtime state in addition to the public HTTPS contract.
+   That path also requires `permissions: id-token: write` in the caller
+   workflow and a matching GitHub OIDC trust policy on the role.
 
 ## Acceptance checks
 

@@ -40,6 +40,7 @@ localhost origins for common browser ports.
 Primary contract endpoints:
 
 - `POST /v1/transfers/uploads/initiate`
+- `POST /v1/transfers/uploads/introspect`
 - `POST /v1/transfers/uploads/sign-parts`
 - `POST /v1/transfers/uploads/complete`
 - `POST /v1/transfers/uploads/abort`
@@ -49,6 +50,7 @@ Primary contract endpoints:
 - `GET /v1/exports/{export_id}`
 - `POST /v1/exports/{export_id}/cancel`
 - `GET /v1/capabilities`
+- `GET /v1/capabilities/transfers`
 - `POST /v1/resources/plan`
 - `GET /v1/releases/info`
 - `GET /v1/health/live`

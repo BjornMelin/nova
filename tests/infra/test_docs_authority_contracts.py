@@ -23,15 +23,16 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "README.md",
         "AGENTS.md",
         "docs/README.md",
+        "docs/PRD.md",
         "docs/architecture/README.md",
         "docs/overview/IMPLEMENTATION-STATUS-MATRIX.md",
         "docs/contracts/README.md",
         "docs/runbooks/README.md",
         "docs/clients/README.md",
         "release/README.md",
-        "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
-        "docs/architecture/adr/ADR-0033` through `ADR-0039",
-        "docs/architecture/spec/SPEC-0027` through `SPEC-0031",
+        "docs/architecture/requirements.md",
+        "`docs/architecture/adr/ADR-0033` through `ADR-0039`",
+        "`docs/architecture/spec/SPEC-0027` through `SPEC-0031`",
         "docs/contracts/deploy-output-authority-v2.schema.json",
         "docs/contracts/workflow-post-deploy-validate.schema.json",
         "docs/runbooks/release/release-runbook.md",
@@ -42,18 +43,19 @@ def test_active_docs_index_tracks_canonical_surface() -> None:
         "docs/architecture/adr/ADR-0011-cicd-hybrid-github-aws-promotion.md",
         "docs/architecture/spec/SPEC-0004-ci-cd-and-docs.md",
         "docs/history/",
+        "docs/plan/GREENFIELD-WAVE-2-EXECUTION.md",
+        "docs/overview/CANONICAL-TARGET-2026-04.md",
+        "docs/overview/DEPENDENCY-LEVERAGE-AUDIT.md",
+        "docs/overview/ENTROPY-REDUCTION-LEDGER.md",
+        "docs/standards/DECISION-FRAMEWORKS-GREENFIELD-2026.md",
+        "docs/architecture/requirements-wave-2.md",
         "docs/plan/PLAN.md",
         "## Active supporting docs",
     ]:
         assert required in text
 
     for forbidden in [
-        "docs/overview/CANONICAL-TARGET-2026-04.md",
         "docs/architecture/spec/superseded/SPEC-0000-http-api-contract.md",
-        "docs/overview/DEPENDENCY-LEVERAGE-AUDIT.md",
-        "docs/overview/ENTROPY-REDUCTION-LEDGER.md",
-        "docs/standards/DECISION-FRAMEWORKS-GREENFIELD-2026.md",
-        "docs/architecture/requirements-wave-2.md",
     ]:
         assert forbidden not in text
 
@@ -75,8 +77,8 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
 
     for required in [
         "## Active canonical docs",
-        "## Active architecture/program authority",
-        "## Active supporting architecture/program docs",
+        "## Active architecture authority",
+        "## Active supporting architecture docs",
         "## Historical / superseded",
         "./overview/ACTIVE-DOCS-INDEX.md",
         "./contracts/deploy-output-authority-v2.schema.json",
@@ -85,7 +87,7 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
         assert required in docs_router
 
     for required in [
-        "canonical wave-2 serverless baseline",
+        "canonical serverless baseline with AWS-native release control plane",
         "adr/ADR-0033-canonical-serverless-platform.md",
         "spec/SPEC-0031-docs-and-tests-authority-reset.md",
         "../history/",
@@ -95,7 +97,6 @@ def test_root_authority_routers_point_to_canonical_indexes() -> None:
         assert required in architecture_router
 
     for forbidden in [
-        "./overview/CANONICAL-TARGET-2026-04.md",
         "SPEC-0000-http-api-contract.md",
     ]:
         assert forbidden not in docs_router
@@ -181,6 +182,61 @@ def test_contracts_readme_tracks_current_schemas() -> None:
         "ssm-runtime-base-url-v1.schema.json",
     ]:
         assert forbidden not in text
+
+
+def test_package_local_docs_route_to_active_authority() -> None:
+    """Selected package READMEs should defer to active docs authority."""
+    contracts_readme = _read("packages/contracts/README.md")
+    python_sdk_readme = _read("packages/nova_sdk_py/README.md")
+    typescript_sdk_readme = _read("packages/nova_sdk_ts/README.md")
+    r_sdk_readme = _read("packages/nova_sdk_r/README.md")
+
+    for required in [
+        "docs/contracts/README.md",
+        "docs/overview/ACTIVE-DOCS-INDEX.md",
+        (
+            "uv run pytest -q "
+            "packages/nova_file_api/tests/test_generated_client_smoke.py"
+        ),
+    ]:
+        assert required in contracts_readme
+
+    for required in [
+        "docs/clients/README.md",
+        "docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md",
+        "uv build packages/nova_sdk_py",
+    ]:
+        assert required in python_sdk_readme
+
+    for required in [
+        "docs/clients/README.md",
+        "docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md",
+    ]:
+        assert required in typescript_sdk_readme
+        assert required in r_sdk_readme
+
+    for forbidden in [
+        "source .venv/bin/activate",
+    ]:
+        assert forbidden not in contracts_readme
+        assert forbidden not in python_sdk_readme
+        assert forbidden not in typescript_sdk_readme
+        assert forbidden not in r_sdk_readme
+
+
+def test_local_scan_backstop_excludes_generated_artifact_trees() -> None:
+    """Repo-local scan ignore defaults should list generated artifact trees."""
+    ignore_text = _read(".ignore")
+
+    for required in [
+        "cdk.out/",
+        "infra/nova_cdk/cdk.out/",
+        ".artifacts/",
+        ".tmp/",
+        "dist/",
+        "node_modules/",
+    ]:
+        assert required in ignore_text
 
 
 def test_active_docs_do_not_reference_removed_root_final_plan() -> None:

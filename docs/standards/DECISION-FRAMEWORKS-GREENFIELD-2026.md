@@ -1,6 +1,9 @@
 # Decision matrices
 
-> **Implementation state:** Decision frameworks used for the approved wave-2 architecture and repo simplification program.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical decision framework record retained for traceability. It is not active current-state authority.
 
 All scores use custom weights specialized to Nova’s actual workload rather than the default generic template.
 

@@ -26,12 +26,14 @@
 - Package name: `nova`
 - Source package directory: `packages/nova_sdk_r`
 - Strategy: thin `httr2` wrapper package
+- Status: internal release artifact, not a public support/publishing contract
 - No OpenAPI Generator R output in the canonical repo
 
 ## Shared principles
 
 - one client package per language
-- one committed reduced public OpenAPI artifact for TS/Python/R generation:
+- one committed reduced public OpenAPI artifact for TS/Python generation and
+  internal R artifact generation:
   `packages/contracts/openapi/nova-file-api.public.openapi.json`
 - one auth model across all clients
 - typed models generated where it materially reduces maintenance

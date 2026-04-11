@@ -1,6 +1,9 @@
 # Entropy reduction ledger
 
-> **Implementation state:** Active target-state simplification ledger for the implementation program.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical simplification ledger retained for traceability. It is not active current-state authority.
 
 
 ## Highest-value deletions

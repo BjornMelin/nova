@@ -13,15 +13,17 @@ Related:
   - "[SPEC-0031: Docs and tests authority reset](../spec/SPEC-0031-docs-and-tests-authority-reset.md)"
 ---
 
-> **Implementation state:** Implemented on the current branch docs/test surface, with only remaining truth-model cleanup still pending.
+> **Implementation state:** Implemented as the active docs/test authority model.
 
 ## Decision
 
-Reduce the active docs authority set to a small canonical surface and archive or delete historical material from the active path.
+Reduce the active docs authority set to a small canonical surface and archive
+or delete historical material from the active path.
 
 ## Context
 
-The attached repo’s docs and related contract tests have grown large enough to become a maintenance problem.
+The repo’s docs and related contract tests had grown large enough to become a
+maintenance problem and to blur active versus historical authority.
 
 ## Canonical active set
 
@@ -32,9 +34,12 @@ The attached repo’s docs and related contract tests have grown large enough to
 - active runbooks
 - active client docs
 - current implementation prompts if intentionally kept in-repo
+- stable current-state requirements / PRD summaries
 
 ## Consequences
 
 - archive or delete historical plans from the active docs path
 - remove tests that exist only to police non-canonical docs sprawl
 - keep a much smaller, explicit authority index
+- keep active package-local docs and downstream guides routed back to the
+  smaller authority set instead of acting as standalone truth

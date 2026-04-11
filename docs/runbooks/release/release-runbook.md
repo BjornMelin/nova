@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last updated: 2026-04-04
+Last updated: 2026-04-10
 
 ## 1. Purpose
 
@@ -30,11 +30,11 @@ provenance-bound runtime validation.
 2. The `NovaReleaseControlPlaneStack` is deployed in the target AWS account.
 3. Either:
    - `NovaReleaseSupportStack` is deployed in the same account and provides the
-     canonical dev/prod CloudFormation execution roles and matches the current
-     checked-in support-stack template, or
-   - explicit `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
-     `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` values are supplied to the release
-     control plane.
+     canonical dev/prod CloudFormation execution roles, or
+   - an explicit equivalent pair of
+     `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
+     `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` values is supplied to the release
+     control plane to bypass the support-stack-owned default.
 4. The configured `RELEASE_CONNECTION_ARN` already exists and is
    `AVAILABLE`.
 5. Staging and prod CodeArtifact repositories already exist and are distinct.
@@ -45,11 +45,11 @@ provenance-bound runtime validation.
    - `CODEARTIFACT_PROD_REPOSITORY`
    - `RELEASE_SIGNING_SECRET_ID`
    - `DEV_RUNTIME_STACK_ID`
-   - `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN`
    - `DEV_RUNTIME_CONFIG_PARAMETER_NAME`
    - `PROD_RUNTIME_STACK_ID`
-   - `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN`
    - `PROD_RUNTIME_CONFIG_PARAMETER_NAME`
+   - if the explicit override path is used, `DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN`
+     and `PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN`
 7. If the first `api-nova` production cutover is using temporary wildcard CORS,
    GitHub issue `#111` remains open until the prod allowlist is tightened.
 
@@ -100,7 +100,9 @@ executor workflows as the canonical Nova verification shape.
    - `PromoteAndDeployProd`
 3. Confirm the release-control-plane stack either imported explicit
    CloudFormation execution role ARNs or synthesized `NovaReleaseSupportStack`
-   and wired those role outputs into the pipeline environment.
+   because one or both role ARNs were omitted, and then wired the resolved role
+   outputs into the pipeline environment. Only an explicit dev+prod pair skips
+   the support stack.
 4. Confirm the dev stage:
    - validates `release/RELEASE-PREP.json`
    - when `NovaReleaseSupportStack` is the canonical execution-role provider,
@@ -137,6 +139,8 @@ executor workflows as the canonical Nova verification shape.
    - the exported observability dashboard
    - the latest transfer-policy AppConfig deployment state
    - the transfer spend budget notification baseline
+   That caller workflow must also allow `id-token: write`, and the role trust
+   policy must accept the calling repository via GitHub OIDC.
 4. Confirm `validation_status=passed` and retain the uploaded
    `post-deploy-validation-report` artifact.
 5. When `aws_role_to_assume` is set, also confirm

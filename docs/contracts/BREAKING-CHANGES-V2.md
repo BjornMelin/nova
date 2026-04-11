@@ -1,8 +1,9 @@
 # Breaking changes v2
 
-> **Implementation state:** Approved hard-cut change record for the wave-2 program.
+> **Implementation state:** Active hard-cut change record for the current baseline.
 
-This file records the intentional hard cuts in the second green-field program.
+This file records the intentional hard cuts already accepted into the current
+Nova baseline.
 
 ## Authority / references
 
@@ -11,7 +12,6 @@ This file records the intentional hard cuts in the second green-field program.
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/requirements.md`
-- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Public API
 

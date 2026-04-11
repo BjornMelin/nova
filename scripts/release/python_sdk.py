@@ -37,7 +37,7 @@ _TODO_MARKER_PATTERN = re.compile(r"\b(?:TODO|FIXME|XXX)\b")
 
 @dataclass(frozen=True)
 class PythonGenerationTarget:
-    """Python SDK package synced from one committed OpenAPI document."""
+    """Python SDK package synced from one reduced public OpenAPI artifact."""
 
     spec_path: Path
     output_path: Path

@@ -1,6 +1,9 @@
 # Canonical target state (2026-04)
 
-> **Implementation state:** Approved target-state overview. It describes where Nova is going, not what is fully implemented today.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical target-state overview retained for traceability. It is not active current-state authority.
 
 ## System summary
 

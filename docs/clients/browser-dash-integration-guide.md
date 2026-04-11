@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova client surface
-Last reviewed: 2026-04-02
+Last reviewed: 2026-04-10
 
 This guide is the canonical downstream path for using
 `packages/nova_dash_bridge` in a Dash app after the browser-only hard cut.
@@ -63,7 +63,8 @@ Use an SDK or plain HTTP client when you need server-side Nova calls.
   Dash 4.x apps
 - Python server-side calls: `pip install nova-sdk-py`
 - TypeScript server-side calls: `@nova/sdk`
-- R consumers: package `nova`
+- R consumers inside Nova-controlled environments only: package `nova`
+  (internal release artifact, not a public support contract)
 
 ## Step 3: keep the runtime URL in app config
 

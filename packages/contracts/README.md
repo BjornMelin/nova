@@ -3,6 +3,10 @@
 OpenAPI artifacts, canonical fixtures, and schema utilities for Nova runtime
 services.
 
+Start with `docs/contracts/README.md` for the active contract authority set and
+`docs/overview/ACTIVE-DOCS-INDEX.md` for the current docs router. This package
+README is a package-local orientation note, not the operator authority surface.
+
 ## OpenAPI artifacts
 
 - Full runtime export:
@@ -23,7 +27,5 @@ contract authority.
 Contract verification includes generated-client smoke coverage:
 
 ```bash
-source .venv/bin/activate && \
-uv run pytest -q \
-  packages/nova_file_api/tests/test_generated_client_smoke.py
+uv run pytest -q packages/nova_file_api/tests/test_generated_client_smoke.py
 ```

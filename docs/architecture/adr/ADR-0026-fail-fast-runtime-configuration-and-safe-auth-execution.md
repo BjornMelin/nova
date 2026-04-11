@@ -40,7 +40,7 @@ Drift created two failure modes:
 2. synchronous JWT verification sharing ambient AnyIO limits with unrelated
    blocking work.
 
-The active runtime safety ADR must define the target-state rules directly.
+The active runtime safety ADR must define the current-state rules directly.
 
 ## Alternatives and scored decision
 

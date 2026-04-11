@@ -1,6 +1,9 @@
 # Requirements -- wave 2 canonical Nova
 
-> **Implementation state:** Approved target-state requirements for the wave-2 hard cut.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical target-state requirement set retained for traceability. It is not active current-state authority.
 
 ## Product requirements
 
