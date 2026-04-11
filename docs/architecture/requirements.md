@@ -93,7 +93,7 @@ Auth0 tenant bootstrap, audit, and deploy automation must stay bound to the
 shared template, reusable workflow API, and repo-owned tooling.
 
 <a id="fr-0013-ssm-runtime-base-url-authority-for-deploy-validation"></a>
-### FR-0013 SSM runtime base URL authority for deploy validation
+### FR-0013 Deploy-output runtime base URL authority for deploy validation
 
 Deploy validation must consume one machine-readable runtime authority. In the
 current baseline that published authority is `deploy-output.json`; runtime
@@ -279,7 +279,7 @@ Auth0 tenant automation remains bounded to repo-owned template, scripts, and
 reusable workflow surfaces.
 
 <a id="ir-0013-ssm-base-url-source-of-truth-for-release-validation"></a>
-### IR-0013 SSM base URL source of truth for release validation
+### IR-0013 Deploy-output source of truth for release validation
 
 Historical SSM-only base-url assumptions are no longer active. Release
 validation authority is deploy-output-first, with runtime config parameters

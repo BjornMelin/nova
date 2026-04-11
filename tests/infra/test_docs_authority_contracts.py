@@ -220,6 +220,8 @@ def test_package_local_docs_route_to_active_authority() -> None:
     ]:
         assert forbidden not in contracts_readme
         assert forbidden not in python_sdk_readme
+        assert forbidden not in typescript_sdk_readme
+        assert forbidden not in r_sdk_readme
 
 
 def test_local_scan_backstop_excludes_generated_artifact_trees() -> None:
