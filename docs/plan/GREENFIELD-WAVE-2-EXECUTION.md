@@ -1,6 +1,9 @@
 # Green-field wave 2 execution plan
 
-> **Implementation state:** Active implementation program for the approved wave-2 hard cut.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical planning artifact retained for traceability. Do not treat this file as active docs authority.
 
 
 ## Goal

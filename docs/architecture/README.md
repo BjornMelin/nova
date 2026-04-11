@@ -1,7 +1,7 @@
 # Nova architecture authority map
 
 Status: Active
-Current repository state: **canonical wave-2 serverless baseline**
+Current repository state: **canonical serverless baseline with AWS-native release control plane**
 Last reviewed: 2026-04-10
 
 ## Purpose
@@ -23,7 +23,6 @@ The active architecture baseline is:
 
 Use these documents for active architecture decisions and implementation:
 
-- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `adr/ADR-0033-canonical-serverless-platform.md`
 - `adr/ADR-0034-eliminate-auth-service-and-session-auth.md`
 - `adr/ADR-0035-replace-generic-jobs-with-export-workflows.md`
@@ -44,10 +43,11 @@ Use these documents for active architecture decisions and implementation:
 ## Active supporting current-state docs
 
 These docs remain current and useful even though they are not part of the
-small canonical wave-2 authority core:
+small canonical authority core:
 
 - `adr/index.md`
 - `spec/index.md`
+- `../requirements.md`
 - `adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
 - `adr/ADR-0011-cicd-hybrid-github-aws-promotion.md`
 - `adr/ADR-0031-reusable-github-workflow-api-and-versioning-policy-for-deployment-automation.md`
@@ -70,6 +70,8 @@ small canonical wave-2 authority core:
 
 Use only for traceability:
 
+- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `../overview/CANONICAL-TARGET-2026-04.md`
 - `adr/superseded/`
 - `spec/superseded/`
 - `../history/`

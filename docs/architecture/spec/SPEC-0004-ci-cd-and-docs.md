@@ -159,7 +159,10 @@ post-merge execution manifest from the merged commit SHA.
 Secrets policy:
 
 - No static AWS access keys in GitHub secrets.
-- GitHub-hosted workflows do not assume AWS release or deploy roles.
+- GitHub-hosted workflows do not assume AWS release or runtime-deploy roles.
+- GitHub-hosted post-deploy validation may optionally assume a read-only AWS
+  role under the reusable workflow contract when live runtime checks are
+  required.
 - Release signing material is read only by the AWS-native release control plane.
 
 ## 5. Build and exported variable contract
@@ -181,7 +184,13 @@ build contract:
    - `RELEASE_MANIFEST_SHA256`
    - `CHANGED_UNITS`
 
-Required CodeBuild environment inputs:
+Required CodeBuild environment inputs after release-control synthesis:
+
+`DEV_RUNTIME_CFN_EXECUTION_ROLE_ARN` and
+`PROD_RUNTIME_CFN_EXECUTION_ROLE_ARN` remain required inside the synthesized
+CodeBuild environment, but they may come either from explicit CDK inputs or
+from `NovaReleaseSupportStack` outputs when the support stack owns the default
+execution-role path.
 
 - `CODEARTIFACT_DOMAIN`
 - `CODEARTIFACT_STAGING_REPOSITORY` (build publish target / promotion source)
@@ -251,7 +260,6 @@ all affected operational docs:
 - `docs/contracts/README.md` and affected `docs/contracts/**` schemas
 - affected `docs/clients/**` docs or workflow examples when downstream
   integration contracts change
-- `docs/plan/PLAN.md`
 - `docs/runbooks/README.md` when runbook authority is changed
 - `docs/runbooks/release/**` and `docs/runbooks/provisioning/**` when release,
   deploy, or validation behavior changes

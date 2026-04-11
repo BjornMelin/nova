@@ -1,7 +1,7 @@
-# External references for the current docs + wave-2 program
+# External references for the current docs baseline
 
 These are the primary official or upstream references used to shape the current
-docs pack and the approved target-state program.
+docs pack and the active current-state authority set.
 
 ## FastAPI and Starlette
 

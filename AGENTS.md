@@ -68,6 +68,10 @@ the bulk data plane. Product and API detail: `README.md`.
   generated from the committed reduced public OpenAPI artifact at
   `packages/contracts/openapi/nova-file-api.public.openapi.json`; the full
   runtime export remains `packages/contracts/openapi/nova-file-api.openapi.json`.
+- Release control plane: `NovaReleaseSupportStack` is the default provider of
+  dev/prod CloudFormation execution roles unless explicit equivalent role ARNs
+  are supplied, and release deploy stages fail closed on support-stack drift
+  before runtime deploys when that support-stack path is active.
 - Deployed base URL and release provenance: `deploy-output.json` (not manual
   or free-text config when that artifact exists).
 

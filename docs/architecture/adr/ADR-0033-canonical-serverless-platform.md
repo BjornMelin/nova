@@ -17,7 +17,6 @@ Related:
   - "[ADR-0038: Reset docs authority](./ADR-0038-docs-authority-reset.md)"
   - "[ADR-0039: Explicit Lambda runtime bootstrap and typed runtime container](./ADR-0039-lambda-runtime-bootstrap-and-runtime-container.md)"
   - "[requirements.md](../requirements.md)"
-  - "[GREENFIELD-WAVE-2-EXECUTION.md](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Decision

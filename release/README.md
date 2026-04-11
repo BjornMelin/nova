@@ -1,7 +1,7 @@
 # Release metadata
 
 Status: Active
-Last reviewed: 2026-03-24
+Last reviewed: 2026-04-10
 
 This directory holds **machine-owned committed release metadata** consumed by
 the AWS-native release control plane and repo contract checks. Human operator
@@ -14,7 +14,6 @@ Canonical path constants: [`scripts/release/release_paths.py`](../scripts/releas
 
 - `AGENTS.md`
 - `docs/overview/IMPLEMENTATION-STATUS-MATRIX.md`
-- `docs/plan/GREENFIELD-WAVE-2-EXECUTION.md`
 - `docs/architecture/adr/ADR-0033-canonical-serverless-platform.md`
 - `docs/architecture/adr/ADR-0038-docs-authority-reset.md`
 - `docs/architecture/spec/SPEC-0027-public-api-v2.md`

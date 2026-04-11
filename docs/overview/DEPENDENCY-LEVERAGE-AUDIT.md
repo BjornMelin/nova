@@ -1,6 +1,9 @@
 # Dependency leverage audit
 
-> **Implementation state:** Active target-state audit input for the implementation program.
+Status: Historical reference
+Last archived: 2026-04-10
+
+> **Implementation state:** Historical audit input retained for traceability. It is not active current-state authority.
 
 ## Authority / references
 
@@ -18,7 +21,6 @@
 - `../architecture/spec/SPEC-0030-sdk-generation-and-package-layout.md`
 - `../architecture/spec/SPEC-0031-docs-and-tests-authority-reset.md`
 - `../architecture/requirements.md`
-- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
 
 ## Principle
 

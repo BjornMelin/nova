@@ -2,7 +2,7 @@
 
 Status: Active
 Current repository state: **canonical serverless baseline**
-Last reviewed: 2026-04-04
+Last reviewed: 2026-04-10
 
 ## Current machine-readable contract set
 
@@ -23,7 +23,7 @@ These schemas remain the current machine-readable baseline contract artifacts:
 - `BREAKING-CHANGES-V2.md`
 
 That file remains the authoritative human-readable ledger of the intentional
-hard cuts and already-landed contract changes across the wave-2 program.
+hard cuts and already-landed contract changes across the current baseline.
 
 ## Rule
 

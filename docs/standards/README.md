@@ -1,8 +1,8 @@
 # Engineering standards
 
 Status: Active
-Current repository state: **canonical wave-2 serverless baseline**
-Last reviewed: 2026-03-28
+Current repository state: **canonical serverless baseline**
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -15,7 +15,6 @@ surface.
 2. `../README.md`
 3. `../architecture/README.md`
 4. `./repository-engineering-standards.md`
-5. `./DECISION-FRAMEWORKS-GREENFIELD-2026.md`
 
 ## Active standards
 
@@ -26,11 +25,10 @@ surface.
 ## Authority / references
 
 - `../architecture/adr/ADR-0023-hard-cut-v1-canonical-route-surface.md`
-- `../architecture/spec/superseded/SPEC-0000-http-api-contract.md`
 - `../architecture/spec/SPEC-0016-v1-route-namespace-and-literal-guardrails.md`
 - `../architecture/spec/SPEC-0027-public-api-v2.md`
 - `../architecture/requirements.md`
-- `../plan/GREENFIELD-WAVE-2-EXECUTION.md`
+- `../runbooks/release/release-runbook.md`
 
 ## Rule
 

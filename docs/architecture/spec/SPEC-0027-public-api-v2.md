@@ -12,7 +12,6 @@ Related:
   - "[SPEC-0028: Export workflow state machine](./SPEC-0028-export-workflow-state-machine.md)"
   - "[SPEC-0029: Canonical serverless platform](./SPEC-0029-platform-serverless.md)"
   - "[requirements.md](../requirements.md)"
-  - "[GREENFIELD WAVE 2 Execution](../../plan/GREENFIELD-WAVE-2-EXECUTION.md)"
 ---
 
 ## Summary
