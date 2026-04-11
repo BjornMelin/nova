@@ -2,7 +2,7 @@
 
 Status: Active
 Owner: nova release architecture
-Last reviewed: 2026-04-02
+Last reviewed: 2026-04-10
 
 ## Purpose
 
@@ -57,9 +57,6 @@ done
 
 ## Consumed by
 
-- `release-plan.yml`
-- `post-deploy-validate.yml`
-- `reusable-post-deploy-validate.yml`
 - `auth0-tenant-deploy.yml`
 - `reusable-auth0-tenant-deploy.yml`
 

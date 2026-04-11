@@ -1,7 +1,7 @@
 # Client and downstream integration docs
 
 Status: Active
-Current repository state: **canonical wave-2 serverless baseline**
+Current repository state: **canonical serverless baseline**
 Last reviewed: 2026-04-10
 
 ## Start here
@@ -23,6 +23,7 @@ Last reviewed: 2026-04-10
 - `post-deploy-validation-integration-guide.md` -- downstream reusable workflow
   setup for runtime validation.
 - `examples/workflows/dash-post-deploy-validate.yml`
+- `examples/workflows/aws-post-deploy-validate.yml`
 - `examples/workflows/rshiny-post-deploy-validate.yml`
 - `examples/workflows/react-next-post-deploy-validate.yml`
 
@@ -56,7 +57,8 @@ bridge surface, and the surviving reusable post-deploy validation workflow
 only.
 Client-facing SDK guidance should treat the committed reduced public OpenAPI
 artifact at `packages/contracts/openapi/nova-file-api.public.openapi.json` as
-the shared generation source of truth for TS, Python, and R clients.
+the shared generation source of truth for TS, Python, and internal R client
+artifacts.
 Downstream post-deploy validation should pass authoritative `deploy-output`
 content directly through `deploy_output_json` or `deploy_output_path`; do not
 assume a Nova GitHub deploy workflow run id exists.

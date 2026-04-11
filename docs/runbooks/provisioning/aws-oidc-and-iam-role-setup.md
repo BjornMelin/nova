@@ -10,7 +10,9 @@ Document the current AWS-native release IAM posture for Nova.
 
 Current state:
 
-- the surviving Nova GitHub workflows do not assume AWS roles
+- the surviving Nova release-plan workflow does not assume AWS roles
+- post-deploy validation may optionally assume one read-only AWS role through
+  GitHub OIDC when a downstream repo wants live runtime checks
 - release execution, package publication, and runtime deployment happen inside
   AWS CodePipeline / CodeBuild only
 - CloudFormation execution roles are consumed by the AWS-native release control
@@ -38,9 +40,11 @@ The active release role boundary is:
   and drives CloudFormation change sets
 - environment-scoped CloudFormation execution roles mutate runtime resources
 
-GitHub OIDC roles are not required for the surviving Nova release-plan or
-post-deploy-validation workflows. If legacy OIDC roles still exist, they
-should be removed after the AWS-native release path is verified.
+GitHub OIDC roles are not required for the surviving Nova release-plan
+workflow. A read-only OIDC role remains optional for
+`reusable-post-deploy-validate.yml` callers that want live AWS-backed runtime
+checks. If broader legacy OIDC roles still exist, they should be removed after
+the AWS-native release path is verified.
 
 ## Authority / references
 
@@ -103,7 +107,9 @@ should be removed after the AWS-native release path is verified.
 
 ## Acceptance checks
 
-1. No surviving Nova GitHub workflow requires an AWS OIDC role.
+1. No surviving Nova GitHub workflow requires an AWS OIDC role for release
+   execution or runtime deploy, and any retained OIDC role is read-only for
+   post-deploy validation only.
 2. `NovaReleaseSupportStack` or explicit equivalent IAM now owns the runtime
    CloudFormation execution-role boundary.
 3. The CodeBuild release role can deploy the runtime stacks and only pass the

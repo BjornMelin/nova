@@ -13,7 +13,8 @@ permissions:
 
 jobs:
   validate:
-    uses: REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@<pin-to-an-immutable-revision>
+    # Pin to immutable workflow revision to prevent mutable tag drift.
+    uses: REPLACE_WITH_NOVA_REPO/.github/workflows/reusable-post-deploy-validate.yml@REPLACE_WITH_IMMUTABLE_SHA
     with:
       deploy_repo: REPLACE_WITH_NOVA_REPO
       deploy_output_json: ${{ inputs.nova_deploy_output_json }}

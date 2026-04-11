@@ -1,7 +1,7 @@
 # nova-cdk
 
 Canonical CDK v2 Python app for the Nova serverless runtime, release-support
-IAM roles, and the optional AWS-native release control plane.
+IAM roles, and the AWS-native release control plane.
 
 ## Local commands
 
@@ -135,8 +135,10 @@ uv run --package nova-cdk python app.py
   truth, and the scoped CDK warning is acknowledged at the app level.
 - When `release_github_owner`, `release_github_repo`, and
   `release_connection_arn` are provided through CDK context or environment,
-  the app also synthesizes the release stacks. By default it creates
-  `NovaReleaseSupportStack` first and then `NovaReleaseControlPlaneStack`.
+  the app also synthesizes the release stacks. When one or both execution-role
+  ARNs are absent, it first creates `NovaReleaseSupportStack` and then
+  `NovaReleaseControlPlaneStack`; only an explicit dev+prod role-ARN pair skips
+  the support stack.
 - Release-only bootstrap can synthesize `NovaReleaseSupportStack` without
   `hosted_zone_id`. In that mode the default execution roles omit Route 53
   hosted-zone permissions until the support stack is redeployed with
@@ -178,7 +180,8 @@ uv run --package nova-cdk python app.py
   - `PROD_RUNTIME_STACK_ID`
   instead of duplicating per-environment domain, certificate, hosted-zone, JWT,
   CORS values, and extra runtime deploy-role hops across many
-  release-control-plane inputs.
+  release-control-plane inputs. The dev/prod execution-role ARNs are resolved
+  either from explicit overrides or from `NovaReleaseSupportStack`.
 - Configure `allowed_origins` via CDK context or `STACK_ALLOWED_ORIGINS` for
   production deployments; non-prod stacks default to `*`.
 - When you pass `STACK_ALLOWED_ORIGINS` through the environment, provide a JSON
