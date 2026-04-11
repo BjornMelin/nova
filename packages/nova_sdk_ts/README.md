@@ -15,6 +15,10 @@ Subpath exports (no package-root barrel):
 `@nova/sdk/types` exposes the generated public request/response and schema
 types.
 
+Package-local guidance is intentionally thin. Use
+`docs/clients/README.md` for downstream integration guidance and
+`docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` for the current package policy.
+
 The package does not ship Zod or bundled runtime validation helpers, and it
 does not retain a bespoke Nova transport/runtime package.
 

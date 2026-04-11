@@ -60,7 +60,7 @@ class Operation:
 
 @dataclass(frozen=True)
 class GenerationTarget:
-    """Output targets for one committed OpenAPI document."""
+    """Output targets for one committed reduced public OpenAPI document."""
 
     spec_path: Path
     ts_package_root: Path
@@ -79,7 +79,10 @@ TARGETS = (
         ts_package_root=REPO_ROOT / "packages" / "nova_sdk_ts",
         r_package_name="nova",
         r_package_title="Nova R client",
-        r_package_description="Thin httr2 client for the Nova public API.",
+        r_package_description=(
+            "Thin httr2 client for the Nova public API "
+            "(internal release artifact)."
+        ),
         r_output_path=REPO_ROOT
         / "packages"
         / "nova_sdk_r"
