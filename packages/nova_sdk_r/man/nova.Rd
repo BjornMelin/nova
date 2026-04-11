@@ -22,7 +22,7 @@
 \alias{nova_sign_upload_parts}
 \docType{package}
 \title{Nova R client}
-\description{Thin httr2 client for the Nova public API.}
+\description{Thin httr2 client for the Nova public API (internal release artifact).}
 \usage{
   create_nova_client(base_url, bearer_token = NULL, bearer_token_env = "NOVA_BEARER_TOKEN", default_headers = NULL, timeout_seconds = 30, user_agent = NULL)
   nova_bearer_token(token = NULL, env_var = "NOVA_BEARER_TOKEN")

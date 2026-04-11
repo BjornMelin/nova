@@ -1,17 +1,18 @@
 # `nova`
 
-Thin httr2 client for the Nova public API.
+Thin httr2 client for the Nova public API (internal release artifact).
 
-This package is an internal release artifact generated from the committed
-reduced public Nova OpenAPI artifact and kept in-repo so Nova release tooling
-can build and check the real package tree.
+This package is generated from the committed reduced public Nova
+OpenAPI artifact and is kept in-repo so Nova release tooling can
+build and check the real package tree.
 The generated client is intentionally thin and follows the current
 public Nova API contract: bearer JWT auth, JSON bodies, concrete
 path/query parameters, and plain R list responses.
 
-Package-local guidance is intentionally thin. Use `docs/clients/README.md` for
-downstream validation/browser guidance and
-`docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` for the current package policy.
+Package-local guidance is intentionally thin. Use
+`docs/clients/README.md` for downstream validation/browser guidance
+and `docs/clients/CLIENT-SDK-CANONICAL-PACKAGES.md` for the current
+package policy.
 
 ## Surface
 

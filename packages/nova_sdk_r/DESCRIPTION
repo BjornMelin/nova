@@ -3,7 +3,7 @@ Type: Package
 Title: Nova R client
 Version: 0.1.0
 Authors@R: person("Nova SDK Team", email = "sdk@nova.invalid", role = c("aut", "cre"))
-Description: Thin httr2 client for the Nova public API.
+Description: Thin httr2 client for the Nova public API (internal release artifact).
 License: file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
